@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "smarthome-dashboard-v2",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "news": {
+      "0.1.4": {
+        "en": "Preserve panoramic camera aspect ratios when optimizing snapshots.",
+        "de": "Panorama-Seitenverhaeltnisse bleiben bei der Snapshot-Optimierung vollstaendig erhalten."
+      },
       "0.1.3": {
         "en": "Fix binary camera snapshot delivery and add an HTTP thumbnail fallback.",
         "de": "Binaere Kamera-Snapshots werden korrekt gesendet; HTTP-Fallback fuer Miniaturen ergaenzt."

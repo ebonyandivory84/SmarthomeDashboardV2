@@ -127,7 +127,7 @@ async function main(adapter) {
   const webRoot = resolveWebRoot(adapter);
   const widgetAssetsRoot = path.resolve(__dirname, "..", "assets");
   if (!Sharp) {
-    adapter.log.warn("Optional sharp module unavailable; camera snapshots will be forwarded without 640x360 conversion.");
+    adapter.log.warn("Optional sharp module unavailable; camera snapshots will be forwarded without max-size conversion.");
   }
   const devProxyEnabled = Boolean(adapter.config?.enableDevProxy);
   const configuredDevServerUrl =
@@ -1510,7 +1510,7 @@ async function optimizeSnapshotBuffer(sourceBuffer) {
   }
   return Sharp(sourceBuffer)
     .rotate()
-    .resize(CAMERA_SNAPSHOT_WIDTH, CAMERA_SNAPSHOT_HEIGHT, { fit: "cover", position: "centre" })
+    .resize(CAMERA_SNAPSHOT_WIDTH, CAMERA_SNAPSHOT_HEIGHT, { fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: CAMERA_SNAPSHOT_JPEG_QUALITY, mozjpeg: true })
     .toBuffer();
 }

@@ -6,7 +6,7 @@ Performance-first SmartHome dashboard for wall-mounted Android tablets. V2 is a 
 
 - One mounted dashboard page at a time
 - Camera previews are JPEG snapshots only
-- Snapshots are resized server-side to 640×360 at JPEG quality 65
+- Snapshots are resized within 640×360 at JPEG quality 65 while preserving the full aspect ratio
 - Binary WebSocket snapshots without Base64/JSON image payloads
 - Snapshot requests are staggered across the two-second refresh window
 - Exactly one live camera session at a time
@@ -53,7 +53,7 @@ Recommended fullscreen order:
 
 Opening another camera automatically releases the previous live session. Closing a camera removes its iframe/video/player from the DOM.
 
-The adapter uses optional `sharp` support for 640×360 JPEG conversion. If the native package is unavailable, snapshots continue to work without server-side resizing.
+The adapter uses optional `sharp` support to fit snapshots within 640×360 without cropping. Reolink Duo panoramas therefore remain fully visible at their wide aspect ratio. If the native package is unavailable, snapshots continue to work without server-side resizing.
 
 ## Grafana
 
