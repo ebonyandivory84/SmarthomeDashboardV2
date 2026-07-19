@@ -132,9 +132,12 @@ const encodedAudioCache = new Map<string, Promise<ArrayBuffer | null>>();
 const decodedAudioCache = new Map<string, Promise<AudioBuffer | null>>();
 const MAX_DECODED_AUDIO_CACHE = 48;
 const MAX_SOUND_CURSOR_KEYS = 320;
+const SYNTH_GAIN_BOOST = 2.4;
+let audioUnlockInstalled = false;
 
 export function configureUiSounds(settings?: UiSoundSettings) {
   uiSoundSettings = normalizeUiSoundSettings(settings);
+  installAudioUnlockHandlers();
 
   if (masterGainNode) {
     masterGainNode.gain.value = toMasterGain(uiSoundSettings.volume);
@@ -215,7 +218,7 @@ async function playSynthSoundAsync(sound: UiSound) {
       const gainNode = context.createGain();
       const startTime = now + (layer.delay || 0);
       const duration = Math.max(0.01, layer.duration);
-      const peakGain = layer.gain || 0.08;
+      const peakGain = Math.min(0.4, (layer.gain || 0.08) * SYNTH_GAIN_BOOST);
       const endTime = startTime + duration;
 
       oscillator.type = layer.type || "triangle";
@@ -409,7 +412,7 @@ function toMasterGain(volume: number) {
 }
 
 async function ensureAudioContextRunning(context: AudioContext) {
-  if (context.state !== "suspended") {
+  if (context.state === "running" || context.state === "closed") {
     return;
   }
 
@@ -418,6 +421,25 @@ async function ensureAudioContextRunning(context: AudioContext) {
   } catch {
     // Keep silent if browser still blocks audio.
   }
+}
+
+function installAudioUnlockHandlers() {
+  if (audioUnlockInstalled || Platform.OS !== "web" || typeof window === "undefined") {
+    return;
+  }
+
+  const unlockAudio = () => {
+    const context = getAudioContext();
+    if (!context || context.state === "running" || context.state === "closed") {
+      return;
+    }
+    void context.resume().catch(() => undefined);
+  };
+
+  window.addEventListener("pointerdown", unlockAudio, { capture: true, passive: true });
+  window.addEventListener("touchstart", unlockAudio, { capture: true, passive: true });
+  window.addEventListener("keydown", unlockAudio, { capture: true });
+  audioUnlockInstalled = true;
 }
 
 function trimDecodedAudioCache() {

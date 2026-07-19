@@ -288,12 +288,6 @@ export function SolarWidget({
         />
       </View>
 
-      {!compactWidget ? (
-        <Text style={[styles.footnote, { color: mutedTextColor }]}>
-          Tageswerte nutzen `dailyEnergyUnit={config.dailyEnergyUnit || "auto"}`. `auto` erkennt `Wh`/`kWh` aus
-          Strings oder schaetzt nackte Zahlen plausibel.
-        </Text>
-      ) : null}
       {missingCore ? <Text style={styles.warning}>Keine Solar-Daten gefunden. Pruefe Prefix und Key-Mapping.</Text> : null}
     </Pressable>
   );
@@ -1739,11 +1733,6 @@ const styles = StyleSheet.create({
   miniLabelCompact: {
     marginTop: 3,
     fontSize: 11,
-  },
-  footnote: {
-    color: palette.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
   },
   warning: {
     color: palette.danger,
