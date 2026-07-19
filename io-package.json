@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "smarthome-dashboard-v2",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "news": {
+      "0.1.2": {
+        "en": "Load the Expo Metro runtime required by production lazy chunks.",
+        "de": "Die fuer Production-Lazy-Chunks erforderliche Expo-Metro-Runtime wird geladen."
+      },
       "0.1.1": {
         "en": "Route all dashboard WebSocket paths through one HTTP upgrade handler.",
         "de": "Alle Dashboard-WebSocket-Pfade verwenden einen gemeinsamen HTTP-Upgrade-Handler."
