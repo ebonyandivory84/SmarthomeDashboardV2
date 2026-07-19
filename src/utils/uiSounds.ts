@@ -124,6 +124,16 @@ const SOUND_LIBRARY_BY_SET: Record<UiSoundSet, Record<UiSound, SoundLayer[]>> = 
   },
 };
 
+const DEFAULT_AUDIO_FILE_BY_SOUND: Record<UiSound, string> = {
+  tap: "keyok1.mp3",
+  toggle: "inputok1.wav",
+  panel: "scrdisplay1.wav",
+  page: "scrdisplay2.wav",
+  open: "scrdisplay1.wav",
+  close: "scrclose1.wav",
+  swipe: "scrscroll1.wav",
+};
+
 let audioContext: AudioContext | null = null;
 let masterGainNode: GainNode | null = null;
 let uiSoundSettings: UiSoundSettings = DEFAULT_UI_SOUND_SETTINGS;
@@ -133,7 +143,10 @@ const decodedAudioCache = new Map<string, Promise<AudioBuffer | null>>();
 const MAX_DECODED_AUDIO_CACHE = 48;
 const MAX_SOUND_CURSOR_KEYS = 320;
 const SYNTH_GAIN_BOOST = 2.4;
+const HTML_AUDIO_POOL_SIZE = 3;
+const htmlAudioPools = new Map<string, { cursor: number; items: HTMLAudioElement[] }>();
 let audioUnlockInstalled = false;
+let explicitSoundSequence = 0;
 
 export function configureUiSounds(settings?: UiSoundSettings) {
   uiSoundSettings = normalizeUiSoundSettings(settings);
@@ -142,24 +155,32 @@ export function configureUiSounds(settings?: UiSoundSettings) {
   if (masterGainNode) {
     masterGainNode.gain.value = toMasterGain(uiSoundSettings.volume);
   }
+
+  htmlAudioPools.forEach((pool) => {
+    pool.items.forEach((audio) => {
+      audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
+    });
+  });
 }
 
 export function playUiSound(sound: UiSound = "tap") {
+  explicitSoundSequence += 1;
   if (!uiSoundSettings.enabled) {
     return;
   }
 
-  playSynthSound(sound);
+  playDefaultUiSound(sound);
 }
 
 export function playConfiguredUiSound(soundIds: string[] | undefined, fallback: UiSound, cycleKey: string) {
+  explicitSoundSequence += 1;
   if (!uiSoundSettings.enabled) {
     return;
   }
 
   const normalizedSelection = normalizeSoundSelection(soundIds);
   if (!normalizedSelection.length) {
-    playSynthSound(fallback);
+    playDefaultUiSound(fallback);
     return;
   }
 
@@ -170,12 +191,19 @@ export function playConfiguredUiSound(soundIds: string[] | undefined, fallback: 
 
   const cursorKey = `${cycleKey}::${normalizedSelection.join("|")}`;
   const startIndex = soundCursor.get(cursorKey) || 0;
+  const soundId = normalizedSelection[startIndex % normalizedSelection.length];
+  if (playHtmlAudio(soundId, fallback)) {
+    rememberSoundCursor(cursorKey, (startIndex + 1) % normalizedSelection.length);
+    return;
+  }
   void playNextConfiguredSound(normalizedSelection, startIndex, fallback, cursorKey);
 }
 
 export function playSoundPreview(soundId: string) {
-  // Preview should always be audible in settings, even when global sounds are disabled.
-  playDecodedAudio(soundId, "tap");
+  explicitSoundSequence += 1;
+  if (!playHtmlAudio(soundId, "tap")) {
+    playDecodedAudio(soundId, "tap");
+  }
 }
 
 export function primeConfiguredSounds(soundIds: string[]) {
@@ -197,6 +225,50 @@ export function primeConfiguredSounds(soundIds: string[]) {
 
 function playSynthSound(sound: UiSound) {
   void playSynthSoundAsync(sound);
+}
+
+function playDefaultUiSound(sound: UiSound) {
+  if (!playHtmlAudio(DEFAULT_AUDIO_FILE_BY_SOUND[sound], sound)) {
+    playSynthSound(sound);
+  }
+}
+
+function playHtmlAudio(soundId: string, fallback: UiSound) {
+  if (Platform.OS !== "web" || typeof window === "undefined" || typeof Audio === "undefined") {
+    return false;
+  }
+
+  const uri = resolveLcarsSoundUri(soundId);
+  if (!uri) {
+    return false;
+  }
+
+  try {
+    let pool = htmlAudioPools.get(soundId);
+    if (!pool) {
+      const items = Array.from({ length: HTML_AUDIO_POOL_SIZE }, () => {
+        const audio = new Audio(uri);
+        audio.preload = "auto";
+        audio.setAttribute("playsinline", "true");
+        audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
+        return audio;
+      });
+      pool = { cursor: 0, items };
+      htmlAudioPools.set(soundId, pool);
+    }
+
+    const audio = pool.items[pool.cursor % pool.items.length];
+    pool.cursor = (pool.cursor + 1) % pool.items.length;
+    audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
+    audio.currentTime = 0;
+    const playback = audio.play();
+    if (playback && typeof playback.catch === "function") {
+      void playback.catch(() => playSynthSound(fallback));
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function playSynthSoundAsync(sound: UiSound) {
@@ -411,6 +483,10 @@ function toMasterGain(volume: number) {
   return (normalizedVolume / 100) * 0.32;
 }
 
+function toHtmlAudioVolume(volume: number) {
+  return Math.max(0, Math.min(100, volume)) / 100;
+}
+
 async function ensureAudioContextRunning(context: AudioContext) {
   if (context.state === "running" || context.state === "closed") {
     return;
@@ -439,6 +515,27 @@ function installAudioUnlockHandlers() {
   window.addEventListener("pointerdown", unlockAudio, { capture: true, passive: true });
   window.addEventListener("touchstart", unlockAudio, { capture: true, passive: true });
   window.addEventListener("keydown", unlockAudio, { capture: true });
+  window.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        !target ||
+        target.closest("input, textarea, select, option") ||
+        target.closest("[aria-disabled='true']")
+      ) {
+        return;
+      }
+
+      const sequenceAtCapture = explicitSoundSequence;
+      window.setTimeout(() => {
+        if (uiSoundSettings.enabled && explicitSoundSequence === sequenceAtCapture) {
+          playDefaultUiSound("tap");
+        }
+      }, 0);
+    },
+    { capture: true, passive: true }
+  );
   audioUnlockInstalled = true;
 }
 
