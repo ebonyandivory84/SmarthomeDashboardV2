@@ -1,0 +1,59 @@
+{
+  "common": {
+    "name": "smarthome-dashboard-v2",
+    "version": "0.1.0",
+    "news": {
+      "0.1.0": {
+        "en": "Initial RK3399-optimized SmartHome Dashboard V2 adapter.",
+        "de": "Erster fuer RK3399 optimierter SmartHome-Dashboard-V2-Adapter."
+      }
+    },
+    "titleLang": {
+      "en": "SmartHome Dashboard V2",
+      "de": "SmartHome Dashboard V2"
+    },
+    "desc": {
+      "en": "Performance-first dashboard frontend for ioBroker, wall tablets, cameras and energy flows.",
+      "de": "Performance-orientiertes ioBroker-Dashboard fuer Wandtablets, Kameras und Energiefluesse."
+    },
+    "authors": [
+      "Sebastian"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "icon": "icon.png",
+    "localLinks": {
+      "dashboard": {
+        "link": "%protocol%://%ip%:%port%/smarthome-dashboard-v2",
+        "name": {
+          "en": "Open SmartHome Dashboard V2",
+          "de": "SmartHome Dashboard V2 oeffnen"
+        },
+        "icon": "icon.png"
+      }
+    },
+    "localLink": "%protocol%://%ip%:%port%/smarthome-dashboard-v2",
+    "enabled": true,
+    "type": "visualization",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "poll",
+    "logTransporter": true,
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.0"
+      }
+    ]
+  },
+  "native": {
+    "port": 8110,
+    "webDir": "adapter/www",
+    "devServerUrl": "",
+    "enableDevProxy": false
+  },
+  "objects": []
+}

@@ -1,0 +1,66 @@
+{
+  "common": {
+    "name": "go2rtc-host",
+    "version": "0.0.4",
+    "news": {
+      "0.0.4": {
+        "en": "Add configurable RTSP listen address.",
+        "de": "Konfigurierbare RTSP-Listen-Adresse hinzugefuegt."
+      },
+      "0.0.3": {
+        "en": "Fix admin field rendering for streams JSON.",
+        "de": "Darstellung des Streams-JSON Felds im Admin korrigiert."
+      },
+      "0.0.2": {
+        "en": "Add stream JSON config and auto-generate go2rtc.yaml.",
+        "de": "Stream-JSON und automatische go2rtc.yaml-Generierung hinzugefuegt."
+      },
+      "0.0.1": {
+        "en": "Initial adapter version.",
+        "de": "Erste Adapter-Version."
+      }
+    },
+    "titleLang": {
+      "en": "go2rtc Host",
+      "de": "go2rtc Host"
+    },
+    "desc": {
+      "en": "Runs and monitors a standalone go2rtc process.",
+      "de": "Startet und ueberwacht einen stand-alone go2rtc Prozess."
+    },
+    "authors": ["Sebastian"],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "icon": "icon.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/ebonyandivory84/iobroker.go2rtc-host/main/admin/icon.png",
+    "type": "infrastructure",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "poll",
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.0"
+      }
+    ]
+  },
+  "native": {
+    "autoStart": true,
+    "binaryPath": "/opt/iobroker/go2rtc/go2rtc",
+    "configPath": "/opt/iobroker/go2rtc/go2rtc.yaml",
+    "workingDir": "/opt/iobroker/go2rtc",
+    "extraArgs": "",
+    "autoGenerateConfig": true,
+    "apiListen": ":1984",
+    "webrtcListen": ":8555",
+    "rtspListen": ":8554",
+    "streamsJson": "{\n  \"instar9820\": [\n    \"rtsp://user:password@192.168.1.50:554/livestream/11\"\n  ]\n}",
+    "autoDownload": false,
+    "downloadUrl": "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64"
+  },
+  "objects": []
+}

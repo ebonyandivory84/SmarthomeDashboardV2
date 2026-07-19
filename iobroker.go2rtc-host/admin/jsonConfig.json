@@ -1,0 +1,89 @@
+{
+  "type": "panel",
+  "items": {
+    "_generalPanel": {
+      "type": "panel",
+      "label": "Allgemein",
+      "items": {
+        "autoStart": {
+          "type": "checkbox",
+          "label": "go2rtc beim Adapter-Start automatisch starten"
+        },
+        "binaryPath": {
+          "type": "text",
+          "label": "Pfad zur go2rtc Binary",
+          "placeholder": "/opt/iobroker/go2rtc/go2rtc"
+        },
+        "configPath": {
+          "type": "text",
+          "label": "Pfad zur go2rtc.yaml",
+          "placeholder": "/opt/iobroker/go2rtc/go2rtc.yaml"
+        },
+        "workingDir": {
+          "type": "text",
+          "label": "Arbeitsverzeichnis (leer = Verzeichnis der Binary)",
+          "placeholder": "/opt/iobroker/go2rtc"
+        },
+        "extraArgs": {
+          "type": "text",
+          "label": "Zusätzliche Argumente",
+          "placeholder": "-trace"
+        }
+      }
+    },
+    "_configPanel": {
+      "type": "panel",
+      "label": "go2rtc Konfiguration",
+      "items": {
+        "autoGenerateConfig": {
+          "type": "checkbox",
+          "label": "go2rtc.yaml automatisch aus Streams erzeugen"
+        },
+        "apiListen": {
+          "type": "text",
+          "label": "API Listen-Adresse",
+          "placeholder": ":1984",
+          "hidden": "!data.autoGenerateConfig"
+        },
+        "webrtcListen": {
+          "type": "text",
+          "label": "WebRTC Listen-Adresse",
+          "placeholder": ":8555",
+          "hidden": "!data.autoGenerateConfig"
+        },
+        "rtspListen": {
+          "type": "text",
+          "label": "RTSP Listen-Adresse (z. B. :8554 oder 'off')",
+          "placeholder": ":8554",
+          "hidden": "!data.autoGenerateConfig"
+        },
+        "streamsJson": {
+          "type": "text",
+          "label": "Streams (JSON)",
+          "multiline": true,
+          "rows": 6,
+          "placeholder": "{\n  \"kamera1\": [\"rtsp://user:pass@ip:554/livestream/11\"]\n}",
+          "help": "JSON-Objekt: {\"streamname\": [\"rtsp://...\"]}",
+          "hidden": "!data.autoGenerateConfig"
+        }
+      }
+    },
+    "_downloadPanel": {
+      "type": "panel",
+      "label": "Binary Download",
+      "items": {
+        "autoDownload": {
+          "type": "checkbox",
+          "label": "Binary automatisch herunterladen, falls nicht vorhanden"
+        },
+        "downloadUrl": {
+          "type": "text",
+          "label": "Download-URL",
+          "placeholder": "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64",
+          "help": "Leer lassen oder Default-URL für automatische Architektur-Erkennung (amd64/arm64/arm)",
+          "hidden": "!data.autoDownload"
+        }
+      }
+    }
+  }
+}

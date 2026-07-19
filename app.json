@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "SmartHome Dashboard V2",
+    "slug": "smarthome-dashboard-v2",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

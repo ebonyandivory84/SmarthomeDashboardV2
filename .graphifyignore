@@ -1,0 +1,27 @@
+# Exclude non-code files so graphify runs without an API key
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico
+*.pdf
+*.md
+**/*.md
+*.txt
+**/*.txt
+*.tar.gz
+*.lock
+backups/
+docs/
+assets/
+.expo/
+README.md
+io-package.json
+**/io-package.json
+jsonConfig.json
+**/jsonConfig.json
+**/metadata.json
+app.json
+LICENSE

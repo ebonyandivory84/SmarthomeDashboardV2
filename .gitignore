@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+!adapter/www/assets/
+!adapter/www/assets/node_modules/
+!adapter/www/assets/node_modules/**
+backups/*.tar.gz

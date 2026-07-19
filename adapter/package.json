@@ -1,0 +1,23 @@
+{
+  "name": "iobroker.smarthome-dashboard-v2",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "keywords": [
+    "iobroker",
+    "smarthome",
+    "dashboard"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.2.3",
+    "express": "^4.21.2",
+    "ws": "^8.18.3"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.34.3"
+  }
+}
