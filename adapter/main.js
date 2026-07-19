@@ -1009,17 +1009,6 @@ function setupStatePushWebSocket(adapter, server) {
     }
   };
 
-  const sendBinary = (socket, buffer) => {
-    if (!socket || socket.readyState !== wsOpenState) {
-      return;
-    }
-    try {
-      socket.send(buffer, { binary: true });
-    } catch {
-      // ignore send failures
-    }
-  };
-
   const retainStateIds = async (stateIds) => {
     for (const stateId of stateIds) {
       const current = stateRefCount.get(stateId) || 0;
@@ -1295,6 +1284,17 @@ function setupCameraSnapshotWebSocket(adapter, server) {
     }
     try {
       socket.send(JSON.stringify(payload));
+    } catch {
+      // ignore send failures
+    }
+  };
+
+  const sendBinary = (socket, buffer) => {
+    if (!socket || socket.readyState !== wsOpenState) {
+      return;
+    }
+    try {
+      socket.send(buffer, { binary: true });
     } catch {
       // ignore send failures
     }

@@ -78,7 +78,11 @@ export function CocoWidget({ client, config, isActivePage = true, states }: Coco
     staggerKey: config.id,
   });
   const directSnapshotUri = snapshotUrl ? appendCacheBuster(snapshotUrl, now) : "";
-  const snapshotUri = snapshotObjectUrl || (shouldUseSnapshotWebSocket ? "" : directSnapshotUri);
+  const proxySnapshotUri =
+    snapshotUrl && Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname.includes("/smarthome-dashboard-v2")
+      ? `${window.location.origin}/smarthome-dashboard-v2/api/camera-snapshot?url=${encodeURIComponent(snapshotUrl)}&t=${now}`
+      : directSnapshotUri;
+  const snapshotUri = snapshotObjectUrl || proxySnapshotUri;
   const fullscreenMode = streamUrl ? fullscreenMediaMode : "snapshot";
   const fullscreenMediaUrl = streamUrl || snapshotUri;
   const fullscreenUsesLiveStream = Boolean(streamUrl && fullscreenMode !== "snapshot");

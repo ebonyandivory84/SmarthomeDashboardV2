@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "smarthome-dashboard-v2",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "news": {
+      "0.1.3": {
+        "en": "Fix binary camera snapshot delivery and add an HTTP thumbnail fallback.",
+        "de": "Binaere Kamera-Snapshots werden korrekt gesendet; HTTP-Fallback fuer Miniaturen ergaenzt."
+      },
       "0.1.2": {
         "en": "Load the Expo Metro runtime required by production lazy chunks.",
         "de": "Die fuer Production-Lazy-Chunks erforderliche Expo-Metro-Runtime wird geladen."

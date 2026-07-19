@@ -344,12 +344,12 @@ export function CameraWidget({
     if (!activeSnapshotBaseUrl) {
       return;
     }
-    if (shouldUseSnapshotWebSocket) {
+    if (shouldUseSnapshotWebSocket && liveSnapshotWsDataUrl) {
       return;
     }
     const timer = setInterval(() => setTick((current) => current + 1), activeRefreshMs);
     return () => clearInterval(timer);
-  }, [activeRefreshMs, activeSnapshotBaseUrl, runtimeActive, shouldUseSnapshotWebSocket]);
+  }, [activeRefreshMs, activeSnapshotBaseUrl, liveSnapshotWsDataUrl, runtimeActive, shouldUseSnapshotWebSocket]);
 
   useEffect(() => {
     if ((!useInPlaceFullscreen && fullscreenOpen) || previewFeed?.kind !== "mjpeg") {
@@ -757,16 +757,13 @@ export function CameraWidget({
     if (liveSnapshotWsDataUrl) {
       return liveSnapshotWsDataUrl;
     }
-    if (shouldUseSnapshotWebSocket) {
-      return null;
-    }
     if (Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname.includes("/smarthome-dashboard-v2")) {
       const proxyBase = `${window.location.origin}/smarthome-dashboard-v2/api/camera-snapshot`;
       return `${proxyBase}?url=${encodeURIComponent(activeSnapshotBaseUrl)}&t=${tick}`;
     }
     const separator = activeSnapshotBaseUrl.includes("?") ? "&" : "?";
     return `${activeSnapshotBaseUrl}${separator}t=${tick}`;
-  }, [activeSnapshotBaseUrl, liveSnapshotWsDataUrl, shouldUseSnapshotWebSocket, tick]);
+  }, [activeSnapshotBaseUrl, liveSnapshotWsDataUrl, tick]);
 
   useEffect(() => {
     activeLayerRef.current = activeLayer;
