@@ -2,7 +2,7 @@
   "expo": {
     "name": "SmartHome Dashboard V2",
     "slug": "smarthome-dashboard-v2",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "landscape",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": [

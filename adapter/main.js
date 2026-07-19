@@ -926,6 +926,67 @@ function closeInstarTalkSession(token) {
   }
 }
 
+const webSocketUpgradeRouters = new WeakMap();
+
+function createPathWebSocketServer(server, routePath, WebSocketServerCtor) {
+  let router = webSocketUpgradeRouters.get(server);
+  if (!router) {
+    const routes = new Map();
+    const handleUpgrade = (request, socket, head) => {
+      let pathname = "";
+      try {
+        pathname = new URL(request.url || "", "http://localhost").pathname;
+      } catch {
+        socket.destroy();
+        return;
+      }
+
+      const target = routes.get(pathname);
+      if (!target) {
+        socket.destroy();
+        return;
+      }
+
+      target.handleUpgrade(request, socket, head, (webSocket) => {
+        target.emit("connection", webSocket, request);
+      });
+    };
+
+    router = { routes, handleUpgrade };
+    webSocketUpgradeRouters.set(server, router);
+    server.on("upgrade", handleUpgrade);
+  }
+
+  if (router.routes.has(routePath)) {
+    throw new Error(`WebSocket route already registered: ${routePath}`);
+  }
+
+  const wss = new WebSocketServerCtor({
+    noServer: true,
+    perMessageDeflate: false,
+  });
+  router.routes.set(routePath, wss);
+  let closed = false;
+
+  return {
+    wss,
+    close() {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      if (router.routes.get(routePath) === wss) {
+        router.routes.delete(routePath);
+      }
+      wss.close();
+      if (!router.routes.size) {
+        server.removeListener("upgrade", router.handleUpgrade);
+        webSocketUpgradeRouters.delete(server);
+      }
+    },
+  };
+}
+
 function setupStatePushWebSocket(adapter, server) {
   const WebSocketServerCtor = WebSocketClient?.WebSocketServer || WebSocketClient?.Server;
   if (!WebSocketClient || !WebSocketServerCtor) {
@@ -1128,10 +1189,11 @@ function setupStatePushWebSocket(adapter, server) {
 
   adapter.on("stateChange", stateChangeHandler);
 
-  const wss = new WebSocketServerCtor({
+  const { wss, close: closeWebSocketServer } = createPathWebSocketServer(
     server,
-    path: STATE_PUSH_WS_PATH,
-  });
+    STATE_PUSH_WS_PATH,
+    WebSocketServerCtor
+  );
 
   wss.on("connection", (socket) => {
     const context = {
@@ -1213,11 +1275,7 @@ function setupStatePushWebSocket(adapter, server) {
     }
     stateRefCount.clear();
 
-    try {
-      wss.close();
-    } catch {
-      // ignore ws server close failures
-    }
+    closeWebSocketServer();
   };
 }
 
@@ -1349,10 +1407,11 @@ function setupCameraSnapshotWebSocket(adapter, server) {
     session.activeUrl = "";
   };
 
-  const wss = new WebSocketServerCtor({
+  const { wss, close: closeWebSocketServer } = createPathWebSocketServer(
     server,
-    path: CAMERA_SNAPSHOT_WS_PATH,
-  });
+    CAMERA_SNAPSHOT_WS_PATH,
+    WebSocketServerCtor
+  );
 
   wss.on("connection", (socket) => {
     const session = {
@@ -1431,11 +1490,7 @@ function setupCameraSnapshotWebSocket(adapter, server) {
       }
       releaseSession(session);
     }
-    try {
-      wss.close();
-    } catch {
-      // ignore ws server close failures
-    }
+    closeWebSocketServer();
   };
 }
 
@@ -1534,10 +1589,11 @@ function setupLogWebSocket(adapter, server) {
 
   logPushBroadcast = broadcastLogEntry;
 
-  const wss = new WebSocketServerCtor({
+  const { wss, close: closeWebSocketServer } = createPathWebSocketServer(
     server,
-    path: LOG_PUSH_WS_PATH,
-  });
+    LOG_PUSH_WS_PATH,
+    WebSocketServerCtor
+  );
 
   wss.on("connection", (socket) => {
     const session = {
@@ -1609,11 +1665,7 @@ function setupLogWebSocket(adapter, server) {
       }
       releaseSession(session);
     }
-    try {
-      wss.close();
-    } catch {
-      // ignore ws server close failures
-    }
+    closeWebSocketServer();
   };
 }
 
@@ -1732,10 +1784,11 @@ function setupScriptWebSocket(adapter, server) {
 
   adapter.on("stateChange", stateChangeHandler);
 
-  const wss = new WebSocketServerCtor({
+  const { wss, close: closeWebSocketServer } = createPathWebSocketServer(
     server,
-    path: SCRIPT_PUSH_WS_PATH,
-  });
+    SCRIPT_PUSH_WS_PATH,
+    WebSocketServerCtor
+  );
 
   wss.on("connection", (socket) => {
     const session = {
@@ -1813,11 +1866,7 @@ function setupScriptWebSocket(adapter, server) {
       }
       releaseSession(session);
     }
-    try {
-      wss.close();
-    } catch {
-      // ignore ws server close failures
-    }
+    closeWebSocketServer();
   };
 }
 

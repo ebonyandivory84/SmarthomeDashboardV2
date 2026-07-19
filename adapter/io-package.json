@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "smarthome-dashboard-v2",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "news": {
+      "0.1.1": {
+        "en": "Route all dashboard WebSocket paths through one HTTP upgrade handler.",
+        "de": "Alle Dashboard-WebSocket-Pfade verwenden einen gemeinsamen HTTP-Upgrade-Handler."
+      },
       "0.1.0": {
         "en": "Initial RK3399-optimized SmartHome Dashboard V2 adapter.",
         "de": "Erster fuer RK3399 optimierter SmartHome-Dashboard-V2-Adapter."

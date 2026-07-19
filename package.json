@@ -1,6 +1,6 @@
 {
   "name": "iobroker.smarthome-dashboard-v2",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RK3399-optimized ioBroker SmartHome dashboard adapter with hosted React Native web UI",
   "main": "main.js",
   "license": "MIT",
