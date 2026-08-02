@@ -870,15 +870,15 @@ function NodeCard({
   sceneScale?: number;
 }) {
   const scale = clamp(sceneScale ?? 1, 0.52, 1);
-  const iconSize = Math.round(clamp(30 * scale, 18, 30));
+  const iconSize = Math.round(clamp(38 * scale, 24, 38));
   const cardPadding = Math.round(clamp(10 * scale, 5, 10));
   const cardRadius = Math.round(clamp(20 * scale, 12, 20));
-  const iconBox = Math.round(clamp(48 * scale, 28, 48));
+  const iconBox = Math.round(clamp(54 * scale, 34, 54));
   const iconRadius = Math.round(clamp(15 * scale, 10, 15));
-  const iconInnerBox = Math.round(clamp(36 * scale, 22, 36));
+  const iconInnerBox = Math.round(clamp(44 * scale, 28, 44));
   const iconInnerRadius = Math.round(clamp(12 * scale, 7, 12));
-  const valueFontSize = Math.round(clamp(16 * scale, 11, 16));
-  const valueMarginTop = Math.round(clamp(8 * scale, 4, 8));
+  const valueFontSize = Math.round(clamp(20 * scale, 13, 20));
+  const valueMarginTop = Math.round(clamp(7 * scale, 3, 7));
   const metaFontSize = Math.round(clamp(9 * scale, 7, 9));
   const metaMarginTop = Math.round(clamp(4 * scale, 2, 4));
 
@@ -927,7 +927,7 @@ function NodeCard({
       </View>
       <Text
         adjustsFontSizeToFit
-        minimumFontScale={0.58}
+        minimumFontScale={0.52}
         numberOfLines={1}
         style={[
           styles.nodeValue,
