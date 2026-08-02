@@ -3444,7 +3444,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
                 {widget.type === "heatingV2" ? (
-                  <Field label="Laufschrift Geschwindigkeit (px/s)">
+                  <Field label="Informationswechsel-Tempo (16–160)">
                     <TextInput
                       keyboardType="numeric"
                       onChangeText={(value) => setDraft((current) => ({ ...current, detailsTickerSpeedPxPerS: value }))}

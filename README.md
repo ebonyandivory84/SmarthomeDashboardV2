@@ -17,8 +17,11 @@ Performance-first SmartHome dashboard for wall-mounted Android tablets. V2 is a 
 - Widgets subscribe only to their own state IDs
 - Camera, talkback, Grafana and editor code are loaded on demand
 - Blur and expensive compositing effects are disabled on coarse-pointer web tablets
-- Solar, heating ticker and wallbox movement remain animated with CSS transforms and slower tablet timings
+- Heating details rotate with short fade transitions instead of a permanently moving ticker
+- Wallbox glow runs continuously on desktop and only on charging/power events on coarse-pointer web tablets
+- Solar flow animation remains transform-based and pauses with inactive pages
 - Selected UI sound files are prefetched while idle but decoded only when first played
+- Compressible HTTP responses use Brotli/gzip while camera and media transports stay uncompressed
 - Fingerprinted web assets are served with one-year immutable caching
 
 ## Adapter identity
@@ -39,6 +42,68 @@ npm run export:web
 ```
 
 Install the repository through ioBroker's GitHub/custom URL installer or pack the adapter after the web export. The root `main.js` delegates to `adapter/main.js` outside the Expo runtime.
+
+## Deploy to the ioBroker Pi
+
+The current production host is `sebastian@192.168.44.31`. Use the dedicated SSH key
+`~/.ssh/id_ed25519_iobroker`. The adapter installation and instance are:
+
+- Installation: `/opt/iobroker/node_modules/iobroker.smarthome-dashboard-v2`
+- Instance: `smarthome-dashboard-v2.0`
+- Port: `8111`
+
+To deploy one isolated commit without including unrelated local working-tree changes, push the
+commit first, clone it into a temporary directory on the Pi, verify its full hash, and build there.
+
+```bash
+ssh -i ~/.ssh/id_ed25519_iobroker -o IdentitiesOnly=yes sebastian@192.168.44.31
+DEPLOY_DIR=$(mktemp -d /tmp/smarthome-dashboard-v2-deploy.XXXXXX)
+git clone --depth 1 --branch main https://github.com/ebonyandivory84/SmarthomeDashboardV2.git "$DEPLOY_DIR/repo"
+cd "$DEPLOY_DIR/repo"
+git rev-parse HEAD
+```
+
+Normally, install and export with:
+
+```bash
+npm ci
+npm run export:web
+```
+
+Older commits may have an unsynchronized lockfile for the optional `sharp` packages. For those
+historical revisions only, use this temporary build workaround:
+
+```bash
+npm install --omit=optional --no-package-lock --no-audit --no-fund
+```
+
+Older commits before `expo-asset` became a direct dependency can fail in Metro even though Expo lists
+it transitively. For those historical revisions only, install it temporarily and rerun the export:
+
+```bash
+npm install expo-asset --no-save --no-package-lock --omit=optional --no-audit --no-fund
+npm run export:web
+```
+
+Back up and copy the generated frontend. Do not use `cp -a` for the deployment copy: the `sebastian`
+user can update the group-writable adapter files but cannot preserve their ioBroker-owned timestamps,
+which causes `cp -a` to fail before the adapter restart.
+
+```bash
+COMMIT_SHORT=$(git rev-parse --short HEAD)
+BACKUP_DIR="/opt/iobroker/backups/smarthome-dashboard-v2-www-before-${COMMIT_SHORT}"
+TARGET_DIR=/opt/iobroker/node_modules/iobroker.smarthome-dashboard-v2/adapter/www
+mkdir -p "$BACKUP_DIR"
+cp -a "$TARGET_DIR/." "$BACKUP_DIR/"
+cp -R adapter/www/. "$TARGET_DIR/"
+iobroker restart smarthome-dashboard-v2.0
+sleep 5
+iobroker status smarthome-dashboard-v2.0
+curl -fsS -o /dev/null -w 'HTTP=%{http_code}\n' http://127.0.0.1:8111/smarthome-dashboard-v2/
+```
+
+The final checks must report that the instance is running and return HTTP `200`. A status check
+immediately after `iobroker restart` can briefly say `not running`; wait a few seconds and check again.
 
 ## Cameras
 

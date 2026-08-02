@@ -34,8 +34,7 @@ const DHW_TEMP_STEP = 1;
 const DEFAULT_DETAILS_TICKER_SPEED_PX_PER_S = 46;
 const MIN_DETAILS_TICKER_SPEED_PX_PER_S = 16;
 const MAX_DETAILS_TICKER_SPEED_PX_PER_S = 160;
-const DETAILS_TICKER_SEPARATOR = "\u00a0\u00a0\u00a0\u00a0•\u00a0\u00a0\u00a0\u00a0";
-const DETAILS_TICKER_LOOP_SEPARATOR = "\u00a0\u00a0.\u00a0.\u00a0\u00a0";
+const DETAILS_FADE_DURATION_MS = 260;
 const HEATING_V2_BASE_CONTENT_WIDTH = 560;
 const HEATING_V2_BASE_CONTENT_HEIGHT = 292;
 const HEATING_V2_MIN_CONTENT_SCALE = 0.72;
@@ -187,10 +186,8 @@ export function HeatingWidgetV2({
   const [normalDraft, setNormalDraft] = useState<number | null>(null);
   const [dhwDraft, setDhwDraft] = useState<number | null>(null);
   const [ventilationLevelDraft, setVentilationLevelDraft] = useState<number | null>(null);
-  const [detailsTrackWidth, setDetailsTrackWidth] = useState(0);
-  const [detailsContentWidth, setDetailsContentWidth] = useState(0);
-  const detailsTickerOffset = useRef(new Animated.Value(0)).current;
-  const detailsTickerAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const [detailsSegmentIndex, setDetailsSegmentIndex] = useState(0);
+  const [detailsSegmentVisible, setDetailsSegmentVisible] = useState(true);
   const blinkPulse = useRef(new Animated.Value(0)).current;
   const blinkAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -578,14 +575,10 @@ export function HeatingWidgetV2({
     ...infoRows.filter((row) => row.value !== "-").map((row) => `${row.label} ${row.value}`),
   ].filter(Boolean) as string[];
   const showDetailsTicker = detailsSegments.length > 0;
-  const detailsTickerText = showDetailsTicker ? detailsSegments.join(DETAILS_TICKER_SEPARATOR) : "";
-  const detailsTickerRenderText = detailsTickerText.replace(/ /g, "\u00a0");
-  const detailsTickerLoopText = `${detailsTickerRenderText}${DETAILS_TICKER_LOOP_SEPARATOR}`;
-  const detailsTickerEstimatedWidthPx = Math.max(220, Math.round(detailsTickerRenderText.length * 7.2));
-  const detailsTickerCssDurationMs = Math.max(8000, Math.round((detailsTickerEstimatedWidthPx / detailsTickerSpeedPxPerS) * 1000));
-  const detailsTickerCssDurationResolvedMs = lowPowerMode
-    ? Math.round(detailsTickerCssDurationMs * 1.35)
-    : detailsTickerCssDurationMs;
+  const detailsRotationIntervalMs = resolveDetailsRotationInterval(detailsTickerSpeedPxPerS);
+  const activeDetailsSegment = showDetailsTicker
+    ? detailsSegments[detailsSegmentIndex % detailsSegments.length]
+    : "";
 
   const liveBadgeText = error ? "Fehler" : writePending ? "Sync" : "";
   const footerStatusText = error ? error : writePending ? "Synchronisiere..." : "";
@@ -600,25 +593,6 @@ export function HeatingWidgetV2({
       ),
     [widgetHeight, widgetWidth]
   );
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") {
-      return;
-    }
-    const styleId = "smarthome-heatingv2-ticker-keyframes";
-    if (document.getElementById(styleId)) {
-      return;
-    }
-    const styleEl = document.createElement("style");
-    styleEl.id = styleId;
-    styleEl.textContent = `
-      @keyframes smarthomeHeatingV2TickerMove {
-        from { transform: translate3d(0, 0, 0); }
-        to { transform: translate3d(-50%, 0, 0); }
-      }
-    `;
-    document.head.appendChild(styleEl);
-  }, []);
 
   useEffect(() => {
     blinkAnimationRef.current?.stop();
@@ -655,62 +629,33 @@ export function HeatingWidgetV2({
   }, [anyBlinkActive, blinkPulse, lowPowerMode, runtimeActive]);
 
   useEffect(() => {
-    detailsTickerAnimationRef.current?.stop();
-    detailsTickerAnimationRef.current = null;
-    if (
-      Platform.OS === "web" ||
-      lowPowerMode ||
-      !runtimeActive ||
-      !showDetailsTicker ||
-      detailsTrackWidth <= 0 ||
-      detailsContentWidth <= 0
-    ) {
-      detailsTickerOffset.setValue(0);
+    setDetailsSegmentIndex((current) => (detailsSegments.length > 0 ? current % detailsSegments.length : 0));
+    setDetailsSegmentVisible(true);
+  }, [detailsSegments.length]);
+
+  useEffect(() => {
+    if (!runtimeActive || detailsSegments.length <= 1) {
+      setDetailsSegmentVisible(true);
       return;
     }
 
-    if (detailsContentWidth <= detailsTrackWidth + 6) {
-      detailsTickerOffset.setValue(0);
-      return;
-    }
-
-    const durationMs = Math.max(
-      8000,
-      Math.round((detailsContentWidth / detailsTickerSpeedPxPerS) * 1000)
-    );
-
-    detailsTickerOffset.setValue(0);
-    const tickerLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(detailsTickerOffset, {
-          toValue: -detailsContentWidth,
-          duration: durationMs,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.timing(detailsTickerOffset, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    detailsTickerAnimationRef.current = tickerLoop;
-    tickerLoop.start();
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+    const rotationTimer = setInterval(() => {
+      setDetailsSegmentVisible(false);
+      fadeTimer = setTimeout(() => {
+        setDetailsSegmentIndex((current) => (current + 1) % detailsSegments.length);
+        setDetailsSegmentVisible(true);
+        fadeTimer = null;
+      }, DETAILS_FADE_DURATION_MS);
+    }, detailsRotationIntervalMs);
 
     return () => {
-      tickerLoop.stop();
+      clearInterval(rotationTimer);
+      if (fadeTimer) {
+        clearTimeout(fadeTimer);
+      }
     };
-  }, [
-    detailsContentWidth,
-    detailsTickerOffset,
-    detailsTrackWidth,
-    detailsTickerSpeedPxPerS,
-    Platform.OS,
-    lowPowerMode,
-    runtimeActive,
-    showDetailsTicker,
-  ]);
+  }, [detailsRotationIntervalMs, detailsSegments.length, runtimeActive]);
 
   return (
     <View
@@ -1120,87 +1065,32 @@ export function HeatingWidgetV2({
         {showDetailsTicker ? (
           <View style={styles.block}>
             <View
-              onLayout={(event) => {
-                const nextWidth = Math.max(0, Math.round(event.nativeEvent.layout.width));
-                setDetailsTrackWidth((current) => (current === nextWidth ? current : nextWidth));
-              }}
               style={[styles.detailsTickerTrack, { borderColor: panelBorder, backgroundColor: panelColor }]}
             >
               {Platform.OS === "web"
-                ? createElement(
-                    "div",
-                    {
-                      style: {
-                        ...webDetailsTickerMoverStyle,
-                        animationDuration: `${detailsTickerCssDurationResolvedMs}ms`,
-                        animationPlayState: runtimeActive ? "running" : "paused",
-                      },
+                ? createElement("div", {
+                    style: {
+                      ...webDetailsFadeTextStyle,
+                      color: textColor,
+                      opacity: detailsSegmentVisible ? 1 : 0,
+                      transform: detailsSegmentVisible ? "translate3d(0, 0, 0)" : "translate3d(0, 3px, 0)",
                     },
-                    createElement(
-                      "div",
-                      {
-                        style: webDetailsTickerInnerStyle,
-                      },
-                      createElement(
-                        "span",
-                        {
-                          style: {
-                            ...webDetailsTickerTextStyle,
-                            color: textColor,
-                          },
-                        },
-                        detailsTickerLoopText
-                      ),
-                      createElement(
-                        "span",
-                        {
-                          style: {
-                            ...webDetailsTickerTextStyle,
-                            color: textColor,
-                          },
-                        },
-                        detailsTickerLoopText
-                      )
-                    )
-                  )
+                    title: activeDetailsSegment,
+                  }, activeDetailsSegment)
                 : (
-                    <Animated.View
+                    <Text
+                      numberOfLines={1}
                       style={[
-                        styles.detailsTickerMover,
+                        styles.detailsTickerText,
                         {
-                          transform: [{ translateX: detailsTickerOffset }],
+                          color: textColor,
+                          opacity: detailsSegmentVisible ? 1 : 0,
+                          transform: [{ translateY: detailsSegmentVisible ? 0 : 3 }],
                         },
                       ]}
                     >
-                      {lowPowerMode ? (
-                        <Text
-                          numberOfLines={1}
-                          onLayout={(event) => {
-                            const nextWidth = Math.max(0, Math.round(event.nativeEvent.layout.width));
-                            setDetailsContentWidth((current) => (current === nextWidth ? current : nextWidth));
-                          }}
-                          style={[styles.detailsTickerText, { color: textColor }]}
-                        >
-                          {detailsTickerRenderText}
-                        </Text>
-                      ) : (
-                        <>
-                          <Text
-                            numberOfLines={1}
-                            onLayout={(event) => {
-                              const nextWidth = Math.max(0, Math.round(event.nativeEvent.layout.width));
-                              setDetailsContentWidth((current) => (current === nextWidth ? current : nextWidth));
-                            }}
-                            style={[styles.detailsTickerText, { color: textColor }]}
-                          >
-                            {detailsTickerLoopText}
-                          </Text>
-                          <Text numberOfLines={1} style={[styles.detailsTickerText, { color: textColor }]}>
-                            {detailsTickerLoopText}
-                          </Text>
-                        </>
-                      )}
-                    </Animated.View>
+                      {activeDetailsSegment}
+                    </Text>
                   )}
             </View>
           </View>
@@ -1258,6 +1148,10 @@ function clampTickerSpeed(value: number | undefined) {
     MIN_DETAILS_TICKER_SPEED_PX_PER_S,
     Math.min(MAX_DETAILS_TICKER_SPEED_PX_PER_S, Math.round(value))
   );
+}
+
+function resolveDetailsRotationInterval(speedPxPerS: number) {
+  return Math.max(3200, Math.min(8000, Math.round(250000 / speedPxPerS)));
 }
 
 function computeBoundedContentScale(
@@ -1863,22 +1757,14 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
   },
-  detailsTickerMover: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   detailsTickerText: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "700",
-    paddingHorizontal: 0,
+    width: "100%",
+    paddingHorizontal: 12,
     alignSelf: "center",
-    flexShrink: 0,
+    textAlign: "center",
   },
   footer: {
     position: "relative",
@@ -1913,33 +1799,22 @@ const webSliderStyle: Record<string, string | number> = {
   borderRadius: 999,
 };
 
-const webDetailsTickerMoverStyle: Record<string, string | number> = {
+const webDetailsFadeTextStyle: Record<string, string | number> = {
   position: "absolute",
   left: 0,
+  right: 0,
   top: 0,
   bottom: 0,
   display: "flex",
   alignItems: "center",
-  willChange: "transform",
-  animationName: "smarthomeHeatingV2TickerMove",
-  animationTimingFunction: "linear",
-  animationIterationCount: "infinite",
-  animationFillMode: "both",
-  transform: "translate3d(0, 0, 0)",
-};
-
-const webDetailsTickerInnerStyle: Record<string, string | number> = {
-  display: "flex",
-  alignItems: "center",
-  whiteSpace: "pre",
-  transform: "translateZ(0)",
-  backfaceVisibility: "hidden",
-};
-
-const webDetailsTickerTextStyle: Record<string, string | number> = {
+  justifyContent: "center",
+  padding: "0 12px",
   fontSize: "12px",
   lineHeight: "16px",
   fontWeight: 700,
-  whiteSpace: "pre",
-  flexShrink: 0,
+  textAlign: "center",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  transition: `opacity ${DETAILS_FADE_DURATION_MS}ms ease, transform ${DETAILS_FADE_DURATION_MS}ms ease`,
 };

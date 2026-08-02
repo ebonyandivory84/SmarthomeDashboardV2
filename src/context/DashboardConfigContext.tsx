@@ -61,7 +61,6 @@ const ASSET_NAME_MIGRATIONS: Record<string, string> = {
   "coco-face.jpg": "coco-face.webp",
   "go-e.jpg": "go-e.webp",
   "sunset 2.jpg": "sunset 2.webp",
-  "sunset.jpg": "sunset.webp",
   "viessmann.jpg": "viessmann.webp",
 };
 

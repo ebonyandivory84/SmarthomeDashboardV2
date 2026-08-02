@@ -37,6 +37,8 @@ const FAST_CHARGING_THRESHOLD_W = 5000;
 const CHARGING_INDICATOR_BLINK_MS = 720;
 const CHARGING_BAR_MAX_POWER_W = 11000;
 const CHARGING_BAR_GLOW_CYCLE_MS = 2000;
+const TABLET_GLOW_EVENT_DURATION_MS = 1100;
+const TABLET_GLOW_POWER_BUCKET_W = 1000;
 const AMPERE_PRESET_VALUES = [6, 10, 12, 14, 16] as const;
 const CONFIRMATION_TIMEOUT_MS = 12_000;
 const WALLBOX_BASE_CONTENT_WIDTH = 560;
@@ -256,7 +258,9 @@ export function WallboxWidget({ config, client, states, isActivePage = true, low
   const [error, setError] = useState<string | null>(null);
   const [chargingPulseOn, setChargingPulseOn] = useState(true);
   const [powerBarTrackWidth, setPowerBarTrackWidth] = useState(0);
+  const [tabletGlowCycle, setTabletGlowCycle] = useState(0);
   const barGlowAnim = useRef(new Animated.Value(0)).current;
+  const tabletGlowSignalRef = useRef("");
   const autoStopMarkerRef = useRef("");
   const pendingConfirmationsRef = useRef<Record<string, PendingConfirmation>>({});
   const readValue = useCallback(
@@ -996,6 +1000,27 @@ export function WallboxWidget({ config, client, states, isActivePage = true, low
     outputRange: [-barGlowWidthPx, Math.max(0, barFillWidthPx)],
   });
   const nativeBarColor = chargingPowerRatio < 0.45 ? "#ef5d6b" : chargingPowerRatio < 0.75 ? "#f0c35f" : "#42cf8c";
+  const tabletGlowSignal =
+    runtimeActive && chargingPowerRatio > 0.01
+      ? `${liveCharging ? "charging" : "power"}:${Math.round(normalizedChargingPowerW / TABLET_GLOW_POWER_BUCKET_W)}`
+      : "idle";
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !lowPowerMode) {
+      tabletGlowSignalRef.current = "";
+      setTabletGlowCycle(0);
+      return;
+    }
+    if (tabletGlowSignal === tabletGlowSignalRef.current) {
+      return;
+    }
+
+    tabletGlowSignalRef.current = tabletGlowSignal;
+    if (tabletGlowSignal !== "idle") {
+      setTabletGlowCycle((current) => current + 1);
+    }
+  }, [lowPowerMode, tabletGlowSignal]);
+
   const phaseStatusLabel =
     displayedPhaseSelection === 1 ? "1-phasig" : displayedPhaseSelection === 3 ? "3-phasig" : "-";
   const activeAmperePreset = useMemo(
@@ -1408,12 +1433,18 @@ export function WallboxWidget({ config, client, states, isActivePage = true, low
                   )}
               {Platform.OS === "web"
                 ? createElement("div", {
+                    key: lowPowerMode ? `tablet-glow-${tabletGlowCycle}` : "continuous-glow",
                     style: {
                       ...webPowerBarGlowStyle,
                       width: `${barGlowWidthPx}px`,
-                      opacity: chargingPowerRatio > 0.01 ? 1 : 0,
-                      animationDuration: lowPowerMode ? "6s" : "3.6s",
-                      animationPlayState: runtimeActive && chargingPowerRatio > 0.01 ? "running" : "paused",
+                      opacity: chargingPowerRatio > 0.01 && (!lowPowerMode || tabletGlowCycle > 0) ? 1 : 0,
+                      animationDuration: lowPowerMode ? `${TABLET_GLOW_EVENT_DURATION_MS}ms` : "3.6s",
+                      animationIterationCount: lowPowerMode ? 1 : "infinite",
+                      animationFillMode: lowPowerMode ? "forwards" : "none",
+                      animationPlayState:
+                        runtimeActive && chargingPowerRatio > 0.01 && (!lowPowerMode || tabletGlowCycle > 0)
+                          ? "running"
+                          : "paused",
                     },
                   })
                 : (

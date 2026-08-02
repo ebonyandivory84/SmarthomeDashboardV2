@@ -1,4 +1,5 @@
 const utils = require("@iobroker/adapter-core");
+const compression = require("compression");
 const express = require("express");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const fs = require("fs");
@@ -61,6 +62,12 @@ const CAMERA_SNAPSHOT_HEIGHT = 360;
 const CAMERA_SNAPSHOT_JPEG_QUALITY = 65;
 const LOG_PUSH_MAX_ENTRIES_PER_CLIENT = 200;
 const SCRIPT_PUSH_MAX_ENTRIES_PER_CLIENT = 1000;
+const HTTP_COMPRESSION_THRESHOLD_BYTES = 1024;
+const UNCOMPRESSED_MEDIA_PATHS = new Set([
+  "/smarthome-dashboard-v2/api/camera-snapshot",
+  "/smarthome-dashboard-v2/api/camera-stream",
+  "/smarthome-dashboard-v2/api/camera-mjpeg",
+]);
 
 const LOG_LEVEL_ORDER = {
   silly: 0,
@@ -116,6 +123,13 @@ function startAdapter(options) {
 async function main(adapter) {
   runningAdapter = adapter;
   const app = express();
+  app.use(
+    compression({
+      threshold: HTTP_COMPRESSION_THRESHOLD_BYTES,
+      level: 4,
+      filter: shouldCompressHttpResponse,
+    })
+  );
   app.use(express.json({ limit: API_JSON_LIMIT }));
   app.use((error, _req, res, next) => {
     if (error?.type === "entity.too.large") {
@@ -128,6 +142,10 @@ async function main(adapter) {
   const widgetAssetsRoot = path.resolve(__dirname, "..", "assets");
   if (!Sharp) {
     adapter.log.warn("Optional sharp module unavailable; camera snapshots will be forwarded without max-size conversion.");
+  } else {
+    const sharpVersion = Sharp.versions?.sharp || "unknown";
+    const libvipsVersion = Sharp.versions?.vips || "unknown";
+    adapter.log.info(`Sharp snapshot optimization enabled (sharp ${sharpVersion}, libvips ${libvipsVersion}).`);
   }
   const devProxyEnabled = Boolean(adapter.config?.enableDevProxy);
   const configuredDevServerUrl =
@@ -2756,6 +2774,14 @@ async function writeSavedDashboards(adapter, dashboards) {
     val: JSON.stringify(dashboards, null, 2),
     ack: true,
   });
+}
+
+function shouldCompressHttpResponse(req, res) {
+  const requestPath = typeof req?.path === "string" ? req.path : String(req?.originalUrl || "").split("?", 1)[0];
+  if (UNCOMPRESSED_MEDIA_PATHS.has(requestPath)) {
+    return false;
+  }
+  return compression.filter(req, res);
 }
 
 function immutableStaticOptions() {
