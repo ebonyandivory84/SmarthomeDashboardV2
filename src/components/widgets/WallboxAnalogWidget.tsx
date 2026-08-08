@@ -2032,12 +2032,14 @@ const GAUGE_END_ANGLE = 125;
 const GAUGE_SIZE = 224;
 const GAUGE_CENTER = GAUGE_SIZE / 2;
 const GAUGE_RADIUS = 76;
-const GAUGE_FACE_RADIUS = GAUGE_RADIUS + 14;
-const GAUGE_BEZEL_WIDTH = 14;
+const GAUGE_FACE_RADIUS = GAUGE_RADIUS + 11;
+const GAUGE_BEZEL_WIDTH = 12;
 const GAUGE_BEZEL_MID_RADIUS = GAUGE_FACE_RADIUS + GAUGE_BEZEL_WIDTH / 2;
 const GAUGE_BEZEL_TRIM_RADIUS = GAUGE_BEZEL_MID_RADIUS + GAUGE_BEZEL_WIDTH / 2 + 1;
 const GAUGE_OUTER_RING_RADIUS = GAUGE_RADIUS;
-const GAUGE_INNER_RING_RADIUS = GAUGE_RADIUS - 26;
+const GAUGE_INNER_RING_RADIUS = 38;
+const GAUGE_HUB_RADIUS = 10;
+const GAUGE_NEEDLE_TIP_RADIUS = 33;
 const GAUGE_TICK_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 const GAUGE_LABEL_VALUES = [0, 2, 4, 6, 8, 9, 10, 11] as const;
 const GAUGE_ZONE_GREEN = "#4ade80";
@@ -2076,10 +2078,14 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
   const bezelGradientId = `wallboxV2Bezel-${widgetId}`;
   const glossId = `wallboxV2Gloss-${widgetId}`;
   const faceClipId = `wallboxV2FaceClip-${widgetId}`;
-  const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS - 34, needleAngle);
-  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 5, needleAngle - 90);
-  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 5, needleAngle + 90);
-  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 10, needleAngle + 180);
+  const glowBlurId = `wallboxV2GlowBlur-${widgetId}`;
+  const needleGlowBlurId = `wallboxV2NeedleGlowBlur-${widgetId}`;
+  const lcdGlowBlurId = `wallboxV2LcdGlowBlur-${widgetId}`;
+  const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_NEEDLE_TIP_RADIUS, needleAngle);
+  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 4, needleAngle - 90);
+  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 4, needleAngle + 90);
+  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle + 180);
+  const needlePoints = `${needleTip.x},${needleTip.y} ${needleBaseLeft.x},${needleBaseLeft.y} ${needleTailPoint.x},${needleTailPoint.y} ${needleBaseRight.x},${needleBaseRight.y}`;
 
   const ticks = GAUGE_TICK_VALUES.map((tick) => {
     const angle = gaugeAngleForKW(tick);
@@ -2122,24 +2128,25 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       d,
       fill: "none",
       stroke: color,
-      strokeWidth: 16,
+      strokeWidth: 10,
       strokeLinecap: "round",
-      opacity: 0.28,
+      opacity: 0.65,
+      filter: `url(#${glowBlurId})`,
     }),
     createElement("path", {
       key,
       d,
       fill: "none",
       stroke: color,
-      strokeWidth: 8,
+      strokeWidth: 6,
       strokeLinecap: "round",
     }),
   ];
 
-  const lcdWidth = 72;
-  const lcdHeight = 30;
+  const lcdWidth = 60;
+  const lcdHeight = 22;
   const lcdX = GAUGE_CENTER - lcdWidth / 2;
-  const lcdY = GAUGE_CENTER + 44;
+  const lcdY = GAUGE_CENTER + 43;
   const lcdValueText = safeValueKW.toFixed(1);
 
   return createElement(
@@ -2175,10 +2182,26 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       createElement(
         "linearGradient",
         { id: glossId, x1: "50%", y1: "0%", x2: "50%", y2: "100%" },
-        createElement("stop", { offset: "0%", stopColor: "rgba(255,255,255,0.14)" }),
-        createElement("stop", { offset: "45%", stopColor: "rgba(255,255,255,0)" })
+        createElement("stop", { offset: "0%", stopColor: "rgba(255,255,255,0.22)" }),
+        createElement("stop", { offset: "40%", stopColor: "rgba(255,255,255,0.05)" }),
+        createElement("stop", { offset: "70%", stopColor: "rgba(255,255,255,0)" })
       ),
-      createElement("clipPath", { id: faceClipId }, createElement("circle", { cx: GAUGE_CENTER, cy: GAUGE_CENTER, r: GAUGE_FACE_RADIUS }))
+      createElement("clipPath", { id: faceClipId }, createElement("circle", { cx: GAUGE_CENTER, cy: GAUGE_CENTER, r: GAUGE_FACE_RADIUS })),
+      createElement(
+        "filter",
+        { id: glowBlurId, x: "-60%", y: "-60%", width: "220%", height: "220%" },
+        createElement("feGaussianBlur", { stdDeviation: 2.4 })
+      ),
+      createElement(
+        "filter",
+        { id: needleGlowBlurId, x: "-100%", y: "-100%", width: "300%", height: "300%" },
+        createElement("feGaussianBlur", { stdDeviation: 2.2 })
+      ),
+      createElement(
+        "filter",
+        { id: lcdGlowBlurId, x: "-100%", y: "-100%", width: "300%", height: "300%" },
+        createElement("feGaussianBlur", { stdDeviation: 1.6 })
+      )
     ),
     createElement("circle", {
       cx: GAUGE_CENTER,
@@ -2238,10 +2261,24 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     createElement(
       "text",
       {
-        x: GAUGE_CENTER - 6,
-        y: lcdY + 20,
-        fill: "#eaffcb",
-        fontSize: 15,
+        x: GAUGE_CENTER - 4,
+        y: lcdY + 16,
+        fill: "rgba(120, 210, 255, 0.85)",
+        fontSize: 13,
+        fontWeight: 700,
+        fontFamily: "monospace",
+        textAnchor: "end",
+        filter: `url(#${lcdGlowBlurId})`,
+      },
+      lcdValueText
+    ),
+    createElement(
+      "text",
+      {
+        x: GAUGE_CENTER - 4,
+        y: lcdY + 16,
+        fill: "#e0faff",
+        fontSize: 13,
         fontWeight: 700,
         fontFamily: "monospace",
         textAnchor: "end",
@@ -2251,17 +2288,24 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     createElement(
       "text",
       {
-        x: GAUGE_CENTER + 28,
-        y: lcdY + 19,
+        x: GAUGE_CENTER + 22,
+        y: lcdY + 15,
         fill: "#8fb7c9",
-        fontSize: 9,
+        fontSize: 7,
         fontWeight: 700,
         textAnchor: "end",
       },
       "kW"
     ),
     createElement("polygon", {
-      points: `${needleTip.x},${needleTip.y} ${needleBaseLeft.x},${needleBaseLeft.y} ${needleTailPoint.x},${needleTailPoint.y} ${needleBaseRight.x},${needleBaseRight.y}`,
+      key: "needle-glow",
+      points: needlePoints,
+      fill: GAUGE_NEEDLE_COLOR,
+      opacity: 0.7,
+      filter: `url(#${needleGlowBlurId})`,
+    }),
+    createElement("polygon", {
+      points: needlePoints,
       fill: GAUGE_NEEDLE_COLOR,
       stroke: "rgba(0,0,0,0.35)",
       strokeWidth: 0.5,
@@ -2269,7 +2313,7 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     createElement("circle", {
       cx: GAUGE_CENTER,
       cy: GAUGE_CENTER,
-      r: 8,
+      r: GAUGE_HUB_RADIUS,
       fill: `url(#${hubGradientId})`,
       stroke: "rgba(210, 220, 235, 0.3)",
       strokeWidth: 1,
