@@ -2025,6 +2025,7 @@ function withAlpha(color: string, alpha: number) {
 
 const GAUGE_MIN_KW = 0;
 const GAUGE_MAX_KW = 11;
+const GAUGE_GREEN_END_KW = 6;
 const GAUGE_WARN_KW = 9;
 const GAUGE_START_ANGLE = -125;
 const GAUGE_END_ANGLE = 125;
@@ -2032,7 +2033,11 @@ const GAUGE_SIZE = 208;
 const GAUGE_CENTER = GAUGE_SIZE / 2;
 const GAUGE_RADIUS = 84;
 const GAUGE_TICK_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
-const GAUGE_LABEL_VALUES = [0, 3, 6, 9, 11] as const;
+const GAUGE_LABEL_VALUES = [0, 2, 4, 6, 8, 9, 10, 11] as const;
+const GAUGE_ZONE_GREEN = "#4ade80";
+const GAUGE_ZONE_YELLOW = "#f5d547";
+const GAUGE_ZONE_RED = "#ef5d6b";
+const GAUGE_NEEDLE_COLOR = "#f7a440";
 
 function gaugeAngleForKW(valueKW: number) {
   const clamped = Math.max(GAUGE_MIN_KW, Math.min(GAUGE_MAX_KW, valueKW));
@@ -2052,14 +2057,16 @@ function gaugeArcPath(cx: number, cy: number, r: number, startAngle: number, end
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
 }
 
-function buildPowerGaugeSvg(valueKW: number, accentColor: string, widgetId: string) {
+function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: string) {
   const safeValueKW = Number.isFinite(valueKW) ? valueKW : 0;
   const needleAngle = gaugeAngleForKW(safeValueKW);
-  const trackPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, GAUGE_START_ANGLE, GAUGE_END_ANGLE);
-  const progressPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, GAUGE_START_ANGLE, needleAngle);
+  const greenEndAngle = gaugeAngleForKW(GAUGE_GREEN_END_KW);
   const warnStartAngle = gaugeAngleForKW(GAUGE_WARN_KW);
-  const warnPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, warnStartAngle, GAUGE_END_ANGLE);
+  const greenPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, GAUGE_START_ANGLE, greenEndAngle);
+  const yellowPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, greenEndAngle, warnStartAngle);
+  const redPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, warnStartAngle, GAUGE_END_ANGLE);
   const hubGradientId = `wallboxV2Hub-${widgetId}`;
+  const faceGradientId = `wallboxV2Face-${widgetId}`;
   const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS - 22, needleAngle);
   const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle - 90);
   const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle + 90);
@@ -2100,6 +2107,32 @@ function buildPowerGaugeSvg(valueKW: number, accentColor: string, widgetId: stri
     );
   });
 
+  const zoneArc = (key: string, d: string, color: string) => [
+    createElement("path", {
+      key: `${key}-glow`,
+      d,
+      fill: "none",
+      stroke: color,
+      strokeWidth: 16,
+      strokeLinecap: "round",
+      opacity: 0.28,
+    }),
+    createElement("path", {
+      key,
+      d,
+      fill: "none",
+      stroke: color,
+      strokeWidth: 8,
+      strokeLinecap: "round",
+    }),
+  ];
+
+  const lcdWidth = 68;
+  const lcdHeight = 28;
+  const lcdX = GAUGE_CENTER - lcdWidth / 2;
+  const lcdY = GAUGE_CENTER + 46;
+  const lcdValueText = safeValueKW.toFixed(1);
+
   return createElement(
     "svg",
     { width: GAUGE_SIZE, height: GAUGE_SIZE, viewBox: `0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}` },
@@ -2112,34 +2145,74 @@ function buildPowerGaugeSvg(valueKW: number, accentColor: string, widgetId: stri
         createElement("stop", { offset: "0%", stopColor: "#f4f6fb" }),
         createElement("stop", { offset: "45%", stopColor: "#aeb8ce" }),
         createElement("stop", { offset: "100%", stopColor: "#333a4c" })
+      ),
+      createElement(
+        "radialGradient",
+        { id: faceGradientId, cx: "50%", cy: "42%", r: "62%" },
+        createElement("stop", { offset: "0%", stopColor: "#141d2b" }),
+        createElement("stop", { offset: "70%", stopColor: "#0a1119" }),
+        createElement("stop", { offset: "100%", stopColor: "#05080d" })
       )
     ),
-    createElement("path", {
-      d: trackPath,
-      fill: "none",
-      stroke: "rgba(255,255,255,0.12)",
-      strokeWidth: 14,
-      strokeLinecap: "round",
+    createElement("circle", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r: GAUGE_RADIUS + 15,
+      fill: `url(#${faceGradientId})`,
+      stroke: "rgba(180, 190, 210, 0.28)",
+      strokeWidth: 2,
     }),
-    createElement("path", {
-      d: warnPath,
+    createElement("circle", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r: GAUGE_RADIUS - 30,
       fill: "none",
-      stroke: "rgba(239, 93, 107, 0.5)",
-      strokeWidth: 14,
-      strokeLinecap: "round",
+      stroke: "rgba(120, 210, 255, 0.4)",
+      strokeWidth: 1.25,
     }),
-    createElement("path", {
-      d: progressPath,
-      fill: "none",
-      stroke: accentColor,
-      strokeWidth: 8,
-      strokeLinecap: "round",
-    }),
+    ...zoneArc("zone-green", greenPath, GAUGE_ZONE_GREEN),
+    ...zoneArc("zone-yellow", yellowPath, GAUGE_ZONE_YELLOW),
+    ...zoneArc("zone-red", redPath, GAUGE_ZONE_RED),
     ...ticks,
     ...labels,
+    createElement("rect", {
+      x: lcdX,
+      y: lcdY,
+      width: lcdWidth,
+      height: lcdHeight,
+      rx: 4,
+      fill: "#050b12",
+      stroke: "rgba(120, 200, 255, 0.35)",
+      strokeWidth: 1,
+    }),
+    createElement(
+      "text",
+      {
+        x: GAUGE_CENTER - 6,
+        y: lcdY + 19,
+        fill: "#eaffcb",
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: "monospace",
+        textAnchor: "end",
+      },
+      lcdValueText
+    ),
+    createElement(
+      "text",
+      {
+        x: GAUGE_CENTER + 26,
+        y: lcdY + 18,
+        fill: "#8fb7c9",
+        fontSize: 8,
+        fontWeight: 700,
+        textAnchor: "end",
+      },
+      "kW"
+    ),
     createElement("polygon", {
       points: `${needleTip.x},${needleTip.y} ${needleBaseLeft.x},${needleBaseLeft.y} ${needleTailPoint.x},${needleTailPoint.y} ${needleBaseRight.x},${needleBaseRight.y}`,
-      fill: "#ff5a3c",
+      fill: GAUGE_NEEDLE_COLOR,
       stroke: "rgba(0,0,0,0.35)",
       strokeWidth: 0.5,
     }),
