@@ -1097,7 +1097,7 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
             })
           : null}
 
-        <View style={[styles.scaledContent, { transform: [{ scale: contentScale }] }]}>
+        <View style={[styles.scaledContent, { transform: [{ scale: contentScale }], transformOrigin: "top center" }]}>
           <View style={styles.header}>
           {config.showTitle !== false ? (
             <Text numberOfLines={1} style={[styles.title, { color: textColor }]}>
@@ -2030,6 +2030,7 @@ const GAUGE_WARN_KW = 9;
 const GAUGE_START_ANGLE = -125;
 const GAUGE_END_ANGLE = 125;
 const GAUGE_SIZE = 224;
+const GAUGE_DISPLAY_SIZE = 208;
 const GAUGE_CENTER = GAUGE_SIZE / 2;
 const GAUGE_RADIUS = 76;
 const GAUGE_FACE_RADIUS = GAUGE_RADIUS + 11;
@@ -2361,7 +2362,7 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
 
   return createElement(
     "svg",
-    { width: GAUGE_SIZE, height: GAUGE_SIZE, viewBox: `0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}` },
+    { width: GAUGE_DISPLAY_SIZE, height: GAUGE_DISPLAY_SIZE, viewBox: `0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}` },
     createElement(
       "defs",
       null,
