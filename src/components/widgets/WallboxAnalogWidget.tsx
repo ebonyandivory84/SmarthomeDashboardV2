@@ -2036,16 +2036,37 @@ const GAUGE_FACE_RADIUS = GAUGE_RADIUS + 11;
 const GAUGE_BEZEL_WIDTH = 12;
 const GAUGE_BEZEL_MID_RADIUS = GAUGE_FACE_RADIUS + GAUGE_BEZEL_WIDTH / 2;
 const GAUGE_BEZEL_TRIM_RADIUS = GAUGE_BEZEL_MID_RADIUS + GAUGE_BEZEL_WIDTH / 2 + 1;
-const GAUGE_OUTER_RING_RADIUS = GAUGE_RADIUS;
+const GAUGE_OUTER_RING_RADIUS = GAUGE_RADIUS + 8;
 const GAUGE_INNER_RING_RADIUS = 38;
-const GAUGE_HUB_RADIUS = 10;
-const GAUGE_NEEDLE_TIP_RADIUS = 33;
+const GAUGE_HUB_RADIUS = 12;
+const GAUGE_NEEDLE_TIP_RADIUS = 57;
+const GAUGE_RING_COLOR = "#7fd9ff";
 const GAUGE_TICK_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 const GAUGE_LABEL_VALUES = [0, 2, 4, 6, 8, 9, 10, 11] as const;
 const GAUGE_ZONE_GREEN = "#4ade80";
 const GAUGE_ZONE_YELLOW = "#f5d547";
 const GAUGE_ZONE_RED = "#ef5d6b";
 const GAUGE_NEEDLE_COLOR = "#f7a440";
+const GAUGE_LCD_DIGIT_WIDTH = 7.4;
+const GAUGE_LCD_DIGIT_HEIGHT = 13;
+const GAUGE_LCD_DIGIT_GAP = 2.6;
+const GAUGE_LCD_DOT_WIDTH = 3.4;
+const GAUGE_LCD_GHOST_COLOR = "rgba(120, 210, 255, 0.12)";
+const GAUGE_LCD_ON_GLOW_COLOR = "#8fe3ff";
+const GAUGE_LCD_ON_COLOR = "#d6faff";
+
+const SEVEN_SEGMENT_MAP: Record<string, readonly string[]> = {
+  "0": ["a", "b", "c", "d", "e", "f"],
+  "1": ["b", "c"],
+  "2": ["a", "b", "g", "e", "d"],
+  "3": ["a", "b", "g", "c", "d"],
+  "4": ["f", "g", "b", "c"],
+  "5": ["a", "f", "g", "c", "d"],
+  "6": ["a", "f", "g", "e", "c", "d"],
+  "7": ["a", "b", "c"],
+  "8": ["a", "b", "c", "d", "e", "f", "g"],
+  "9": ["a", "b", "c", "d", "f", "g"],
+};
 
 function gaugeAngleForKW(valueKW: number) {
   const clamped = Math.max(GAUGE_MIN_KW, Math.min(GAUGE_MAX_KW, valueKW));
@@ -2065,6 +2086,105 @@ function gaugeArcPath(cx: number, cy: number, r: number, startAngle: number, end
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
 }
 
+const GAUGE_SEGMENT_COORDS: Record<string, [number, number, number, number]> = {
+  a: [1, 0, 0, 0],
+  b: [1, 0, 1, 0.5],
+  c: [1, 0.5, 1, 1],
+  d: [0, 1, 1, 1],
+  e: [0, 0.5, 0, 1],
+  f: [0, 0, 0, 0.5],
+  g: [0, 0.5, 1, 0.5],
+};
+
+function buildSevenSegmentDigit(
+  key: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  char: string,
+  glowFilterId: string
+) {
+  const st = w * 0.24;
+  const shrink = st * 0.3;
+  const elements: ReturnType<typeof createElement>[] = [];
+  const segKeys = Object.keys(GAUGE_SEGMENT_COORDS);
+  const onSegments = new Set(SEVEN_SEGMENT_MAP[char] ?? []);
+
+  const segmentEndpoints = (seg: string) => {
+    const [nx1, ny1, nx2, ny2] = GAUGE_SEGMENT_COORDS[seg];
+    const isVertical = nx1 === nx2;
+    let y1 = y + ny1 * h;
+    let y2 = y + ny2 * h;
+    if (isVertical && ny1 === 0.5) y1 += shrink;
+    if (isVertical && ny2 === 0.5) y2 -= shrink;
+    return { x1: x + nx1 * w, y1, x2: x + nx2 * w, y2 };
+  };
+
+  segKeys.forEach((seg) => {
+    const { x1, y1, x2, y2 } = segmentEndpoints(seg);
+    elements.push(
+      createElement("line", {
+        key: `${key}-ghost-${seg}`,
+        x1,
+        y1,
+        x2,
+        y2,
+        stroke: GAUGE_LCD_GHOST_COLOR,
+        strokeWidth: st,
+        strokeLinecap: "round",
+      })
+    );
+  });
+
+  onSegments.forEach((seg) => {
+    const { x1, y1, x2, y2 } = segmentEndpoints(seg);
+    elements.push(
+      createElement("line", {
+        key: `${key}-glow-${seg}`,
+        x1,
+        y1,
+        x2,
+        y2,
+        stroke: GAUGE_LCD_ON_GLOW_COLOR,
+        strokeWidth: st,
+        strokeLinecap: "round",
+        opacity: 0.75,
+        filter: `url(#${glowFilterId})`,
+      })
+    );
+    elements.push(
+      createElement("line", {
+        key: `${key}-on-${seg}`,
+        x1,
+        y1,
+        x2,
+        y2,
+        stroke: GAUGE_LCD_ON_COLOR,
+        strokeWidth: st * 0.8,
+        strokeLinecap: "round",
+      })
+    );
+  });
+
+  return elements;
+}
+
+function buildLcdDot(key: string, cx: number, cy: number, r: number, glowFilterId: string) {
+  return [
+    createElement("circle", {
+      key: `${key}-glow`,
+      cx,
+      cy,
+      r,
+      fill: GAUGE_LCD_ON_GLOW_COLOR,
+      opacity: 0.75,
+      filter: `url(#${glowFilterId})`,
+    }),
+    createElement("circle", { key, cx, cy, r: r * 0.8, fill: GAUGE_LCD_ON_COLOR }),
+  ];
+}
+
 function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: string) {
   const safeValueKW = Number.isFinite(valueKW) ? valueKW : 0;
   const needleAngle = gaugeAngleForKW(safeValueKW);
@@ -2073,19 +2193,46 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
   const greenPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, GAUGE_START_ANGLE, greenEndAngle);
   const yellowPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, greenEndAngle, warnStartAngle);
   const redPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, warnStartAngle, GAUGE_END_ANGLE);
+  const bezelTintRadius = GAUGE_FACE_RADIUS + GAUGE_BEZEL_WIDTH * 0.32;
+  const greenBezelPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, bezelTintRadius, GAUGE_START_ANGLE, greenEndAngle);
+  const yellowBezelPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, bezelTintRadius, greenEndAngle, warnStartAngle);
+  const redBezelPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, bezelTintRadius, warnStartAngle, GAUGE_END_ANGLE);
   const hubGradientId = `wallboxV2Hub-${widgetId}`;
   const faceGradientId = `wallboxV2Face-${widgetId}`;
   const bezelGradientId = `wallboxV2Bezel-${widgetId}`;
   const glossId = `wallboxV2Gloss-${widgetId}`;
   const faceClipId = `wallboxV2FaceClip-${widgetId}`;
   const glowBlurId = `wallboxV2GlowBlur-${widgetId}`;
+  const bezelGlowBlurId = `wallboxV2BezelGlowBlur-${widgetId}`;
   const needleGlowBlurId = `wallboxV2NeedleGlowBlur-${widgetId}`;
   const lcdGlowBlurId = `wallboxV2LcdGlowBlur-${widgetId}`;
   const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_NEEDLE_TIP_RADIUS, needleAngle);
-  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 4, needleAngle - 90);
-  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 4, needleAngle + 90);
-  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle + 180);
+  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 3, needleAngle - 90);
+  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 3, needleAngle + 90);
+  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 7, needleAngle + 180);
   const needlePoints = `${needleTip.x},${needleTip.y} ${needleBaseLeft.x},${needleBaseLeft.y} ${needleTailPoint.x},${needleTailPoint.y} ${needleBaseRight.x},${needleBaseRight.y}`;
+  const needleHighlightTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_NEEDLE_TIP_RADIUS - 3, needleAngle);
+
+  const pseudoRandom = (i: number) => {
+    const v = Math.sin(i * 12.9898) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const bezelBrushLines = Array.from({ length: 72 }, (_, i) => {
+    const angle = (i / 72) * 360;
+    const rand = pseudoRandom(i);
+    const inner = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_FACE_RADIUS + 1, angle);
+    const outer = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_BEZEL_TRIM_RADIUS - 1, angle);
+    return createElement("line", {
+      key: `brush-${i}`,
+      x1: inner.x,
+      y1: inner.y,
+      x2: outer.x,
+      y2: outer.y,
+      stroke: rand > 0.5 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.32)",
+      strokeWidth: 0.6,
+      opacity: 0.12 + rand * 0.18,
+    });
+  });
 
   const ticks = GAUGE_TICK_VALUES.map((tick) => {
     const angle = gaugeAngleForKW(tick);
@@ -2143,11 +2290,74 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     }),
   ];
 
-  const lcdWidth = 60;
-  const lcdHeight = 22;
-  const lcdX = GAUGE_CENTER - lcdWidth / 2;
-  const lcdY = GAUGE_CENTER + 43;
+  const glowRing = (key: string, r: number) => [
+    createElement("circle", {
+      key: `${key}-glow`,
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r,
+      fill: "none",
+      stroke: GAUGE_RING_COLOR,
+      strokeWidth: 5,
+      opacity: 0.55,
+      filter: `url(#${glowBlurId})`,
+    }),
+    createElement("circle", {
+      key,
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r,
+      fill: "none",
+      stroke: GAUGE_RING_COLOR,
+      strokeWidth: 1.4,
+      opacity: 0.9,
+    }),
+  ];
+
+  const bezelColorBleed = (d: string, color: string, filterId: string) =>
+    createElement("path", {
+      key: `bezel-bleed-${color}`,
+      d,
+      fill: "none",
+      stroke: color,
+      strokeWidth: GAUGE_BEZEL_WIDTH * 0.7,
+      strokeLinecap: "round",
+      opacity: 0.3,
+      filter: `url(#${filterId})`,
+    });
+
   const lcdValueText = safeValueKW.toFixed(1);
+  const lcdChars = lcdValueText.split("");
+  let lcdAdvance = 0;
+  lcdChars.forEach((ch) => {
+    lcdAdvance += (ch === "." ? GAUGE_LCD_DOT_WIDTH : GAUGE_LCD_DIGIT_WIDTH) + GAUGE_LCD_DIGIT_GAP;
+  });
+  const lcdDigitsWidth = lcdAdvance - GAUGE_LCD_DIGIT_GAP;
+  const lcdKwGap = 5;
+  const lcdKwLabelWidth = 13;
+  const lcdPaddingX = 7;
+  const lcdWidth = lcdDigitsWidth + lcdKwGap + lcdKwLabelWidth + lcdPaddingX * 2;
+  const lcdHeight = GAUGE_LCD_DIGIT_HEIGHT + 10;
+  const lcdX = GAUGE_CENTER - lcdWidth / 2;
+  const lcdY = GAUGE_CENTER + 40;
+  const digitsOriginX = lcdX + lcdPaddingX;
+  const digitsOriginY = lcdY + (lcdHeight - GAUGE_LCD_DIGIT_HEIGHT) / 2;
+  const lcdDigitElements: ReturnType<typeof createElement>[] = [];
+  let lcdCursorX = digitsOriginX;
+  lcdChars.forEach((ch, idx) => {
+    if (ch === ".") {
+      lcdDigitElements.push(
+        ...buildLcdDot(`lcd-dot-${idx}`, lcdCursorX + GAUGE_LCD_DOT_WIDTH / 2, digitsOriginY + GAUGE_LCD_DIGIT_HEIGHT, 1.6, lcdGlowBlurId)
+      );
+      lcdCursorX += GAUGE_LCD_DOT_WIDTH + GAUGE_LCD_DIGIT_GAP;
+    } else {
+      lcdDigitElements.push(
+        ...buildSevenSegmentDigit(`lcd-digit-${idx}`, lcdCursorX, digitsOriginY, GAUGE_LCD_DIGIT_WIDTH, GAUGE_LCD_DIGIT_HEIGHT, ch, lcdGlowBlurId)
+      );
+      lcdCursorX += GAUGE_LCD_DIGIT_WIDTH + GAUGE_LCD_DIGIT_GAP;
+    }
+  });
+  const lcdKwLabelX = digitsOriginX + lcdDigitsWidth + lcdKwGap;
 
   return createElement(
     "svg",
@@ -2194,6 +2404,11 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       ),
       createElement(
         "filter",
+        { id: bezelGlowBlurId, x: "-80%", y: "-80%", width: "260%", height: "260%" },
+        createElement("feGaussianBlur", { stdDeviation: 3.4 })
+      ),
+      createElement(
+        "filter",
         { id: needleGlowBlurId, x: "-100%", y: "-100%", width: "300%", height: "300%" },
         createElement("feGaussianBlur", { stdDeviation: 2.2 })
       ),
@@ -2211,6 +2426,10 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       stroke: `url(#${bezelGradientId})`,
       strokeWidth: GAUGE_BEZEL_WIDTH,
     }),
+    ...bezelBrushLines,
+    bezelColorBleed(greenBezelPath, GAUGE_ZONE_GREEN, bezelGlowBlurId),
+    bezelColorBleed(yellowBezelPath, GAUGE_ZONE_YELLOW, bezelGlowBlurId),
+    bezelColorBleed(redBezelPath, GAUGE_ZONE_RED, bezelGlowBlurId),
     createElement("circle", {
       cx: GAUGE_CENTER,
       cy: GAUGE_CENTER,
@@ -2227,25 +2446,11 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       stroke: "rgba(0, 0, 0, 0.6)",
       strokeWidth: 1.5,
     }),
-    createElement("circle", {
-      cx: GAUGE_CENTER,
-      cy: GAUGE_CENTER,
-      r: GAUGE_OUTER_RING_RADIUS,
-      fill: "none",
-      stroke: "rgba(120, 210, 255, 0.55)",
-      strokeWidth: 2.5,
-    }),
+    ...glowRing("ring-outer", GAUGE_OUTER_RING_RADIUS),
     ...zoneArc("zone-green", greenPath, GAUGE_ZONE_GREEN),
     ...zoneArc("zone-yellow", yellowPath, GAUGE_ZONE_YELLOW),
     ...zoneArc("zone-red", redPath, GAUGE_ZONE_RED),
-    createElement("circle", {
-      cx: GAUGE_CENTER,
-      cy: GAUGE_CENTER,
-      r: GAUGE_INNER_RING_RADIUS,
-      fill: "none",
-      stroke: "rgba(120, 210, 255, 0.4)",
-      strokeWidth: 1.25,
-    }),
+    ...glowRing("ring-inner", GAUGE_INNER_RING_RADIUS),
     ...ticks,
     ...labels,
     createElement("rect", {
@@ -2258,42 +2463,16 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       stroke: "rgba(120, 200, 255, 0.35)",
       strokeWidth: 1,
     }),
+    ...lcdDigitElements,
     createElement(
       "text",
       {
-        x: GAUGE_CENTER - 4,
-        y: lcdY + 16,
-        fill: "rgba(120, 210, 255, 0.85)",
-        fontSize: 13,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        textAnchor: "end",
-        filter: `url(#${lcdGlowBlurId})`,
-      },
-      lcdValueText
-    ),
-    createElement(
-      "text",
-      {
-        x: GAUGE_CENTER - 4,
-        y: lcdY + 16,
-        fill: "#e0faff",
-        fontSize: 13,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        textAnchor: "end",
-      },
-      lcdValueText
-    ),
-    createElement(
-      "text",
-      {
-        x: GAUGE_CENTER + 22,
-        y: lcdY + 15,
+        x: lcdKwLabelX,
+        y: digitsOriginY + GAUGE_LCD_DIGIT_HEIGHT - 1,
         fill: "#8fb7c9",
         fontSize: 7,
         fontWeight: 700,
-        textAnchor: "end",
+        textAnchor: "start",
       },
       "kW"
     ),
@@ -2305,10 +2484,21 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       filter: `url(#${needleGlowBlurId})`,
     }),
     createElement("polygon", {
+      key: "needle-body",
       points: needlePoints,
       fill: GAUGE_NEEDLE_COLOR,
       stroke: "rgba(0,0,0,0.35)",
       strokeWidth: 0.5,
+    }),
+    createElement("line", {
+      key: "needle-highlight",
+      x1: GAUGE_CENTER,
+      y1: GAUGE_CENTER,
+      x2: needleHighlightTip.x,
+      y2: needleHighlightTip.y,
+      stroke: "rgba(255, 240, 220, 0.55)",
+      strokeWidth: 0.6,
+      strokeLinecap: "round",
     }),
     createElement("circle", {
       cx: GAUGE_CENTER,
@@ -2319,12 +2509,13 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       strokeWidth: 1,
     }),
     createElement("ellipse", {
-      cx: GAUGE_CENTER,
-      cy: GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.42,
-      rx: GAUGE_FACE_RADIUS * 0.7,
-      ry: GAUGE_FACE_RADIUS * 0.4,
+      cx: GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.1,
+      cy: GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.38,
+      rx: GAUGE_FACE_RADIUS * 0.75,
+      ry: GAUGE_FACE_RADIUS * 0.3,
       fill: `url(#${glossId})`,
       clipPath: `url(#${faceClipId})`,
+      transform: `rotate(-24 ${GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.1} ${GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.38})`,
     })
   );
 }
