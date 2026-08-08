@@ -49,6 +49,7 @@ export function WidgetFrame({
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
     widget.type !== "wallbox" &&
     widget.type !== "goe" &&
+    widget.type !== "wallboxV2" &&
     widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
     widget.showTitle !== false &&
@@ -76,6 +77,7 @@ export function WidgetFrame({
     widget.type === "coco" ||
     widget.type === "wallbox" ||
     widget.type === "goe" ||
+    widget.type === "wallboxV2" ||
     widget.type === "heating" ||
     widget.type === "heatingV2";
 
@@ -292,6 +294,7 @@ export function WidgetFrame({
           widget.type !== "state" &&
           widget.type !== "wallbox" &&
           widget.type !== "goe" &&
+          widget.type !== "wallboxV2" &&
           widget.type !== "heating" &&
           widget.type !== "heatingV2" &&
           widget.type !== "grafana" &&

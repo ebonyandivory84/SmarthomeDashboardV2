@@ -435,6 +435,7 @@ export function DashboardScreen() {
       currentWidget.type === "raspberryPiStats" ||
       currentWidget.type === "wallbox" ||
       currentWidget.type === "goe" ||
+      currentWidget.type === "wallboxV2" ||
       currentWidget.type === "heating" ||
       currentWidget.type === "heatingV2";
     if (partial.mobilePosition) {
@@ -481,6 +482,7 @@ export function DashboardScreen() {
                 currentWidget.type === "raspberryPiStats" ||
                 currentWidget.type === "wallbox" ||
                 currentWidget.type === "goe" ||
+                currentWidget.type === "wallboxV2" ||
                 currentWidget.type === "heating" ||
                 currentWidget.type === "heatingV2"
               ? { minHeight: 1, heightSnap: 0.1 }

@@ -126,6 +126,12 @@ const OPTIONS: Array<{
     icon: "ev-station",
   },
   {
+    type: "wallboxV2",
+    title: "Wallbox V2",
+    description: "Analoge Ladeleistungs-Anzeige mit Zeigernadel und physischen Bedienelementen.",
+    icon: "speedometer",
+  },
+  {
     type: "heating",
     title: "Heizung",
     description: "Steuert Viessmann Heizmodus, Solltemperaturen und Warmwasser in einer kompakten Card.",

@@ -17,6 +17,7 @@ export type WidgetType =
   | "coco"
   | "wallbox"
   | "goe"
+  | "wallboxV2"
   | "heating"
   | "heatingV2";
 
@@ -338,6 +339,10 @@ export type GoEWidgetConfig = Omit<WallboxWidgetConfig, "type"> & {
   type: "goe";
 };
 
+export type WallboxWidgetV2Config = Omit<WallboxWidgetConfig, "type"> & {
+  type: "wallboxV2";
+};
+
 export type HeatingWidgetConfig = WidgetBase & {
   type: "heating";
   manualHeightOverride?: boolean;
@@ -489,6 +494,7 @@ export type WidgetConfig =
   | CocoWidgetConfig
   | WallboxWidgetConfig
   | GoEWidgetConfig
+  | WallboxWidgetV2Config
   | HeatingWidgetConfig
   | HeatingWidgetV2Config;
 

@@ -23,6 +23,7 @@ import { ScriptWidget } from "./widgets/ScriptWidget";
 import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
 import { WallboxWidget } from "./widgets/WallboxWidget";
+import { WallboxAnalogWidget } from "./widgets/WallboxAnalogWidget";
 import { WeatherWidget } from "./widgets/WeatherWidget";
 
 const LazyCameraWidget = lazy(() => import("./widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
@@ -211,6 +212,7 @@ export function GridCanvas({
                   widget.type === "coco" ||
                   widget.type === "wallbox" ||
                   widget.type === "goe" ||
+                  widget.type === "wallboxV2" ||
                   widget.type === "heating" ||
                   widget.type === "heatingV2" ||
                   (Platform.OS === "web" && (widget.type === "weather" || widget.type === "grafana"))
@@ -676,6 +678,7 @@ function getAutoLayoutSpec(
         return { w: 1, h: roundGridUnit(2.8) };
       case "wallbox":
       case "goe":
+      case "wallboxV2":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
@@ -749,6 +752,7 @@ function getAutoLayoutSpec(
       return { w: mainColumnWidth, h: roundGridUnit(2.8) };
     case "wallbox":
     case "goe":
+    case "wallboxV2":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
@@ -959,6 +963,7 @@ function WebGridCanvas({
             widget.type === "coco" ||
             widget.type === "wallbox" ||
             widget.type === "goe" ||
+            widget.type === "wallboxV2" ||
             widget.type === "heating" ||
             widget.type === "heatingV2"
           }
@@ -1037,6 +1042,7 @@ function WebWidgetShell({
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
     widget.type !== "wallbox" &&
     widget.type !== "goe" &&
+    widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
     widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
@@ -1164,6 +1170,7 @@ function WebWidgetShell({
           widget.type === "coco" ||
           widget.type === "wallbox" ||
           widget.type === "goe" ||
+          widget.type === "wallboxV2" ||
           widget.type === "heating" ||
           widget.type === "heatingV2")
           ? CAMERA_GRID_SNAP
@@ -1179,7 +1186,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "log" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "log" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1215,6 +1222,7 @@ function WebWidgetShell({
           widget.type === "coco" ||
           widget.type === "wallbox" ||
           widget.type === "goe" ||
+          widget.type === "wallboxV2" ||
           widget.type === "heating" ||
           widget.type === "heatingV2"
         ) {
@@ -1337,6 +1345,7 @@ function WebWidgetShell({
     widget.type !== "state" &&
     widget.type !== "wallbox" &&
     widget.type !== "goe" &&
+    widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
     widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
@@ -1700,6 +1709,10 @@ function renderWidget(
     return <WallboxWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
   }
 
+  if (effectiveWidget.type === "wallboxV2") {
+    return <WallboxAnalogWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
+  }
+
   if (effectiveWidget.type === "heating") {
     return <HeatingWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
   }
@@ -1754,6 +1767,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "coco" ||
     type === "wallbox" ||
     type === "goe" ||
+    type === "wallboxV2" ||
     type === "heating" ||
     type === "heatingV2"
   );
@@ -1981,7 +1995,7 @@ const webResizeHandleStyle: CSSProperties = {
 function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThemeSettings>): CSSProperties {
   const appearance = widget.appearance;
   if (appearance?.widgetColor) {
-    if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "coco" || widget.type === "heating" || widget.type === "heatingV2") {
+    if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "coco" || widget.type === "heating" || widget.type === "heatingV2") {
       return {
         background: buildGradientBackground(appearance.widgetColor, appearance.widgetColor2),
         border: "none",
@@ -2081,7 +2095,7 @@ function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThe
       boxShadow: "0 16px 28px rgba(5, 10, 19, 0.34)",
     };
   }
-  if (type === "wallbox" || type === "goe") {
+  if (type === "wallbox" || type === "goe" || type === "wallboxV2") {
     return {
       background: "linear-gradient(145deg, rgba(19, 31, 49, 0.96), rgba(10, 17, 31, 0.98))",
       border: "none",

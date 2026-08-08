@@ -955,6 +955,7 @@ function normalizeWidgetTypeSoundDefaults(
     coco: normalizeWidgetInteractionSounds(input.coco),
     wallbox: normalizeWidgetInteractionSounds(input.wallbox),
     goe: normalizeWidgetInteractionSounds(input.goe),
+    wallboxV2: normalizeWidgetInteractionSounds(input.wallboxV2),
     heating: normalizeWidgetInteractionSounds(input.heating),
     heatingV2: normalizeWidgetInteractionSounds(input.heatingV2),
   };

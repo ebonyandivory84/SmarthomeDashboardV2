@@ -168,7 +168,7 @@ export const collectWidgetStateIds = (widget: WidgetConfig) => {
       widget.lockWriteStateId || "",
     ];
   }
-  if (widget.type === "wallbox" || widget.type === "goe") {
+  if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2") {
     return [
       ...collectExplicitStateIds(widget),
       ...WALLBOX_PRIMARY_FALLBACK_STATE_IDS,
