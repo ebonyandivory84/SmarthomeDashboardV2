@@ -2029,9 +2029,15 @@ const GAUGE_GREEN_END_KW = 6;
 const GAUGE_WARN_KW = 9;
 const GAUGE_START_ANGLE = -125;
 const GAUGE_END_ANGLE = 125;
-const GAUGE_SIZE = 208;
+const GAUGE_SIZE = 224;
 const GAUGE_CENTER = GAUGE_SIZE / 2;
-const GAUGE_RADIUS = 84;
+const GAUGE_RADIUS = 76;
+const GAUGE_FACE_RADIUS = GAUGE_RADIUS + 14;
+const GAUGE_BEZEL_WIDTH = 14;
+const GAUGE_BEZEL_MID_RADIUS = GAUGE_FACE_RADIUS + GAUGE_BEZEL_WIDTH / 2;
+const GAUGE_BEZEL_TRIM_RADIUS = GAUGE_BEZEL_MID_RADIUS + GAUGE_BEZEL_WIDTH / 2 + 1;
+const GAUGE_OUTER_RING_RADIUS = GAUGE_RADIUS;
+const GAUGE_INNER_RING_RADIUS = GAUGE_RADIUS - 26;
 const GAUGE_TICK_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 const GAUGE_LABEL_VALUES = [0, 2, 4, 6, 8, 9, 10, 11] as const;
 const GAUGE_ZONE_GREEN = "#4ade80";
@@ -2067,10 +2073,13 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
   const redPath = gaugeArcPath(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS, warnStartAngle, GAUGE_END_ANGLE);
   const hubGradientId = `wallboxV2Hub-${widgetId}`;
   const faceGradientId = `wallboxV2Face-${widgetId}`;
-  const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS - 22, needleAngle);
-  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle - 90);
-  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 8, needleAngle + 90);
-  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 16, needleAngle + 180);
+  const bezelGradientId = `wallboxV2Bezel-${widgetId}`;
+  const glossId = `wallboxV2Gloss-${widgetId}`;
+  const faceClipId = `wallboxV2FaceClip-${widgetId}`;
+  const needleTip = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, GAUGE_RADIUS - 34, needleAngle);
+  const needleBaseLeft = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 5, needleAngle - 90);
+  const needleBaseRight = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 5, needleAngle + 90);
+  const needleTailPoint = gaugePolarPoint(GAUGE_CENTER, GAUGE_CENTER, 10, needleAngle + 180);
 
   const ticks = GAUGE_TICK_VALUES.map((tick) => {
     const angle = gaugeAngleForKW(tick);
@@ -2127,10 +2136,10 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     }),
   ];
 
-  const lcdWidth = 68;
-  const lcdHeight = 28;
+  const lcdWidth = 72;
+  const lcdHeight = 30;
   const lcdX = GAUGE_CENTER - lcdWidth / 2;
-  const lcdY = GAUGE_CENTER + 46;
+  const lcdY = GAUGE_CENTER + 44;
   const lcdValueText = safeValueKW.toFixed(1);
 
   return createElement(
@@ -2141,10 +2150,10 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       null,
       createElement(
         "radialGradient",
-        { id: hubGradientId, cx: "35%", cy: "30%", r: "75%" },
-        createElement("stop", { offset: "0%", stopColor: "#f4f6fb" }),
-        createElement("stop", { offset: "45%", stopColor: "#aeb8ce" }),
-        createElement("stop", { offset: "100%", stopColor: "#333a4c" })
+        { id: hubGradientId, cx: "35%", cy: "28%", r: "80%" },
+        createElement("stop", { offset: "0%", stopColor: "#4c5566" }),
+        createElement("stop", { offset: "55%", stopColor: "#262b35" }),
+        createElement("stop", { offset: "100%", stopColor: "#0d0f14" })
       ),
       createElement(
         "radialGradient",
@@ -2152,27 +2161,68 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
         createElement("stop", { offset: "0%", stopColor: "#141d2b" }),
         createElement("stop", { offset: "70%", stopColor: "#0a1119" }),
         createElement("stop", { offset: "100%", stopColor: "#05080d" })
-      )
+      ),
+      createElement(
+        "linearGradient",
+        { id: bezelGradientId, x1: "20%", y1: "10%", x2: "80%", y2: "90%" },
+        createElement("stop", { offset: "0%", stopColor: "#eef1f6" }),
+        createElement("stop", { offset: "22%", stopColor: "#9199a8" }),
+        createElement("stop", { offset: "45%", stopColor: "#575d6c" }),
+        createElement("stop", { offset: "60%", stopColor: "#c3c8d2" }),
+        createElement("stop", { offset: "80%", stopColor: "#4a4f5c" }),
+        createElement("stop", { offset: "100%", stopColor: "#1b1e26" })
+      ),
+      createElement(
+        "linearGradient",
+        { id: glossId, x1: "50%", y1: "0%", x2: "50%", y2: "100%" },
+        createElement("stop", { offset: "0%", stopColor: "rgba(255,255,255,0.14)" }),
+        createElement("stop", { offset: "45%", stopColor: "rgba(255,255,255,0)" })
+      ),
+      createElement("clipPath", { id: faceClipId }, createElement("circle", { cx: GAUGE_CENTER, cy: GAUGE_CENTER, r: GAUGE_FACE_RADIUS }))
     ),
     createElement("circle", {
       cx: GAUGE_CENTER,
       cy: GAUGE_CENTER,
-      r: GAUGE_RADIUS + 15,
-      fill: `url(#${faceGradientId})`,
-      stroke: "rgba(180, 190, 210, 0.28)",
+      r: GAUGE_BEZEL_MID_RADIUS,
+      fill: "none",
+      stroke: `url(#${bezelGradientId})`,
+      strokeWidth: GAUGE_BEZEL_WIDTH,
+    }),
+    createElement("circle", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r: GAUGE_BEZEL_TRIM_RADIUS,
+      fill: "none",
+      stroke: "rgba(5, 6, 9, 0.85)",
       strokeWidth: 2,
     }),
     createElement("circle", {
       cx: GAUGE_CENTER,
       cy: GAUGE_CENTER,
-      r: GAUGE_RADIUS - 30,
+      r: GAUGE_FACE_RADIUS,
+      fill: `url(#${faceGradientId})`,
+      stroke: "rgba(0, 0, 0, 0.6)",
+      strokeWidth: 1.5,
+    }),
+    createElement("circle", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r: GAUGE_OUTER_RING_RADIUS,
       fill: "none",
-      stroke: "rgba(120, 210, 255, 0.4)",
-      strokeWidth: 1.25,
+      stroke: "rgba(120, 210, 255, 0.55)",
+      strokeWidth: 2.5,
     }),
     ...zoneArc("zone-green", greenPath, GAUGE_ZONE_GREEN),
     ...zoneArc("zone-yellow", yellowPath, GAUGE_ZONE_YELLOW),
     ...zoneArc("zone-red", redPath, GAUGE_ZONE_RED),
+    createElement("circle", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER,
+      r: GAUGE_INNER_RING_RADIUS,
+      fill: "none",
+      stroke: "rgba(120, 210, 255, 0.4)",
+      strokeWidth: 1.25,
+    }),
     ...ticks,
     ...labels,
     createElement("rect", {
@@ -2189,9 +2239,9 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
       "text",
       {
         x: GAUGE_CENTER - 6,
-        y: lcdY + 19,
+        y: lcdY + 20,
         fill: "#eaffcb",
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: 700,
         fontFamily: "monospace",
         textAnchor: "end",
@@ -2201,10 +2251,10 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     createElement(
       "text",
       {
-        x: GAUGE_CENTER + 26,
-        y: lcdY + 18,
+        x: GAUGE_CENTER + 28,
+        y: lcdY + 19,
         fill: "#8fb7c9",
-        fontSize: 8,
+        fontSize: 9,
         fontWeight: 700,
         textAnchor: "end",
       },
@@ -2219,10 +2269,18 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
     createElement("circle", {
       cx: GAUGE_CENTER,
       cy: GAUGE_CENTER,
-      r: 11,
+      r: 8,
       fill: `url(#${hubGradientId})`,
-      stroke: "rgba(0,0,0,0.4)",
+      stroke: "rgba(210, 220, 235, 0.3)",
       strokeWidth: 1,
+    }),
+    createElement("ellipse", {
+      cx: GAUGE_CENTER,
+      cy: GAUGE_CENTER - GAUGE_FACE_RADIUS * 0.42,
+      rx: GAUGE_FACE_RADIUS * 0.7,
+      ry: GAUGE_FACE_RADIUS * 0.4,
+      fill: `url(#${glossId})`,
+      clipPath: `url(#${faceClipId})`,
     })
   );
 }
