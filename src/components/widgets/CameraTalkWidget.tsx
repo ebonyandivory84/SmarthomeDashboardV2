@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useCameraSnapshotWebSocket } from "../../hooks/useCameraSnapshotWebSocket";

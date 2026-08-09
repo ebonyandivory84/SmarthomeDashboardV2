@@ -1294,6 +1294,8 @@ function WebWidgetShell({
   const shellStyle: CSSProperties = {
     ...webWidgetStyle,
     ...getWidgetTone(widget, theme),
+    contain: "layout paint style",
+    isolation: "isolate",
     ...(lowPowerMode
       ? {
           backdropFilter: "none",
@@ -1307,8 +1309,6 @@ function WebWidgetShell({
           background: "#000000",
           backdropFilter: "none",
           WebkitBackdropFilter: "none",
-          contain: "layout paint style",
-          isolation: "isolate",
         }
       : null),
     ...(widget.type === "grafana"
@@ -1318,8 +1318,6 @@ function WebWidgetShell({
           backdropFilter: "none",
           WebkitBackdropFilter: "none",
           boxShadow: "none",
-          contain: "layout paint style",
-          isolation: "isolate",
         }
       : null),
     ...(linkBorderless
@@ -1329,8 +1327,6 @@ function WebWidgetShell({
           backdropFilter: "none",
           WebkitBackdropFilter: "none",
           boxShadow: "none",
-          contain: "layout paint style",
-          isolation: "isolate",
         }
       : null),
     left: displayOffset(preview.x, cellWidth, config.grid.gap, mainColumnExtraGap),

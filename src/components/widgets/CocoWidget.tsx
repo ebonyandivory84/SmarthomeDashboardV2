@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Modal, Platform, Pressable, StyleSheet, Text, View, type DimensionValue } from "react-native";
 import { useLiveMedia } from "../../context/LiveMediaContext";

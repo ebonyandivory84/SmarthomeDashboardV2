@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
