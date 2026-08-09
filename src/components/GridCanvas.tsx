@@ -13,8 +13,6 @@ import { palette } from "../utils/theme";
 import { WidgetFrame } from "./WidgetFrame";
 import { EnergyWidget } from "./widgets/EnergyWidget";
 import { HostStatsWidget } from "./widgets/HostStatsWidget";
-import { HeatingWidget } from "./widgets/HeatingWidget";
-import { HeatingWidgetV2 } from "./widgets/HeatingWidgetV2";
 import { LinkWidget } from "./widgets/LinkWidget";
 import { LogWidget } from "./widgets/LogWidget";
 import { NumpadWidget } from "./widgets/NumpadWidget";
@@ -22,8 +20,6 @@ import { RaspberryPiStatsWidget } from "./widgets/RaspberryPiStatsWidget";
 import { ScriptWidget } from "./widgets/ScriptWidget";
 import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
-import { WallboxWidget } from "./widgets/WallboxWidget";
-import { WallboxAnalogWidget } from "./widgets/WallboxAnalogWidget";
 import { WeatherWidget } from "./widgets/WeatherWidget";
 
 const LazyCameraWidget = lazy(() => import("./widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
@@ -34,6 +30,14 @@ const LazyGrafanaWidget = lazy(() =>
   import("./widgets/GrafanaWidget").then((module) => ({ default: module.GrafanaWidget }))
 );
 const LazyCocoWidget = lazy(() => import("./widgets/CocoWidget").then((module) => ({ default: module.CocoWidget })));
+const LazyHeatingWidget = lazy(() => import("./widgets/HeatingWidget").then((module) => ({ default: module.HeatingWidget })));
+const LazyHeatingWidgetV2 = lazy(() =>
+  import("./widgets/HeatingWidgetV2").then((module) => ({ default: module.HeatingWidgetV2 }))
+);
+const LazyWallboxWidget = lazy(() => import("./widgets/WallboxWidget").then((module) => ({ default: module.WallboxWidget })));
+const LazyWallboxAnalogWidget = lazy(() =>
+  import("./widgets/WallboxAnalogWidget").then((module) => ({ default: module.WallboxAnalogWidget }))
+);
 
 type GridCanvasProps = {
   config: DashboardSettings;
@@ -1706,19 +1710,35 @@ function renderWidget(
   }
 
   if (effectiveWidget.type === "wallbox" || effectiveWidget.type === "goe") {
-    return <WallboxWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
+    return (
+      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
+        <LazyWallboxWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
+      </Suspense>
+    );
   }
 
   if (effectiveWidget.type === "wallboxV2") {
-    return <WallboxAnalogWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
+    return (
+      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
+        <LazyWallboxAnalogWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
+      </Suspense>
+    );
   }
 
   if (effectiveWidget.type === "heating") {
-    return <HeatingWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
+    return (
+      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
+        <LazyHeatingWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
+      </Suspense>
+    );
   }
 
   if (effectiveWidget.type === "heatingV2") {
-    return <HeatingWidgetV2 client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />;
+    return (
+      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
+        <LazyHeatingWidgetV2 client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
+      </Suspense>
+    );
   }
 
   return null;
