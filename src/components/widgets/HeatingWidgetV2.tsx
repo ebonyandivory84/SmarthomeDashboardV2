@@ -1,5 +1,15 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import { Animated, Easing, ImageBackground, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -24,13 +34,16 @@ type TemperatureColorStop = { temp: number; color: string };
 const ROOM_TEMP_MIN = 10;
 const ROOM_TEMP_MAX = 30;
 const ROOM_TEMP_STEP = 0.5;
+const ROOM_TEMP_DIAL_LABEL_STEP = 5;
 const VENTILATION_LEVEL_MIN = 1;
 const VENTILATION_LEVEL_MAX = 4;
 const VENTILATION_LEVEL_STEP = 1;
+const VENTILATION_LEVEL_DIAL_LABEL_STEP = VENTILATION_LEVEL_STEP;
 
 const DHW_TEMP_MIN = 10;
 const DHW_TEMP_MAX = 60;
 const DHW_TEMP_STEP = 1;
+const DHW_TEMP_DIAL_LABEL_STEP = 10;
 const DEFAULT_DETAILS_TICKER_SPEED_PX_PER_S = 46;
 const MIN_DETAILS_TICKER_SPEED_PX_PER_S = 16;
 const MAX_DETAILS_TICKER_SPEED_PX_PER_S = 160;
@@ -57,6 +70,32 @@ const DHW_TEMP_COLOR_STOPS: TemperatureColorStop[] = [
   { temp: 50, color: "#d45035" },
   { temp: 60, color: "#911125" },
 ];
+
+const VENTILATION_COLOR_STOPS: TemperatureColorStop[] = [
+  { temp: VENTILATION_LEVEL_MIN, color: "#2b5065" },
+  { temp: VENTILATION_LEVEL_MAX, color: "#5fd0ff" },
+];
+
+const RADIAL_DIAL_VIEWBOX_SIZE = 168;
+const RADIAL_DIAL_CENTER = 84;
+const RADIAL_DIAL_RADIUS = 54;
+const RADIAL_DIAL_SWEEP = 270;
+const RADIAL_DIAL_GAP = 360 - RADIAL_DIAL_SWEEP;
+const RADIAL_DIAL_START_ANGLE = 180 + RADIAL_DIAL_GAP / 2;
+const RADIAL_DIAL_STROKE = 8;
+const RADIAL_DIAL_ACTUAL_STROKE = Math.max(2, RADIAL_DIAL_STROKE - 5);
+const RADIAL_DIAL_ACTUAL_COLOR = "rgba(245, 248, 255, 0.32)";
+const RADIAL_DIAL_HANDLE_RADIUS = RADIAL_DIAL_STROKE * 0.52;
+const RADIAL_DIAL_HANDLE_GLOW_RADIUS = RADIAL_DIAL_STROKE * 0.9;
+const RADIAL_DIAL_TICK_INNER_RADIUS = 60;
+const RADIAL_DIAL_TICK_MAJOR_LENGTH = 7;
+const RADIAL_DIAL_TICK_MINOR_LENGTH = 4;
+const RADIAL_DIAL_LABEL_RADIUS = 74;
+const RADIAL_DIAL_LABEL_FONT_SIZE = 11;
+const RADIAL_DIAL_SIZE = 112;
+const RADIAL_DIAL_CENTER_BUTTON_SIZE = RADIAL_DIAL_SIZE * (42 / 152);
+const RADIAL_DIAL_FAN_SPIN_KEYFRAMES_ID = "smarthome-v2-heating-fan-spin-keyframes";
+const RADIAL_DIAL_FAN_SPIN_ANIMATION_NAME = "smarthomeV2HeatingFanSpin";
 
 const ROOM_BLINK_ALPHA = 0.92;
 const DHW_BLINK_ALPHA = 0.92;
@@ -276,16 +315,12 @@ export function HeatingWidgetV2({
     normalizePowerToWatts(readValue(stateIds.compressorPower)) ||
     normalizePowerToWatts(readValue(stateIds.compressorSensorPower));
 
-  const normalSliderValue = normalDraft ?? normalTarget;
-  const dhwSliderValue = dhwDraft ?? dhwTarget;
   const ventilationSliderValue = clampVentilationLevel(ventilationLevelDraft ?? ventilationLevelSetpoint);
   const ventilationDisplayActual = ventilationLevelActual ?? ventilationLevelSetpoint;
   const ventilationAutoToggleAvailable = Boolean(stateIds.ventilationAutoSetActive);
   const ventilationSliderWritable = Boolean(stateIds.ventilationLevelSet);
   const ventilationManualControlEnabled = !ventilationAutoActive && ventilationSliderWritable;
   const writePending = Object.values(pendingWrites).some(Boolean);
-  const roomTempDisplay = formatTemperature(roomTemp);
-  const dhwTempDisplay = formatTemperature(dhwTemp);
 
   useEffect(() => {
     if (!pendingWrites[stateIds.normalSetTemp]) {
@@ -469,8 +504,6 @@ export function HeatingWidgetV2({
   const panelColor = config.appearance?.cardColor || "rgba(255,255,255,0.035)";
   const panelBorder = "rgba(184, 206, 242, 0.16)";
   const sliderStart = config.appearance?.iconColor || "#79b5ff";
-  const sliderEnd = config.appearance?.iconColor2 || "#5a85ef";
-  const sliderThumbColor = config.appearance?.activeWidgetColor || "#f6c869";
   const oneTimeColor = config.appearance?.statColor || "rgba(246, 97, 98, 0.42)";
   const backgroundBlur = lowPowerMode ? 0 : Math.min(24, clampInt(config.backgroundImageBlur, 8, 0));
   const oneTimeChargeIcon = normalizeOneTimeChargeIcon(config.oneTimeChargeIcon);
@@ -519,20 +552,6 @@ export function HeatingWidgetV2({
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   const roomCardTone = resolveTemperatureColor(roomTemp, ROOM_TEMP_COLOR_STOPS, "#587197");
-  const dhwCardTone = resolveTemperatureColor(dhwTemp, DHW_TEMP_COLOR_STOPS, "#587197");
-  const roomCardFillStart = withAlpha(roomCardTone, 0.2);
-  const roomCardFillEnd = withAlpha(mixColorWith(roomCardTone, "#08131f", 0.42), 0.34);
-  const dhwCardFillStart = withAlpha(dhwCardTone, 0.2);
-  const dhwCardFillEnd = withAlpha(mixColorWith(dhwCardTone, "#08131f", 0.42), 0.34);
-  const roomCardBackgroundColor = withAlpha(mixColorWith(roomCardTone, "#0b1625", 0.52), 0.28);
-  const dhwCardBackgroundColor = withAlpha(mixColorWith(dhwCardTone, "#0b1625", 0.52), 0.28);
-  const roomCardBorderColor = withAlpha(roomCardTone, 0.5);
-  const dhwCardBorderColor = withAlpha(dhwCardTone, 0.5);
-  const roomCardTextColor = resolveReadableTextColor(roomCardBackgroundColor);
-  const dhwCardTextColor = resolveReadableTextColor(dhwCardBackgroundColor);
-  const roomCardMutedTextColor = withAlpha(roomCardTextColor, 0.82);
-  const dhwCardMutedTextColor = withAlpha(dhwCardTextColor, 0.82);
-  const activeRoomTarget = resolveActiveRoomTarget(activeProgram, normalTarget, reducedTarget, comfortTarget);
   const anyBlinkActive = heatingModeBlinkActive || dhwChargingBlinkActive || boostBlinkActive;
   const roomBlinkColor = withAlpha(roomCardTone, ROOM_BLINK_ALPHA);
   const dhwBlinkColor = withAlpha(
@@ -724,57 +743,6 @@ export function HeatingWidgetV2({
           </Text>
         ) : null}
 
-        <View style={styles.kpiRow}>
-          <View style={[styles.kpiCard, { borderColor: roomCardBorderColor, backgroundColor: roomCardBackgroundColor }]}>
-            {Platform.OS === "web"
-              ? createElement("div", {
-                  style: {
-                    ...webGradientLayerStyle,
-                    borderRadius: 12,
-                    background: `linear-gradient(145deg, ${roomCardFillStart} 0%, ${roomCardFillEnd} 100%)`,
-                  },
-                })
-              : <View style={[StyleSheet.absoluteFillObject, { borderRadius: 12, backgroundColor: roomCardFillEnd, opacity: 0.86 }]} />}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.cardBlinkOverlay,
-                {
-                  backgroundColor: roomBlinkColor,
-                  opacity: heatingModeBlinkActive ? cardBlinkOpacity : 0,
-                },
-              ]}
-            />
-            <Text style={[styles.kpiLabel, { color: roomCardMutedTextColor }]}>Raum</Text>
-            <Text style={[styles.kpiPrimary, { color: roomCardTextColor }]}>{roomTempDisplay}</Text>
-            <Text style={[styles.kpiSecondary, { color: roomCardMutedTextColor }]}>Soll {formatTemperature(activeRoomTarget)}</Text>
-          </View>
-          <View style={[styles.kpiCard, { borderColor: dhwCardBorderColor, backgroundColor: dhwCardBackgroundColor }]}>
-            {Platform.OS === "web"
-              ? createElement("div", {
-                  style: {
-                    ...webGradientLayerStyle,
-                    borderRadius: 12,
-                    background: `linear-gradient(145deg, ${dhwCardFillStart} 0%, ${dhwCardFillEnd} 100%)`,
-                  },
-                })
-              : <View style={[StyleSheet.absoluteFillObject, { borderRadius: 12, backgroundColor: dhwCardFillEnd, opacity: 0.86 }]} />}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.cardBlinkOverlay,
-                {
-                  backgroundColor: dhwBlinkColor,
-                  opacity: dhwChargingBlinkActive ? cardBlinkOpacity : 0,
-                },
-              ]}
-            />
-            <Text style={[styles.kpiLabel, { color: dhwCardMutedTextColor }]}>Warmwasser</Text>
-            <Text style={[styles.kpiPrimary, { color: dhwCardTextColor }]}>{dhwTempDisplay}</Text>
-            <Text style={[styles.kpiSecondary, { color: dhwCardMutedTextColor }]}>Soll {formatTemperature(dhwTarget)}</Text>
-          </View>
-        </View>
-
         <View style={styles.block}>
           <Text style={[styles.blockLabel, { color: mutedTextColor }]}>Betriebsart</Text>
           <View style={[styles.modeRow, { borderColor: panelBorder, backgroundColor: panelColor }]}>
@@ -854,212 +822,78 @@ export function HeatingWidgetV2({
           </View>
         </View>
 
-        <View style={styles.controlGrid}>
-          <View style={[styles.controlCard, { borderColor: panelBorder, backgroundColor: panelColor }]}>
-            <View style={styles.blockHeaderInline}>
-              <Text style={[styles.blockLabel, { color: mutedTextColor }]}>Raum Soll</Text>
-              <Text style={[styles.valueText, { color: textColor }]}>{formatTemperature(normalSliderValue)}</Text>
-            </View>
-            <View style={styles.sliderShell}>
-              <Pressable
-                onPress={() => setNormalTemperature(normalSliderValue - ROOM_TEMP_STEP, "button")}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressScale : null]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>-</Text>
-              </Pressable>
-              <View style={styles.sliderWrap}>
-                {Platform.OS === "web"
-                  ? createElement("input", {
-                      type: "range",
-                      min: ROOM_TEMP_MIN,
-                      max: ROOM_TEMP_MAX,
-                      step: ROOM_TEMP_STEP,
-                      value: normalSliderValue,
-                      onInput: (event: { target: { value: string } }) => {
-                        const next = clampTemperature(Number.parseFloat(event.target.value) || normalTarget, ROOM_TEMP_MIN, ROOM_TEMP_MAX, ROOM_TEMP_STEP);
-                        setNormalDraft(next);
-                      },
-                      onChange: (event: { target: { value: string } }) => {
-                        const next = clampTemperature(Number.parseFloat(event.target.value) || normalTarget, ROOM_TEMP_MIN, ROOM_TEMP_MAX, ROOM_TEMP_STEP);
-                        setNormalDraft(next);
-                        void setNormalTemperature(next, "slider");
-                      },
-                      style: {
-                        ...webSliderStyle,
-                        accentColor: sliderThumbColor,
-                        backgroundImage: `linear-gradient(90deg, ${sliderStart} 0%, ${sliderEnd} 100%)`,
-                      },
-                    })
-                  : null}
-                <View style={styles.sliderScaleRow}>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{ROOM_TEMP_MIN}°</Text>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{ROOM_TEMP_MAX}°</Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={() => setNormalTemperature(normalSliderValue + ROOM_TEMP_STEP, "button")}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressScale : null]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={[styles.controlCard, { borderColor: panelBorder, backgroundColor: panelColor }]}>
-            <View style={styles.blockHeaderInline}>
-              <Text style={[styles.blockLabel, { color: mutedTextColor }]}>Warmwasser Soll</Text>
-              <Text style={[styles.valueText, { color: textColor }]}>{formatTemperature(dhwSliderValue)}</Text>
-            </View>
-            <View style={styles.sliderShell}>
-              <Pressable
-                onPress={() => setDhwTemperature(dhwSliderValue - DHW_TEMP_STEP, "button")}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressScale : null]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>-</Text>
-              </Pressable>
-              <View style={styles.sliderWrap}>
-                {Platform.OS === "web"
-                  ? createElement("input", {
-                      type: "range",
-                      min: DHW_TEMP_MIN,
-                      max: DHW_TEMP_MAX,
-                      step: DHW_TEMP_STEP,
-                      value: dhwSliderValue,
-                      onInput: (event: { target: { value: string } }) => {
-                        const next = clampTemperature(Number.parseFloat(event.target.value) || dhwTarget, DHW_TEMP_MIN, DHW_TEMP_MAX, DHW_TEMP_STEP);
-                        setDhwDraft(next);
-                      },
-                      onChange: (event: { target: { value: string } }) => {
-                        const next = clampTemperature(Number.parseFloat(event.target.value) || dhwTarget, DHW_TEMP_MIN, DHW_TEMP_MAX, DHW_TEMP_STEP);
-                        setDhwDraft(next);
-                        void setDhwTemperature(next, "slider");
-                      },
-                      style: {
-                        ...webSliderStyle,
-                        accentColor: sliderThumbColor,
-                        backgroundImage: `linear-gradient(90deg, ${sliderStart} 0%, ${sliderEnd} 100%)`,
-                      },
-                    })
-                  : null}
-                <View style={styles.sliderScaleRow}>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{DHW_TEMP_MIN}°</Text>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{DHW_TEMP_MAX}°</Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={() => setDhwTemperature(dhwSliderValue + DHW_TEMP_STEP, "button")}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressScale : null]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={[styles.controlCard, { borderColor: panelBorder, backgroundColor: panelColor }]}>
-            <View style={styles.blockHeaderInline}>
-              <Text style={[styles.blockLabel, { color: mutedTextColor }]}>Lueftung</Text>
-              <Text style={[styles.valueText, { color: textColor }]}>
-                {ventilationManualControlEnabled
-                  ? `Soll ${formatVentilationLevel(ventilationSliderValue)} | Ist ${formatVentilationLevel(
-                      ventilationDisplayActual
-                    )}`
-                  : `Ist ${formatVentilationLevel(ventilationDisplayActual)}`}
-              </Text>
-            </View>
-            <Pressable
-              disabled={!ventilationAutoToggleAvailable}
-              onPress={toggleVentilationAuto}
-              style={({ pressed }) => [
-                styles.ventilationAutoButton,
-                ventilationAutoActive ? styles.ventilationAutoButtonActive : styles.ventilationAutoButtonInactive,
-                !ventilationAutoToggleAvailable ? styles.disabledControl : null,
-                pressed ? styles.pressScale : null,
-              ]}
-            >
-              <View style={styles.ventilationAutoButtonContent}>
-                <MaterialCommunityIcons
-                  color={textColor}
-                  name={"fan" as never}
-                  size={16}
-                />
-                <Text style={[styles.ventilationAutoButtonText, { color: textColor }]}>
-                  {ventilationAutoActive ? "Lueftungsautomatik ein" : "Lueftungsautomatik aus"}
-                </Text>
-              </View>
-            </Pressable>
-            <View
-              style={[
-                styles.sliderShell,
-                ventilationAutoActive ? styles.sliderShellDisabled : null,
-                !ventilationSliderWritable ? styles.disabledControl : null,
-              ]}
-            >
-              <Pressable
-                disabled={!ventilationManualControlEnabled}
-                onPress={() => setVentilationLevel(ventilationSliderValue - VENTILATION_LEVEL_STEP, "button")}
-                style={({ pressed }) => [
-                  styles.stepButton,
-                  !ventilationManualControlEnabled ? styles.disabledControl : null,
-                  pressed ? styles.pressScale : null,
-                ]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>-</Text>
-              </Pressable>
-              <View style={styles.sliderWrap}>
-                {Platform.OS === "web"
-                  ? createElement("input", {
-                      type: "range",
-                      min: VENTILATION_LEVEL_MIN,
-                      max: VENTILATION_LEVEL_MAX,
-                      step: VENTILATION_LEVEL_STEP,
-                      value: ventilationSliderValue,
-                      disabled: !ventilationManualControlEnabled,
-                      onInput: (event: { target: { value: string } }) => {
-                        const next = clampVentilationLevel(
-                          Number.parseFloat(event.target.value) || ventilationSliderValue
-                        );
-                        setVentilationLevelDraft(next);
-                      },
-                      onChange: (event: { target: { value: string } }) => {
-                        const next = clampVentilationLevel(
-                          Number.parseFloat(event.target.value) || ventilationSliderValue
-                        );
-                        setVentilationLevelDraft(next);
-                        void setVentilationLevel(next, "slider");
-                      },
-                      style: {
-                        ...webSliderStyle,
-                        accentColor: sliderThumbColor,
-                        opacity: ventilationManualControlEnabled ? 1 : 0.45,
-                        backgroundImage: `linear-gradient(90deg, ${sliderStart} 0%, ${sliderEnd} 100%)`,
-                      },
-                    })
-                  : null}
-                <View style={styles.sliderScaleRow}>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{VENTILATION_LEVEL_MIN}</Text>
-                  <Text style={[styles.sliderScaleLabel, { color: mutedTextColor }]}>{VENTILATION_LEVEL_MAX}</Text>
-                </View>
-              </View>
-              <Pressable
-                disabled={!ventilationManualControlEnabled}
-                onPress={() => setVentilationLevel(ventilationSliderValue + VENTILATION_LEVEL_STEP, "button")}
-                style={({ pressed }) => [
-                  styles.stepButton,
-                  !ventilationManualControlEnabled ? styles.disabledControl : null,
-                  pressed ? styles.pressScale : null,
-                ]}
-              >
-                <Text style={[styles.stepLabel, { color: textColor }]}>+</Text>
-              </Pressable>
-            </View>
-            <Text style={[styles.ventilationHint, { color: mutedTextColor }]}>
-              {ventilationAutoActive
+        <View style={styles.radialDialRow}>
+          <RadialDial
+            label="Raum Soll"
+            icon="home-thermometer-outline"
+            min={ROOM_TEMP_MIN}
+            max={ROOM_TEMP_MAX}
+            step={ROOM_TEMP_STEP}
+            labelStep={ROOM_TEMP_DIAL_LABEL_STEP}
+            committedValue={normalTarget}
+            draftValue={normalDraft}
+            actualValue={roomTemp}
+            colorStops={ROOM_TEMP_COLOR_STOPS}
+            accentFallback="#587197"
+            formatValue={formatTemperature}
+            onDraftChange={setNormalDraft}
+            onCommit={setNormalTemperature}
+            textColor={textColor}
+            mutedTextColor={mutedTextColor}
+            blinkColor={roomBlinkColor}
+            blinkOpacity={heatingModeBlinkActive ? cardBlinkOpacity : 0}
+          />
+          <RadialDial
+            label="Warmwasser Soll"
+            icon="water-boiler"
+            min={DHW_TEMP_MIN}
+            max={DHW_TEMP_MAX}
+            step={DHW_TEMP_STEP}
+            labelStep={DHW_TEMP_DIAL_LABEL_STEP}
+            committedValue={dhwTarget}
+            draftValue={dhwDraft}
+            actualValue={dhwTemp}
+            colorStops={DHW_TEMP_COLOR_STOPS}
+            accentFallback="#587197"
+            formatValue={formatTemperature}
+            onDraftChange={setDhwDraft}
+            onCommit={setDhwTemperature}
+            textColor={textColor}
+            mutedTextColor={mutedTextColor}
+            blinkColor={dhwBlinkColor}
+            blinkOpacity={dhwChargingBlinkActive ? cardBlinkOpacity : 0}
+          />
+          <RadialDial
+            label="Lueftung"
+            icon="fan"
+            min={VENTILATION_LEVEL_MIN}
+            max={VENTILATION_LEVEL_MAX}
+            step={VENTILATION_LEVEL_STEP}
+            labelStep={VENTILATION_LEVEL_DIAL_LABEL_STEP}
+            committedValue={ventilationLevelSetpoint}
+            draftValue={ventilationLevelDraft}
+            actualValue={ventilationLevelActual}
+            colorStops={VENTILATION_COLOR_STOPS}
+            accentFallback="#2b5065"
+            formatValue={formatVentilationLevel}
+            belowUnitLabel="Stufe"
+            centerValueOverride={ventilationAutoActive ? "AUTO" : undefined}
+            onDraftChange={setVentilationLevelDraft}
+            onCommit={setVentilationLevel}
+            disabled={!ventilationManualControlEnabled}
+            hint={
+              ventilationAutoActive
                 ? "Automatik aktiv: manuelle Lueftungsstufe gesperrt."
                 : ventilationSliderWritable
                   ? "Automatik aus: manuelle Lueftungsstufe aktiv."
-                  : "Automatik aus: kein Datenpunkt fuer manuelle Lueftungsstufe gesetzt."}
-            </Text>
-          </View>
+                  : "Automatik aus: kein Datenpunkt fuer manuelle Lueftungsstufe gesetzt."
+            }
+            onCenterTap={ventilationAutoToggleAvailable ? toggleVentilationAuto : undefined}
+            spinning={(ventilationAutoActive || ventilationDisplayActual > 0) && runtimeActive && !lowPowerMode}
+            spinDurationS={ventilationAutoActive ? 2.2 : Math.max(1.1, 4.6 - ventilationDisplayActual * 0.9)}
+            textColor={textColor}
+            mutedTextColor={mutedTextColor}
+          />
         </View>
 
         {showDetailsTicker ? (
@@ -1103,6 +937,545 @@ export function HeatingWidgetV2({
           ) : null}
         </View>
       </View>
+    </View>
+  );
+}
+
+let radialDialSpinKeyframeRefCount = 0;
+
+function ensureRadialDialSpinKeyframes() {
+  radialDialSpinKeyframeRefCount += 1;
+  if (typeof document === "undefined" || document.getElementById(RADIAL_DIAL_FAN_SPIN_KEYFRAMES_ID)) {
+    return;
+  }
+  const styleElement = document.createElement("style");
+  styleElement.id = RADIAL_DIAL_FAN_SPIN_KEYFRAMES_ID;
+  styleElement.textContent = `@keyframes ${RADIAL_DIAL_FAN_SPIN_ANIMATION_NAME} { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  document.head.appendChild(styleElement);
+}
+
+function releaseRadialDialSpinKeyframes() {
+  radialDialSpinKeyframeRefCount = Math.max(0, radialDialSpinKeyframeRefCount - 1);
+  if (radialDialSpinKeyframeRefCount === 0) {
+    document.getElementById(RADIAL_DIAL_FAN_SPIN_KEYFRAMES_ID)?.remove();
+  }
+}
+
+function dialPolarPoint(angleDeg: number, radius: number) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return {
+    x: RADIAL_DIAL_CENTER + radius * Math.sin(rad),
+    y: RADIAL_DIAL_CENTER - radius * Math.cos(rad),
+  };
+}
+
+function dialArcPath(radius: number, fractionStart: number, fractionEnd: number) {
+  const clampedStart = Math.max(0, Math.min(1, fractionStart));
+  const clampedEnd = Math.max(0, Math.min(1, fractionEnd));
+  const startAngle = RADIAL_DIAL_START_ANGLE + clampedStart * RADIAL_DIAL_SWEEP;
+  const endAngle = RADIAL_DIAL_START_ANGLE + clampedEnd * RADIAL_DIAL_SWEEP;
+  const from = dialPolarPoint(startAngle, radius);
+  const to = dialPolarPoint(endAngle, radius);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${from.x} ${from.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${to.x} ${to.y}`;
+}
+
+function dialValueFraction(value: number, min: number, max: number) {
+  if (max <= min) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, (value - min) / (max - min)));
+}
+
+function dialLabelValues(min: number, max: number, labelStep: number) {
+  const values: number[] = [];
+  for (let value = min; value <= max + 1e-6; value += labelStep) {
+    values.push(Number(value.toFixed(2)));
+  }
+  return values;
+}
+
+function dialTickAngle(value: number, min: number, max: number) {
+  return RADIAL_DIAL_START_ANGLE + dialValueFraction(value, min, max) * RADIAL_DIAL_SWEEP;
+}
+
+function formatDialTickLabel(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function dialPointerAngle(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number }
+) {
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const dx = clientX - centerX;
+  const dy = clientY - centerY;
+  const angle = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  return angle < 0 ? angle + 360 : angle;
+}
+
+function dialAngleFraction(angleDeg: number) {
+  const relative = (((angleDeg - RADIAL_DIAL_START_ANGLE) % 360) + 360) % 360;
+  if (relative > RADIAL_DIAL_SWEEP) {
+    const distanceToEnd = relative - RADIAL_DIAL_SWEEP;
+    const distanceToStart = 360 - relative;
+    return distanceToStart < distanceToEnd ? 0 : 1;
+  }
+  return relative / RADIAL_DIAL_SWEEP;
+}
+
+const RADIAL_DIAL_TRACK_PATH = dialArcPath(RADIAL_DIAL_RADIUS, 0, 1);
+const RADIAL_DIAL_ACTUAL_RADIUS = RADIAL_DIAL_RADIUS - RADIAL_DIAL_STROKE;
+
+type RadialDialProps = {
+  label: string;
+  icon: string;
+  min: number;
+  max: number;
+  step: number;
+  labelStep: number;
+  committedValue: number;
+  draftValue: number | null;
+  actualValue: number | null;
+  colorStops: TemperatureColorStop[];
+  accentFallback: string;
+  formatValue: (value: number | null) => string;
+  onDraftChange: (value: number | null) => void;
+  onCommit: (value: number, source: "slider" | "button") => void;
+  textColor: string;
+  mutedTextColor: string;
+  disabled?: boolean;
+  hint?: string;
+  belowUnitLabel?: string;
+  centerValueOverride?: string;
+  onCenterTap?: () => void;
+  spinning?: boolean;
+  spinDurationS?: number;
+  blinkColor?: string;
+  blinkOpacity?: Animated.AnimatedInterpolation<number> | number;
+};
+
+function RadialDial({
+  label,
+  icon,
+  min,
+  max,
+  step,
+  labelStep,
+  committedValue,
+  draftValue,
+  actualValue,
+  colorStops,
+  accentFallback,
+  formatValue,
+  onDraftChange,
+  onCommit,
+  textColor,
+  mutedTextColor,
+  disabled = false,
+  hint,
+  belowUnitLabel,
+  centerValueOverride,
+  onCenterTap,
+  spinning = false,
+  spinDurationS = 3,
+  blinkColor,
+  blinkOpacity,
+}: RadialDialProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const progressPathRef = useRef<SVGPathElement | null>(null);
+  const handleRef = useRef<SVGCircleElement | null>(null);
+  const handleGlowRef = useRef<SVGCircleElement | null>(null);
+  const valueTextRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingFractionRef = useRef<number | null>(null);
+
+  const sliderValue = draftValue ?? committedValue;
+
+  const majorTickValues = useMemo(() => dialLabelValues(min, max, labelStep), [min, max, labelStep]);
+  const minorTickValues = useMemo(() => {
+    if (labelStep <= step) {
+      return [];
+    }
+    const minors: number[] = [];
+    for (let i = 0; i < majorTickValues.length - 1; i += 1) {
+      minors.push((majorTickValues[i] + majorTickValues[i + 1]) / 2);
+    }
+    return minors;
+  }, [majorTickValues, labelStep, step]);
+
+  const applyVisual = useCallback(
+    (nextFraction: number) => {
+      const clamped = Math.max(0, Math.min(1, nextFraction));
+      if (progressPathRef.current) {
+        progressPathRef.current.setAttribute("d", dialArcPath(RADIAL_DIAL_RADIUS, 0, clamped));
+      }
+      const angle = RADIAL_DIAL_START_ANGLE + clamped * RADIAL_DIAL_SWEEP;
+      const point = dialPolarPoint(angle, RADIAL_DIAL_RADIUS);
+      if (handleRef.current) {
+        handleRef.current.setAttribute("cx", String(point.x));
+        handleRef.current.setAttribute("cy", String(point.y));
+      }
+      if (handleGlowRef.current) {
+        handleGlowRef.current.setAttribute("cx", String(point.x));
+        handleGlowRef.current.setAttribute("cy", String(point.y));
+      }
+      if (valueTextRef.current && !centerValueOverride) {
+        const rawValue = min + clamped * (max - min);
+        valueTextRef.current.textContent = formatValue(clampTemperature(rawValue, min, max, step));
+      }
+    },
+    [centerValueOverride, formatValue, max, min, step]
+  );
+
+  const commitValue = useCallback(
+    (nextFraction: number, source: "slider" | "button") => {
+      const rawValue = min + Math.max(0, Math.min(1, nextFraction)) * (max - min);
+      const clamped = clampTemperature(rawValue, min, max, step);
+      onDraftChange(clamped);
+      onCommit(clamped, source);
+    },
+    [max, min, onCommit, onDraftChange, step]
+  );
+
+  const scheduleVisualUpdate = useCallback(
+    (nextFraction: number) => {
+      pendingFractionRef.current = nextFraction;
+      if (rafIdRef.current !== null) {
+        return;
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (pendingFractionRef.current !== null) {
+          applyVisual(pendingFractionRef.current);
+        }
+      });
+    },
+    [applyVisual]
+  );
+
+  const stopDragging = useCallback(() => {
+    if (!draggingRef.current) {
+      return;
+    }
+    draggingRef.current = false;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (pendingFractionRef.current !== null) {
+      commitValue(pendingFractionRef.current, "slider");
+      pendingFractionRef.current = null;
+    }
+  }, [commitValue]);
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (disabled || !containerRef.current) {
+        return;
+      }
+      containerRef.current.setPointerCapture?.(event.pointerId);
+      draggingRef.current = true;
+      const rect = containerRef.current.getBoundingClientRect();
+      const nextFraction = dialAngleFraction(dialPointerAngle(event.clientX, event.clientY, rect));
+      pendingFractionRef.current = nextFraction;
+      applyVisual(nextFraction);
+    },
+    [applyVisual, disabled]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!draggingRef.current || !containerRef.current) {
+        return;
+      }
+      const rect = containerRef.current.getBoundingClientRect();
+      const nextFraction = dialAngleFraction(dialPointerAngle(event.clientX, event.clientY, rect));
+      scheduleVisualUpdate(nextFraction);
+    },
+    [scheduleVisualUpdate]
+  );
+
+  const handleWheel = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      if (disabled) {
+        return;
+      }
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      const next = clampTemperature(sliderValue + direction * step, min, max, step);
+      onDraftChange(next);
+      onCommit(next, "slider");
+    },
+    [disabled, max, min, onCommit, onDraftChange, sliderValue, step]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (disabled) {
+        return;
+      }
+      let direction = 0;
+      if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+        direction = 1;
+      } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+        direction = -1;
+      } else {
+        return;
+      }
+      event.preventDefault();
+      const next = clampTemperature(sliderValue + direction * step, min, max, step);
+      onDraftChange(next);
+      onCommit(next, "button");
+    },
+    [disabled, max, min, onCommit, onDraftChange, sliderValue, step]
+  );
+
+  const handleCenterTap = useCallback(() => {
+    onCenterTap?.();
+  }, [onCenterTap]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+    ensureRadialDialSpinKeyframes();
+    return () => {
+      releaseRadialDialSpinKeyframes();
+    };
+  }, []);
+
+  if (Platform.OS !== "web") {
+    return (
+      <View style={styles.radialDial}>
+        <View style={[styles.radialDialRing, styles.radialDialNativeFallback]}>
+          <MaterialCommunityIcons color={mutedTextColor} name={icon as never} size={18} />
+          <Text style={[styles.radialDialValue, { color: textColor }]}>
+            {centerValueOverride ?? formatValue(sliderValue)}
+          </Text>
+        </View>
+        <Text numberOfLines={1} style={[styles.radialDialLabel, { color: mutedTextColor }]}>
+          {label}
+        </Text>
+      </View>
+    );
+  }
+
+  const fraction = dialValueFraction(sliderValue, min, max);
+  const actualFraction = actualValue === null ? null : dialValueFraction(actualValue, min, max);
+  const accentColor = resolveTemperatureColor(sliderValue, colorStops, accentFallback);
+  const handlePoint = dialPolarPoint(RADIAL_DIAL_START_ANGLE + fraction * RADIAL_DIAL_SWEEP, RADIAL_DIAL_RADIUS);
+
+  return (
+    <View style={styles.radialDial}>
+      <View style={styles.radialDialRing}>
+        {createElement(
+          "div",
+          {
+            ref: containerRef,
+            role: "slider",
+            tabIndex: disabled ? -1 : 0,
+            "aria-label": label,
+            "aria-valuemin": min,
+            "aria-valuemax": max,
+            "aria-valuenow": committedValue,
+            "aria-valuetext": centerValueOverride ?? formatValue(committedValue),
+            "aria-disabled": disabled,
+            onPointerDown: handlePointerDown,
+            onPointerMove: handlePointerMove,
+            onPointerUp: stopDragging,
+            onPointerCancel: stopDragging,
+            onWheel: handleWheel,
+            onKeyDown: handleKeyDown,
+            style: {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: RADIAL_DIAL_SIZE,
+              height: RADIAL_DIAL_SIZE,
+              touchAction: "none",
+              cursor: disabled ? "default" : "grab",
+              opacity: disabled ? 0.48 : 1,
+              outline: "none",
+            },
+          },
+          createElement(
+            "svg",
+            {
+              viewBox: `0 0 ${RADIAL_DIAL_VIEWBOX_SIZE} ${RADIAL_DIAL_VIEWBOX_SIZE}`,
+              width: RADIAL_DIAL_SIZE,
+              height: RADIAL_DIAL_SIZE,
+              style: { overflow: "visible" },
+            },
+            createElement("path", {
+              d: RADIAL_DIAL_TRACK_PATH,
+              fill: "none",
+              stroke: "rgba(255, 255, 255, 0.1)",
+              strokeWidth: RADIAL_DIAL_STROKE,
+              strokeLinecap: "round",
+            }),
+            minorTickValues.map((value) => {
+              const angle = dialTickAngle(value, min, max);
+              const inner = dialPolarPoint(angle, RADIAL_DIAL_TICK_INNER_RADIUS);
+              const outer = dialPolarPoint(angle, RADIAL_DIAL_TICK_INNER_RADIUS + RADIAL_DIAL_TICK_MINOR_LENGTH);
+              return createElement("line", {
+                key: `minor-${value}`,
+                x1: inner.x,
+                y1: inner.y,
+                x2: outer.x,
+                y2: outer.y,
+                stroke: withAlpha(mutedTextColor, 0.35),
+                strokeWidth: 1,
+                strokeLinecap: "round",
+              });
+            }),
+            majorTickValues.map((value) => {
+              const angle = dialTickAngle(value, min, max);
+              const inner = dialPolarPoint(angle, RADIAL_DIAL_TICK_INNER_RADIUS);
+              const outer = dialPolarPoint(angle, RADIAL_DIAL_TICK_INNER_RADIUS + RADIAL_DIAL_TICK_MAJOR_LENGTH);
+              return createElement("line", {
+                key: `major-${value}`,
+                x1: inner.x,
+                y1: inner.y,
+                x2: outer.x,
+                y2: outer.y,
+                stroke: mutedTextColor,
+                strokeWidth: 1.5,
+                strokeLinecap: "round",
+              });
+            }),
+            majorTickValues.map((value) => {
+              const point = dialPolarPoint(dialTickAngle(value, min, max), RADIAL_DIAL_LABEL_RADIUS);
+              const dx = point.x - RADIAL_DIAL_CENTER;
+              const textAnchor = Math.abs(dx) < 4 ? "middle" : dx > 0 ? "start" : "end";
+              return createElement(
+                "text",
+                {
+                  key: `label-${value}`,
+                  x: point.x,
+                  y: point.y,
+                  fontSize: RADIAL_DIAL_LABEL_FONT_SIZE,
+                  fill: mutedTextColor,
+                  dominantBaseline: "central",
+                  textAnchor,
+                },
+                formatDialTickLabel(value)
+              );
+            }),
+            actualFraction === null
+              ? null
+              : createElement("path", {
+                  d: dialArcPath(RADIAL_DIAL_ACTUAL_RADIUS, 0, actualFraction),
+                  fill: "none",
+                  stroke: RADIAL_DIAL_ACTUAL_COLOR,
+                  strokeWidth: RADIAL_DIAL_ACTUAL_STROKE,
+                  strokeLinecap: "round",
+                }),
+            createElement("path", {
+              ref: progressPathRef,
+              d: dialArcPath(RADIAL_DIAL_RADIUS, 0, fraction),
+              fill: "none",
+              stroke: accentColor,
+              strokeWidth: RADIAL_DIAL_STROKE,
+              strokeLinecap: "round",
+            }),
+            createElement("circle", {
+              ref: handleGlowRef,
+              cx: handlePoint.x,
+              cy: handlePoint.y,
+              r: RADIAL_DIAL_HANDLE_GLOW_RADIUS,
+              fill: accentColor,
+              opacity: 0.35,
+            }),
+            createElement("circle", {
+              ref: handleRef,
+              cx: handlePoint.x,
+              cy: handlePoint.y,
+              r: RADIAL_DIAL_HANDLE_RADIUS,
+              fill: "#f5f8ff",
+            })
+          )
+        )}
+        {createElement(
+          "div",
+          {
+            style: {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: RADIAL_DIAL_SIZE,
+              height: RADIAL_DIAL_SIZE,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              pointerEvents: "none",
+            },
+          },
+          createElement(
+            "div",
+            {
+              onClick: onCenterTap ? handleCenterTap : undefined,
+              style: {
+                width: RADIAL_DIAL_CENTER_BUTTON_SIZE,
+                height: RADIAL_DIAL_CENTER_BUTTON_SIZE,
+                borderRadius: RADIAL_DIAL_CENTER_BUTTON_SIZE / 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: onCenterTap ? "auto" : "none",
+                cursor: onCenterTap ? "pointer" : "default",
+                animationName: spinning ? RADIAL_DIAL_FAN_SPIN_ANIMATION_NAME : "none",
+                animationDuration: `${spinDurationS}s`,
+                animationTimingFunction: "linear",
+                animationIterationCount: "infinite",
+              },
+            },
+            createElement(MaterialCommunityIcons, { color: textColor, name: icon as never, size: 18 })
+          ),
+          createElement(
+            "div",
+            {
+              ref: valueTextRef,
+              style: { fontSize: 15, fontWeight: 800, color: textColor, lineHeight: "18px" },
+            },
+            centerValueOverride ?? formatValue(sliderValue)
+          ),
+          belowUnitLabel && !centerValueOverride
+            ? createElement(
+                "div",
+                {
+                  style: {
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: mutedTextColor,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                  },
+                },
+                belowUnitLabel
+              )
+            : null
+        )}
+        {blinkColor && blinkOpacity ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.radialDialBlinkOverlay, { backgroundColor: blinkColor, opacity: blinkOpacity }]}
+          />
+        ) : null}
+      </View>
+      <Text numberOfLines={1} style={[styles.radialDialLabel, { color: mutedTextColor }]}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text numberOfLines={2} style={[styles.radialDialHint, { color: mutedTextColor }]}>
+          {hint}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -1227,21 +1600,6 @@ function resolveDhwChargeProgram(value: unknown, fallbackDhwTarget: number): Dhw
     return numeric >= 55 ? "temp2" : "normal";
   }
   return fallbackDhwTarget >= 55 ? "temp2" : "normal";
-}
-
-function resolveActiveRoomTarget(
-  activeProgram: ProgramMode | null,
-  normalTarget: number,
-  reducedTarget: number | null,
-  comfortTarget: number | null
-) {
-  if (activeProgram === "reduced" && reducedTarget !== null) {
-    return clampTemperature(reducedTarget, ROOM_TEMP_MIN, ROOM_TEMP_MAX, ROOM_TEMP_STEP);
-  }
-  if (activeProgram === "comfort" && comfortTarget !== null) {
-    return clampTemperature(comfortTarget, ROOM_TEMP_MIN, ROOM_TEMP_MAX, ROOM_TEMP_STEP);
-  }
-  return normalTarget;
 }
 
 function formatDhwChargeProgramLabel(program: DhwChargeProgram) {
@@ -1384,19 +1742,9 @@ function resolveTemperatureColor(value: number | null, stops: TemperatureColorSt
   return fallback;
 }
 
-function mixColorWith(baseColor: string, mixColor: string, mixRatio: number) {
-  return interpolateHexColor(baseColor, mixColor, mixRatio);
-}
-
 function withAlpha(color: string, alpha: number) {
   const { r, g, b } = parseHexColor(color);
   return `rgba(${r}, ${g}, ${b}, ${clamp01(alpha)})`;
-}
-
-function resolveReadableTextColor(backgroundColor: string) {
-  const { r, g, b } = parseHexColor(backgroundColor);
-  const relativeLuma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return relativeLuma > 0.57 ? "#08111f" : "#f4f8ff";
 }
 
 function clamp01(value: number) {
@@ -1579,44 +1927,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
-  kpiRow: {
+  radialDialRow: {
     position: "relative",
     zIndex: 2,
     flexDirection: "row",
+    justifyContent: "space-between",
     gap: 8,
-  },
-  kpiCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    position: "relative",
-  },
-  cardBlinkOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 12,
-  },
-  kpiLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    textAlign: "center",
-  },
-  kpiPrimary: {
-    fontSize: 16,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  kpiSecondary: {
-    fontSize: 11,
-    fontWeight: "600",
-    textAlign: "center",
   },
   modeRow: {
     borderWidth: 1,
@@ -1659,95 +1975,41 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 11,
   },
-  controlGrid: {
-    position: "relative",
-    zIndex: 2,
-    gap: 8,
-  },
-  controlCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 7,
-  },
-  blockHeaderInline: {
-    flexDirection: "row",
+  radialDial: {
+    flex: 1,
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    gap: 4,
   },
-  valueText: {
+  radialDialRing: {
+    position: "relative",
+    width: RADIAL_DIAL_SIZE,
+    height: RADIAL_DIAL_SIZE,
+  },
+  radialDialNativeFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  radialDialValue: {
     fontSize: 15,
     fontWeight: "800",
   },
-  sliderShell: {
-    borderRadius: 10,
-    minHeight: 44,
-    paddingHorizontal: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(10, 18, 30, 0.38)",
-  },
-  sliderShellDisabled: {
-    backgroundColor: "rgba(90, 102, 124, 0.26)",
-  },
-  stepButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  stepLabel: {
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-  sliderWrap: {
-    flex: 1,
-    minWidth: 120,
-  },
-  sliderScaleRow: {
-    marginTop: 2,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  sliderScaleLabel: {
+  radialDialLabel: {
     fontSize: 10,
-    fontWeight: "600",
-  },
-  ventilationAutoButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    minHeight: 40,
-    paddingHorizontal: 10,
-    justifyContent: "center",
-  },
-  ventilationAutoButtonActive: {
-    borderColor: "rgba(104, 231, 142, 0.72)",
-    backgroundColor: "rgba(52, 172, 97, 0.32)",
-  },
-  ventilationAutoButtonInactive: {
-    borderColor: "rgba(156, 170, 194, 0.35)",
-    backgroundColor: "rgba(112, 124, 142, 0.2)",
-  },
-  ventilationAutoButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  ventilationAutoButtonText: {
-    fontSize: 12,
     fontWeight: "700",
-    flexShrink: 1,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    textAlign: "center",
   },
-  ventilationHint: {
-    fontSize: 10,
+  radialDialHint: {
+    fontSize: 9,
     fontWeight: "600",
-    lineHeight: 14,
+    textAlign: "center",
+    lineHeight: 12,
+  },
+  radialDialBlinkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: RADIAL_DIAL_SIZE / 2,
   },
   detailsTickerTrack: {
     borderWidth: 1,
@@ -1788,15 +2050,6 @@ const webGradientLayerStyle: Record<string, string | number> = {
   left: 0,
   pointerEvents: "none",
   zIndex: 0,
-};
-
-const webSliderStyle: Record<string, string | number> = {
-  width: "100%",
-  margin: 0,
-  height: 18,
-  appearance: "none",
-  backgroundColor: "rgba(255,255,255,0.08)",
-  borderRadius: 999,
 };
 
 const webDetailsFadeTextStyle: Record<string, string | number> = {
