@@ -5,6 +5,7 @@ import { IoBrokerClient } from "../../services/iobroker";
 import { StateSnapshot, WallboxWidgetV2Config } from "../../types/dashboard";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { palette } from "../../utils/theme";
+import { AutoFitContent } from "../AutoFitContent";
 
 type WallboxAnalogWidgetProps = {
   config: WallboxWidgetV2Config;
@@ -41,9 +42,10 @@ const TABLET_GLOW_EVENT_DURATION_MS = 1100;
 const TABLET_GLOW_POWER_BUCKET_W = 1000;
 const AMPERE_PRESET_VALUES = [6, 10, 12, 14, 16] as const;
 const CONFIRMATION_TIMEOUT_MS = 12_000;
-const WALLBOX_BASE_CONTENT_WIDTH = 560;
-const WALLBOX_BASE_CONTENT_HEIGHT = 292;
-const WALLBOX_MIN_CONTENT_SCALE = 0.72;
+const WALLBOX_STACKED_CONTENT_WIDTH = 560;
+const WALLBOX_WIDE_CONTENT_WIDTH = 840;
+const WALLBOX_WIDE_LAYOUT_ENTER_RATIO = 1.33;
+const WALLBOX_WIDE_LAYOUT_EXIT_RATIO = 1.27;
 
 const WRITE_DEFAULT_IDS = {
   stop: "go-e-gemini-adapter.0.control.allowCharging",
@@ -108,8 +110,7 @@ const LEGACY_READ_IDS = {
 export function WallboxAnalogWidget({ config, client, states, isActivePage = true, lowPowerMode = false }: WallboxAnalogWidgetProps) {
   const documentVisible = useDocumentVisibility();
   const runtimeActive = isActivePage && documentVisible;
-  const [widgetWidth, setWidgetWidth] = useState(0);
-  const [widgetHeight, setWidgetHeight] = useState(0);
+  const [useWideLayout, setUseWideLayout] = useState(false);
   const stateIds = useMemo(
     () => {
       const modeWriteBase = resolveStateIdWithLegacy(config.modeStateId, WRITE_DEFAULT_IDS.mode, LEGACY_WRITE_IDS.mode);
@@ -1035,17 +1036,22 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
   const targetMax = targetValues[targetValues.length - 1];
   const targetStep = targetMode === "km" ? 50 : 10;
   const targetLabel = targetMode === "km" ? "Ziel-km" : "Ziel-SoC";
-  const contentScale = useMemo(
+  const contentDesignWidth = useWideLayout ? WALLBOX_WIDE_CONTENT_WIDTH : WALLBOX_STACKED_CONTENT_WIDTH;
+  const powerGaugeSvg = useMemo(
     () =>
-      computeBoundedContentScale(
-        widgetWidth,
-        widgetHeight,
-        WALLBOX_BASE_CONTENT_WIDTH,
-        WALLBOX_BASE_CONTENT_HEIGHT,
-        WALLBOX_MIN_CONTENT_SCALE
-      ),
-    [widgetHeight, widgetWidth]
+      Platform.OS === "web"
+        ? buildPowerGaugeSvg(chargingPowerW / 1000, chargePowerCardAccent, config.id)
+        : null,
+    [chargePowerCardAccent, chargingPowerW, config.id]
   );
+  const handleViewportSizeChange = useCallback((width: number, height: number) => {
+    setUseWideLayout((current) => {
+      const ratio = height > 0 ? width / height : 0;
+      return current
+        ? ratio >= WALLBOX_WIDE_LAYOUT_EXIT_RATIO
+        : ratio >= WALLBOX_WIDE_LAYOUT_ENTER_RATIO;
+    });
+  }, []);
 
   const modeItems: Array<{
     mode: WallboxMode;
@@ -1059,15 +1065,7 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
   ];
 
   return (
-    <View
-      onLayout={(event) => {
-        const nextWidth = Math.max(0, Math.round(event.nativeEvent.layout.width));
-        const nextHeight = Math.max(0, Math.round(event.nativeEvent.layout.height));
-        setWidgetWidth((current) => (current === nextWidth ? current : nextWidth));
-        setWidgetHeight((current) => (current === nextHeight ? current : nextHeight));
-      }}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <View style={[styles.card, { backgroundColor: cardStart }]}>
         {config.backgroundImage ? (
           Platform.OS === "web" ? (
@@ -1097,7 +1095,13 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
             })
           : null}
 
-        <View style={[styles.scaledContent, { transform: [{ scale: contentScale }], transformOrigin: "top center" }]}>
+        <AutoFitContent
+          contentStyle={styles.scaledContent}
+          designWidth={contentDesignWidth}
+          layoutKey={useWideLayout ? "wide" : "stacked"}
+          onViewportSizeChange={handleViewportSizeChange}
+          style={styles.fitViewport}
+        >
           <View style={styles.header}>
           {config.showTitle !== false ? (
             <Text numberOfLines={1} style={[styles.title, { color: textColor }]}>
@@ -1106,6 +1110,8 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
           ) : null}
           </View>
 
+          <View style={[styles.responsiveBody, useWideLayout ? styles.responsiveBodyWide : null]}>
+          <View style={[styles.primaryColumn, useWideLayout ? styles.primaryColumnWide : null]}>
           <View style={[styles.allowChargingRow, { borderColor: panelBorderColor, backgroundColor: modePanelBackground }]}>
           <Text numberOfLines={1} style={[styles.allowChargingLabel, { color: mutedTextColor }]}>
             Emergency Stop (global)
@@ -1238,6 +1244,8 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
           </View>
           </View>
 
+          </View>
+          <View style={[styles.secondaryColumn, useWideLayout ? styles.secondaryColumnWide : null]}>
           <View
           style={[
             styles.quickControlPanel,
@@ -1356,9 +1364,14 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
           </View>
 
           {config.showStatusSubtitle === true ? (
-            <Text numberOfLines={2} style={[styles.subtitleBottom, { color: mutedTextColor }]}>
-              {subtitleText}
-            </Text>
+            <View style={styles.subtitleSlot}>
+              <Text
+                numberOfLines={2}
+                style={[styles.subtitleBottom, { color: mutedTextColor }]}
+              >
+                {subtitleText}
+              </Text>
+            </View>
           ) : null}
 
           <View style={styles.metricsRow}>
@@ -1398,9 +1411,9 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
               {formatPowerKW(chargingPowerW)}
             </Text>
           </View>
-          <View style={styles.gaugeFace}>
+          <View style={[styles.gaugeFace, useWideLayout ? styles.gaugeFaceWide : null]}>
             {Platform.OS === "web" ? (
-              buildPowerGaugeSvg(chargingPowerW / 1000, chargePowerCardAccent, config.id)
+              powerGaugeSvg
             ) : (
               <View style={styles.gaugeNativeFallback}>
                 <Text numberOfLines={1} style={[styles.gaugeNativeValue, { color: textColor }]}>
@@ -1429,6 +1442,10 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
           </View>
           </View>
 
+          </View>
+          </View>
+
+          <View style={styles.footerSlot}>
           {footerStatusText ? (
             <Text
               numberOfLines={1}
@@ -1442,7 +1459,8 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
               {footerStatusText}
             </Text>
           ) : null}
-        </View>
+          </View>
+        </AutoFitContent>
       </View>
     </View>
   );
@@ -1583,22 +1601,6 @@ function clampInt(value: number | undefined, fallback: number, min: number) {
     return fallback;
   }
   return Math.max(min, Math.round(value));
-}
-
-function computeBoundedContentScale(
-  width: number,
-  height: number,
-  baseWidth: number,
-  baseHeight: number,
-  minScale: number
-) {
-  if (width <= 0 || height <= 0 || baseWidth <= 0 || baseHeight <= 0) {
-    return 1;
-  }
-  const widthScale = width / baseWidth;
-  const heightScale = height / baseHeight;
-  const raw = Math.min(widthScale, heightScale);
-  return Math.max(minScale, Math.min(1, raw));
 }
 
 function clampAmpere(value: number) {
@@ -2362,7 +2364,12 @@ function buildPowerGaugeSvg(valueKW: number, _accentColor: string, widgetId: str
 
   return createElement(
     "svg",
-    { width: GAUGE_DISPLAY_SIZE, height: GAUGE_DISPLAY_SIZE, viewBox: `0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}` },
+    {
+      width: "100%",
+      height: "100%",
+      viewBox: `0 0 ${GAUGE_SIZE} ${GAUGE_SIZE}`,
+      preserveAspectRatio: "xMidYMid meet",
+    },
     createElement(
       "defs",
       null,
@@ -2534,14 +2541,41 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
+  fitViewport: {
+    zIndex: 2,
+  },
   scaledContent: {
-    flex: 1,
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 10,
     gap: 11,
     zIndex: 2,
-    position: "relative",
+  },
+  responsiveBody: {
+    gap: 11,
+  },
+  responsiveBodyWide: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  primaryColumn: {
+    gap: 11,
+    minWidth: 0,
+  },
+  primaryColumnWide: {
+    flex: 0.9,
+  },
+  secondaryColumn: {
+    gap: 11,
+    minWidth: 0,
+  },
+  secondaryColumnWide: {
+    flex: 1.1,
+  },
+  footerSlot: {
+    height: 18,
+    justifyContent: "center",
+    overflow: "hidden",
   },
   widgetBackground: {
     ...StyleSheet.absoluteFillObject,
@@ -2619,6 +2653,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "600",
   },
+  subtitleSlot: {
+    height: 36,
+    justifyContent: "center",
+    overflow: "hidden",
+  },
   metricsRow: {
     flexDirection: "row",
     alignItems: "stretch",
@@ -2654,6 +2693,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   powerBarBlock: {
     gap: 6,
@@ -2674,8 +2714,10 @@ const styles = StyleSheet.create({
   powerBarValue: {
     fontSize: 12,
     fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   powerBarTrack: {
+    width: "100%",
     height: 13,
     borderRadius: 999,
     borderWidth: 1,
@@ -2691,8 +2733,13 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   gaugeFace: {
+    width: "100%",
+    height: GAUGE_DISPLAY_SIZE,
     alignItems: "center",
     justifyContent: "center",
+  },
+  gaugeFaceWide: {
+    height: 180,
   },
   gaugeNativeFallback: {
     width: "100%",
@@ -2703,6 +2750,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 30,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   powerBarGlow: {
     position: "absolute",
@@ -2717,6 +2765,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   powerBarScaleRow: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
   },
@@ -2955,6 +3004,7 @@ const styles = StyleSheet.create({
   quickControlValue: {
     fontSize: 12,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
     textAlign: "right",
     maxWidth: "46%",
   },
@@ -3007,6 +3057,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: "600",
     letterSpacing: 0.2,
   },

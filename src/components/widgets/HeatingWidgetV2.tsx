@@ -16,6 +16,7 @@ import { IoBrokerClient } from "../../services/iobroker";
 import { HeatingWidgetV2Config, StateSnapshot } from "../../types/dashboard";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { palette } from "../../utils/theme";
+import { AutoFitContent } from "../AutoFitContent";
 
 type HeatingWidgetProps = {
   config: HeatingWidgetV2Config;
@@ -49,8 +50,6 @@ const MIN_DETAILS_TICKER_SPEED_PX_PER_S = 16;
 const MAX_DETAILS_TICKER_SPEED_PX_PER_S = 160;
 const DETAILS_FADE_DURATION_MS = 260;
 const HEATING_V2_BASE_CONTENT_WIDTH = 560;
-const HEATING_V2_BASE_CONTENT_HEIGHT = 292;
-const HEATING_V2_MIN_CONTENT_SCALE = 0.72;
 
 const ROOM_TEMP_COLOR_STOPS: TemperatureColorStop[] = [
   { temp: 16, color: "#1f49a5" },
@@ -148,8 +147,6 @@ export function HeatingWidgetV2({
 }: HeatingWidgetProps) {
   const documentVisible = useDocumentVisibility();
   const runtimeActive = isActivePage && documentVisible;
-  const [widgetWidth, setWidgetWidth] = useState(0);
-  const [widgetHeight, setWidgetHeight] = useState(0);
   const stateIds = useMemo(
     () => ({
       modeSet: resolveStateId(config.modeSetStateId, DEFAULT_IDS.modeSet),
@@ -601,18 +598,6 @@ export function HeatingWidgetV2({
 
   const liveBadgeText = error ? "Fehler" : writePending ? "Sync" : "";
   const footerStatusText = error ? error : writePending ? "Synchronisiere..." : "";
-  const contentScale = useMemo(
-    () =>
-      computeBoundedContentScale(
-        widgetWidth,
-        widgetHeight,
-        HEATING_V2_BASE_CONTENT_WIDTH,
-        HEATING_V2_BASE_CONTENT_HEIGHT,
-        HEATING_V2_MIN_CONTENT_SCALE
-      ),
-    [widgetHeight, widgetWidth]
-  );
-
   useEffect(() => {
     blinkAnimationRef.current?.stop();
     blinkAnimationRef.current = null;
@@ -677,15 +662,7 @@ export function HeatingWidgetV2({
   }, [detailsRotationIntervalMs, detailsSegments.length, runtimeActive]);
 
   return (
-    <View
-      onLayout={(event) => {
-        const nextWidth = Math.max(0, Math.round(event.nativeEvent.layout.width));
-        const nextHeight = Math.max(0, Math.round(event.nativeEvent.layout.height));
-        setWidgetWidth((current) => (current === nextWidth ? current : nextWidth));
-        setWidgetHeight((current) => (current === nextHeight ? current : nextHeight));
-      }}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <View style={[styles.card, { backgroundColor: cardStart }]}>
         {config.backgroundImage ? (
           Platform.OS === "web" ? (
@@ -716,7 +693,11 @@ export function HeatingWidgetV2({
             })
           : null}
 
-        <View style={[styles.scaledContent, { transform: [{ scale: contentScale }] }]}>
+        <AutoFitContent
+          contentStyle={styles.scaledContent}
+          designWidth={HEATING_V2_BASE_CONTENT_WIDTH}
+          style={styles.fitViewport}
+        >
           <View style={styles.header}>
           {config.showTitle !== false ? (
             <Text numberOfLines={1} style={[styles.title, { color: textColor }]}>
@@ -738,9 +719,14 @@ export function HeatingWidgetV2({
           </View>
 
         {config.showStatusSubtitle !== false ? (
-          <Text numberOfLines={2} style={[styles.subtitle, { color: mutedTextColor }]}>
-            {summaryText}
-          </Text>
+          <View style={styles.subtitleSlot}>
+            <Text
+              numberOfLines={2}
+              style={[styles.subtitle, { color: mutedTextColor }]}
+            >
+              {summaryText}
+            </Text>
+          </View>
         ) : null}
 
         <View style={styles.block}>
@@ -818,9 +804,9 @@ export function HeatingWidgetV2({
                   Boost
                 </Text>
               </View>
-            </Pressable>
+          </Pressable>
           </View>
-        </View>
+          </View>
 
         <View style={styles.radialDialRow}>
           <RadialDial
@@ -896,8 +882,8 @@ export function HeatingWidgetV2({
           />
         </View>
 
-        {showDetailsTicker ? (
-          <View style={styles.block}>
+        <View style={styles.detailsTickerSlot}>
+          {showDetailsTicker ? (
             <View
               style={[styles.detailsTickerTrack, { borderColor: panelBorder, backgroundColor: panelColor }]}
             >
@@ -927,15 +913,17 @@ export function HeatingWidgetV2({
                     </Text>
                   )}
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
 
+        <View style={styles.footerSlot}>
           {footerStatusText ? (
             <Text numberOfLines={1} style={[styles.footer, { color: error ? palette.danger : mutedTextColor }]}>
               {footerStatusText}
             </Text>
           ) : null}
         </View>
+        </AutoFitContent>
       </View>
     </View>
   );
@@ -1527,22 +1515,6 @@ function resolveDetailsRotationInterval(speedPxPerS: number) {
   return Math.max(3200, Math.min(8000, Math.round(250000 / speedPxPerS)));
 }
 
-function computeBoundedContentScale(
-  width: number,
-  height: number,
-  baseWidth: number,
-  baseHeight: number,
-  minScale: number
-) {
-  if (width <= 0 || height <= 0 || baseWidth <= 0 || baseHeight <= 0) {
-    return 1;
-  }
-  const widthScale = width / baseWidth;
-  const heightScale = height / baseHeight;
-  const raw = Math.min(widthScale, heightScale);
-  return Math.max(minScale, Math.min(1, raw));
-}
-
 function normalizeMode(value: unknown): HeatingMode | null {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "standby") {
@@ -1857,11 +1829,12 @@ const styles = StyleSheet.create({
     gap: 10,
     position: "relative",
   },
+  fitViewport: {
+    zIndex: 2,
+  },
   scaledContent: {
-    flex: 1,
     gap: 10,
     zIndex: 2,
-    position: "relative",
   },
   widgetBackground: {
     ...StyleSheet.absoluteFillObject,
@@ -1915,6 +1888,11 @@ const styles = StyleSheet.create({
     zIndex: 2,
     fontSize: 12,
     lineHeight: 17,
+  },
+  subtitleSlot: {
+    height: 34,
+    justifyContent: "center",
+    overflow: "hidden",
   },
   block: {
     position: "relative",
@@ -1993,6 +1971,7 @@ const styles = StyleSheet.create({
   radialDialValue: {
     fontSize: 15,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   radialDialLabel: {
     fontSize: 10,
@@ -2019,6 +1998,9 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
   },
+  detailsTickerSlot: {
+    height: 38,
+  },
   detailsTickerText: {
     fontSize: 12,
     lineHeight: 16,
@@ -2032,7 +2014,13 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 2,
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: "700",
+  },
+  footerSlot: {
+    height: 16,
+    justifyContent: "center",
+    overflow: "hidden",
   },
   disabledControl: {
     opacity: 0.48,
