@@ -10,6 +10,7 @@ import { applyMobileOverridesToSettings } from "../utils/mobileWidget";
 import { playConfiguredUiSound } from "../utils/uiSounds";
 import { resolveThemeSettings } from "../utils/themeConfig";
 import { palette } from "../utils/theme";
+import { AutoScaleSurface, getWidgetAutoScaleMinimum } from "./AutoScaleSurface";
 import { WidgetFrame } from "./WidgetFrame";
 import { EnergyWidget } from "./widgets/EnergyWidget";
 import { HostStatsWidget } from "./widgets/HostStatsWidget";
@@ -1359,6 +1360,31 @@ function WebWidgetShell({
   const dragSurfaceStyle = allowResize ? webWidgetDragSurfaceWithCornerReserveStyle : webWidgetDragSurfaceStyle;
   const shouldRenderWidgetContent = isLayoutMode || isInViewport;
   const widgetRuntimeActive = isActivePage && (isLayoutMode || isInViewport);
+  const autoScaleMinimum = getWidgetAutoScaleMinimum(widget.type);
+  const titleBadge = showHeaderTitle ? (
+    <div style={webTitleBadgeStyle}>
+      <div style={{ ...webTitleStyle, color: widget.appearance?.textColor || palette.text }}>{widget.title}</div>
+    </div>
+  ) : null;
+  const widgetContent = (
+    <View style={contentStyle}>
+      {shouldRenderWidgetContent ? (
+        <ConnectedWidget
+          widget={widget}
+          stateStore={stateStore}
+          client={client}
+          onUpdateWidget={onUpdateWidget}
+          onWriteState={onWriteState}
+          theme={config.theme}
+          stateWrites={stateWrites}
+          widgetTypeDefaults={config.uiSounds?.widgetTypeDefaults}
+          onWidgetScrollFocusChange={onWidgetScrollFocusChange}
+          isActivePage={widgetRuntimeActive}
+          lowPowerMode={lowPowerMode}
+        />
+      ) : null}
+    </View>
+  );
 
   return (
     <div ref={shellRef} style={shellStyle}>
@@ -1376,11 +1402,7 @@ function WebWidgetShell({
           style={dragSurfaceStyle}
         />
       ) : null}
-      {showHeaderTitle ? (
-        <div style={webTitleBadgeStyle}>
-          <div style={{ ...webTitleStyle, color: widget.appearance?.textColor || palette.text }}>{widget.title}</div>
-        </div>
-      ) : null}
+      {autoScaleMinimum ? null : titleBadge}
       {isLayoutMode ? (
         <div style={webControlsStyle}>
           <button
@@ -1398,23 +1420,14 @@ function WebWidgetShell({
           </button>
         </div>
       ) : null}
-      <View style={contentStyle}>
-        {shouldRenderWidgetContent ? (
-          <ConnectedWidget
-            widget={widget}
-            stateStore={stateStore}
-            client={client}
-            onUpdateWidget={onUpdateWidget}
-            onWriteState={onWriteState}
-            theme={config.theme}
-            stateWrites={stateWrites}
-            widgetTypeDefaults={config.uiSounds?.widgetTypeDefaults}
-            onWidgetScrollFocusChange={onWidgetScrollFocusChange}
-            isActivePage={widgetRuntimeActive}
-            lowPowerMode={lowPowerMode}
-          />
-        ) : null}
-      </View>
+      {autoScaleMinimum ? (
+        <AutoScaleSurface minHeight={autoScaleMinimum.height} minWidth={autoScaleMinimum.width}>
+          {titleBadge}
+          {widgetContent}
+        </AutoScaleSurface>
+      ) : (
+        widgetContent
+      )}
       {isLayoutMode && allowManualLayout && allowResize ? (
         <div style={webFooterOverlayStyle}>
           <div
@@ -1931,7 +1944,7 @@ const webControlsStyle: CSSProperties = {
   position: "absolute",
   top: 12,
   right: 12,
-  zIndex: 4,
+  zIndex: 20,
 };
 
 const webIconButtonStyle: CSSProperties = {

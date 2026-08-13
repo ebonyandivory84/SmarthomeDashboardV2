@@ -8,6 +8,7 @@ import { WidgetConfig } from "../types/dashboard";
 import { constrainToPrimarySections, GRID_SNAP, GRID_VERTICAL_SNAP } from "../utils/gridLayout";
 import { playConfiguredUiSound } from "../utils/uiSounds";
 import { palette } from "../utils/theme";
+import { AutoScaleSurface, getWidgetAutoScaleMinimum } from "./AutoScaleSurface";
 
 type WidgetFrameProps = {
   widget: WidgetConfig;
@@ -54,6 +55,7 @@ export function WidgetFrame({
     widget.type !== "heatingV2" &&
     widget.showTitle !== false &&
     Boolean(widget.title.trim());
+  const autoScaleMinimum = getWidgetAutoScaleMinimum(widget.type);
   const interaction = useRef<{
     mode: "drag" | "resize";
     startX: number;
@@ -235,6 +237,34 @@ export function WidgetFrame({
       beginInteraction(mode, event.clientX, event.clientY);
     };
 
+  const titleBadge = showHeaderTitle ? (
+    <View style={styles.titleBadge}>
+      <Text style={styles.title}>{widget.title}</Text>
+    </View>
+  ) : null;
+  const contentView = (
+    <View
+      style={[
+        styles.content,
+        widget.type !== "camera" &&
+        widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
+        widget.type !== "solar" &&
+        widget.type !== "state" &&
+        widget.type !== "wallbox" &&
+        widget.type !== "goe" &&
+        widget.type !== "wallboxV2" &&
+        widget.type !== "heating" &&
+        widget.type !== "heatingV2" &&
+        widget.type !== "grafana" &&
+        !linkBorderless
+          ? styles.contentInset
+          : null,
+      ]}
+    >
+      {children}
+    </View>
+  );
+
   return (
     <View
       style={[
@@ -248,11 +278,7 @@ export function WidgetFrame({
           : null,
       ]}
     >
-      {showHeaderTitle ? (
-        <View style={styles.titleBadge}>
-          <Text style={styles.title}>{widget.title}</Text>
-        </View>
-      ) : null}
+      {!autoScaleMinimum ? titleBadge : null}
       {isLayoutMode ? (
         <View style={styles.headerActions}>
           <Pressable
@@ -285,26 +311,18 @@ export function WidgetFrame({
           style={allowResize ? webDragLayerWithCornerReserveStyle : webDragLayerStyle}
         />
       ) : null}
-      <View
-        style={[
-          styles.content,
-          widget.type !== "camera" &&
-          widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
-          widget.type !== "solar" &&
-          widget.type !== "state" &&
-          widget.type !== "wallbox" &&
-          widget.type !== "goe" &&
-          widget.type !== "wallboxV2" &&
-          widget.type !== "heating" &&
-          widget.type !== "heatingV2" &&
-          widget.type !== "grafana" &&
-          !linkBorderless
-            ? styles.contentInset
-            : null,
-        ]}
-      >
-        {children}
-      </View>
+      {autoScaleMinimum ? (
+        <AutoScaleSurface
+          minHeight={autoScaleMinimum.height}
+          minWidth={autoScaleMinimum.width}
+          style={styles.content}
+        >
+          {titleBadge}
+          {contentView}
+        </AutoScaleSurface>
+      ) : (
+        contentView
+      )}
       {isLayoutMode && allowManualLayout && allowResize ? (
         <View pointerEvents="box-none" style={styles.resizeWrap}>
           <View style={styles.resizeHandle}>
@@ -383,7 +401,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
-    zIndex: 10,
+    zIndex: 20,
   },
   iconButton: {
     width: 32,
