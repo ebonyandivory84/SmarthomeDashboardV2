@@ -15,6 +15,11 @@ import {
   WidgetConfig,
 } from "../types/dashboard";
 import { defaultConfig } from "../utils/defaultConfig";
+import {
+  HEATING_V2_STATE_DEFAULTS,
+  HEATING_V2_STATE_DEFAULTS_VERSION,
+  LEGACY_HEATING_STATE_DEFAULTS,
+} from "../utils/heatingStateDefaults";
 import { normalizeSoundSelection } from "../utils/lcarsSounds";
 import { buildMobileOverrideFromWidget, resolveMobileWidget, stripMobileWidgetMeta } from "../utils/mobileWidget";
 
@@ -980,11 +985,11 @@ function normalizeWidgetConfigList(input: DashboardSettings["widgets"] | undefin
 
     usedIds.add(nextId);
 
-    const normalizedWidget = migrateWidgetAssetNames({
+    const normalizedWidget = migrateHeatingV2StateDefaults(migrateWidgetAssetNames({
       ...widget,
       id: nextId,
       interactionSounds: normalizeWidgetInteractionSounds(widget.interactionSounds),
-    } as WidgetConfig);
+    } as WidgetConfig));
 
     if (
       normalizedWidget.type === "camera" ||
@@ -1007,6 +1012,63 @@ function normalizeWidgetConfigList(input: DashboardSettings["widgets"] | undefin
 
     return normalizedWidget;
   });
+}
+
+function migrateHeatingV2StateDefaults(widget: WidgetConfig): WidgetConfig {
+  if (widget.type !== "heatingV2") {
+    return widget;
+  }
+
+  const migrateLegacyDefaults = (widget.stateDefaultsVersion ?? 0) < HEATING_V2_STATE_DEFAULTS_VERSION;
+  const next = {
+    ...widget,
+    stateDefaultsVersion: HEATING_V2_STATE_DEFAULTS_VERSION,
+  };
+  next.roomTempStateId = migrateHeatingV2StateId(
+    next.roomTempStateId,
+    LEGACY_HEATING_STATE_DEFAULTS.roomTemp,
+    HEATING_V2_STATE_DEFAULTS.roomTemp,
+    migrateLegacyDefaults
+  );
+  next.dhwTempStateId = migrateHeatingV2StateId(
+    next.dhwTempStateId,
+    LEGACY_HEATING_STATE_DEFAULTS.dhwTemp,
+    HEATING_V2_STATE_DEFAULTS.dhwTemp,
+    migrateLegacyDefaults
+  );
+
+  if (migrateLegacyDefaults && next.mobileOverride && typeof next.mobileOverride === "object") {
+    const mobileOverride = { ...next.mobileOverride };
+    if (Object.prototype.hasOwnProperty.call(mobileOverride, "roomTempStateId")) {
+      mobileOverride.roomTempStateId = migrateHeatingV2StateId(
+        typeof mobileOverride.roomTempStateId === "string" ? mobileOverride.roomTempStateId : undefined,
+        LEGACY_HEATING_STATE_DEFAULTS.roomTemp,
+        HEATING_V2_STATE_DEFAULTS.roomTemp,
+        true
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(mobileOverride, "dhwTempStateId")) {
+      mobileOverride.dhwTempStateId = migrateHeatingV2StateId(
+        typeof mobileOverride.dhwTempStateId === "string" ? mobileOverride.dhwTempStateId : undefined,
+        LEGACY_HEATING_STATE_DEFAULTS.dhwTemp,
+        HEATING_V2_STATE_DEFAULTS.dhwTemp,
+        true
+      );
+    }
+    next.mobileOverride = mobileOverride;
+  }
+
+  return next;
+}
+
+function migrateHeatingV2StateId(
+  candidate: string | undefined,
+  legacyDefault: string,
+  nextDefault: string,
+  migrateLegacyDefault: boolean
+) {
+  const trimmed = candidate?.trim();
+  return !trimmed || (migrateLegacyDefault && trimmed === legacyDefault) ? nextDefault : candidate;
 }
 
 function migrateWidgetAssetNames(widget: WidgetConfig) {

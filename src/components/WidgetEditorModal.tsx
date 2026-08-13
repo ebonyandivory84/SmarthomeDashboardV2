@@ -3593,7 +3593,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
                 <View style={styles.splitRow}>
-                  <Field label="Innentemperatur Ist">
+                  <Field label={widget.type === "heatingV2" ? "Raum Ist" : "Innentemperatur Ist"}>
                     <StateFieldInput
                       onBrowse={() => setPickerField("roomTempStateId")}
                       onChangeText={(value) => setDraft((current) => ({ ...current, roomTempStateId: value }))}

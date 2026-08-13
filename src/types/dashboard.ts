@@ -396,6 +396,7 @@ export type HeatingWidgetConfig = WidgetBase & {
 
 export type HeatingWidgetV2Config = Omit<HeatingWidgetConfig, "type"> & {
   type: "heatingV2";
+  stateDefaultsVersion?: number;
 };
 
 export type SolarNodeLayout = {

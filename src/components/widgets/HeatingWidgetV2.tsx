@@ -14,6 +14,7 @@ import { Animated, Easing, ImageBackground, Platform, Pressable, StyleSheet, Tex
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import { HeatingWidgetV2Config, StateSnapshot } from "../../types/dashboard";
+import { HEATING_V2_STATE_DEFAULTS } from "../../utils/heatingStateDefaults";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { palette } from "../../utils/theme";
 import { AutoFitContent } from "../AutoFitContent";
@@ -91,8 +92,11 @@ const RADIAL_DIAL_TICK_MAJOR_LENGTH = 7;
 const RADIAL_DIAL_TICK_MINOR_LENGTH = 4;
 const RADIAL_DIAL_LABEL_RADIUS = 74;
 const RADIAL_DIAL_LABEL_FONT_SIZE = 11;
-const RADIAL_DIAL_SIZE = 112;
+const RADIAL_DIAL_SIZE = 152;
 const RADIAL_DIAL_CENTER_BUTTON_SIZE = RADIAL_DIAL_SIZE * (42 / 152);
+const RADIAL_DIAL_CENTER_ICON_SIZE = RADIAL_DIAL_SIZE * (18 / 112);
+const RADIAL_DIAL_CENTER_VALUE_FONT_SIZE = RADIAL_DIAL_SIZE * (15 / 112);
+const RADIAL_DIAL_CENTER_VALUE_LINE_HEIGHT = RADIAL_DIAL_SIZE * (18 / 112);
 const RADIAL_DIAL_FAN_SPIN_KEYFRAMES_ID = "smarthome-v2-heating-fan-spin-keyframes";
 const RADIAL_DIAL_FAN_SPIN_ANIMATION_NAME = "smarthomeV2HeatingFanSpin";
 
@@ -128,12 +132,12 @@ const DEFAULT_IDS = {
   ventilationAutoActive: "",
   ventilationLevelSet: "",
   ventilationLevel: "",
-  roomTemp: "viessmannapi.0.299550.0.features.heating.circuits.1.temperature.properties.value.value",
+  roomTemp: HEATING_V2_STATE_DEFAULTS.roomTemp,
   heatingTemp: "viessmannapi.0.299550.0.features.heating.circuits.1.temperature.properties.value.value",
   supplyTemp: "viessmannapi.0.299550.0.features.heating.circuits.1.sensors.temperature.supply.properties.value.value",
   outsideTemp: "viessmannapi.0.299550.0.features.heating.sensors.temperature.outside.properties.value.value",
   returnTemp: "viessmannapi.0.299550.0.features.heating.sensors.temperature.return.properties.value.value",
-  dhwTemp: "viessmannapi.0.299550.0.features.heating.dhw.sensors.temperature.dhwCylinder.properties.value.value",
+  dhwTemp: HEATING_V2_STATE_DEFAULTS.dhwTemp,
   compressorPower: "viessmannapi.0.299550.0.features.heating.compressors.0.power.properties.value.value",
   compressorSensorPower: "viessmannapi.0.299550.0.features.heating.compressors.0.sensors.power.properties.value.value",
 } as const;
@@ -811,6 +815,7 @@ export function HeatingWidgetV2({
         <View style={styles.radialDialRow}>
           <RadialDial
             label="Raum Soll"
+            actualLabel="Raum Ist"
             icon="home-thermometer-outline"
             min={ROOM_TEMP_MIN}
             max={ROOM_TEMP_MAX}
@@ -831,6 +836,7 @@ export function HeatingWidgetV2({
           />
           <RadialDial
             label="Warmwasser Soll"
+            actualLabel="Warmwasser Ist"
             icon="water-boiler"
             min={DHW_TEMP_MIN}
             max={DHW_TEMP_MAX}
@@ -1019,6 +1025,7 @@ const RADIAL_DIAL_ACTUAL_RADIUS = RADIAL_DIAL_RADIUS - RADIAL_DIAL_STROKE;
 
 type RadialDialProps = {
   label: string;
+  actualLabel?: string;
   icon: string;
   min: number;
   max: number;
@@ -1047,6 +1054,7 @@ type RadialDialProps = {
 
 function RadialDial({
   label,
+  actualLabel,
   icon,
   min,
   max,
@@ -1240,7 +1248,11 @@ function RadialDial({
     return (
       <View style={styles.radialDial}>
         <View style={[styles.radialDialRing, styles.radialDialNativeFallback]}>
-          <MaterialCommunityIcons color={mutedTextColor} name={icon as never} size={18} />
+          <MaterialCommunityIcons
+            color={mutedTextColor}
+            name={icon as never}
+            size={RADIAL_DIAL_CENTER_ICON_SIZE}
+          />
           <Text style={[styles.radialDialValue, { color: textColor }]}>
             {centerValueOverride ?? formatValue(sliderValue)}
           </Text>
@@ -1248,6 +1260,12 @@ function RadialDial({
         <Text numberOfLines={1} style={[styles.radialDialLabel, { color: mutedTextColor }]}>
           {label}
         </Text>
+        <RadialDialActualValue
+          label={actualLabel}
+          value={actualValue}
+          textColor={textColor}
+          mutedTextColor={mutedTextColor}
+        />
       </View>
     );
   }
@@ -1423,13 +1441,22 @@ function RadialDial({
                 animationIterationCount: "infinite",
               },
             },
-            createElement(MaterialCommunityIcons, { color: textColor, name: icon as never, size: 18 })
+            createElement(MaterialCommunityIcons, {
+              color: textColor,
+              name: icon as never,
+              size: RADIAL_DIAL_CENTER_ICON_SIZE,
+            })
           ),
           createElement(
             "div",
             {
               ref: valueTextRef,
-              style: { fontSize: 15, fontWeight: 800, color: textColor, lineHeight: "18px" },
+              style: {
+                fontSize: RADIAL_DIAL_CENTER_VALUE_FONT_SIZE,
+                fontWeight: 800,
+                color: textColor,
+                lineHeight: `${RADIAL_DIAL_CENTER_VALUE_LINE_HEIGHT}px`,
+              },
             },
             centerValueOverride ?? formatValue(sliderValue)
           ),
@@ -1459,11 +1486,47 @@ function RadialDial({
       <Text numberOfLines={1} style={[styles.radialDialLabel, { color: mutedTextColor }]}>
         {label}
       </Text>
+      <RadialDialActualValue
+        label={actualLabel}
+        value={actualValue}
+        textColor={textColor}
+        mutedTextColor={mutedTextColor}
+      />
       {hint ? (
         <Text numberOfLines={2} style={[styles.radialDialHint, { color: mutedTextColor }]}>
           {hint}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+function RadialDialActualValue({
+  label,
+  value,
+  textColor,
+  mutedTextColor,
+}: {
+  label?: string;
+  value: number | null;
+  textColor: string;
+  mutedTextColor: string;
+}) {
+  if (!label) {
+    return null;
+  }
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[styles.radialDialActual, { borderColor: withAlpha(mutedTextColor, 0.22) }]}
+    >
+      <Text numberOfLines={1} style={[styles.radialDialActualLabel, { color: mutedTextColor }]}>
+        {label}
+      </Text>
+      <Text numberOfLines={1} style={[styles.radialDialActualValue, { color: textColor }]}>
+        {formatTemperature(value)}
+      </Text>
     </View>
   );
 }
@@ -1969,7 +2032,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   radialDialValue: {
-    fontSize: 15,
+    fontSize: RADIAL_DIAL_CENTER_VALUE_FONT_SIZE,
+    lineHeight: RADIAL_DIAL_CENTER_VALUE_LINE_HEIGHT,
     fontWeight: "800",
     fontVariant: ["tabular-nums"],
   },
@@ -1979,6 +2043,32 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
     textAlign: "center",
+  },
+  radialDialActual: {
+    height: 24,
+    minWidth: 116,
+    maxWidth: "100%",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.035)",
+  },
+  radialDialActualLabel: {
+    fontSize: 8,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.25,
+    flexShrink: 1,
+  },
+  radialDialActualValue: {
+    fontSize: 11,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+    flexShrink: 0,
   },
   radialDialHint: {
     fontSize: 9,
