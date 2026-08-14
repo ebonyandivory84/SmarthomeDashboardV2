@@ -19,7 +19,8 @@ export type WidgetType =
   | "goe"
   | "wallboxV2"
   | "heating"
-  | "heatingV2";
+  | "heatingV2"
+  | "telegram";
 
 export type IconPair = {
   active: string;
@@ -189,6 +190,14 @@ export type LogWidgetConfig = WidgetBase & {
   minSeverity?: LogWidgetSeverity;
   sourceFilter?: string;
   textFilter?: string;
+};
+
+export type TelegramWidgetConfig = WidgetBase & {
+  type: "telegram";
+  manualHeightOverride?: boolean;
+  refreshMs?: number;
+  maxEntries?: number;
+  composerEnabled?: boolean;
 };
 
 export type ScriptWidgetConfig = WidgetBase & {
@@ -497,7 +506,8 @@ export type WidgetConfig =
   | GoEWidgetConfig
   | WallboxWidgetV2Config
   | HeatingWidgetConfig
-  | HeatingWidgetV2Config;
+  | HeatingWidgetV2Config
+  | TelegramWidgetConfig;
 
 export type BackgroundMode = "gradient" | "mesh" | "solid";
 
@@ -605,6 +615,34 @@ export type IoBrokerLogEntry = {
   severity: LogWidgetSeverity;
   ts: number;
   message: string;
+};
+
+export type TelegramWidgetCameraKey =
+  | "garage"
+  | "gardenNorth"
+  | "gardenSouthEast"
+  | "gardenSouthWest"
+  | "balkonyNorth"
+  | "balkonySouth"
+  | "terrace"
+  | "driveway";
+
+export type TelegramWidgetButton = {
+  text: string;
+  callback_data: string;
+};
+
+export type TelegramWidgetHistoryEntry = {
+  id: string;
+  direction: "in" | "out";
+  sender: string;
+  text: string;
+  ts: number;
+  messageId: number;
+  kind: "text" | "photo";
+  cameraKey: TelegramWidgetCameraKey | "";
+  thumbFileId?: string;
+  buttons?: TelegramWidgetButton[];
 };
 
 export type IoBrokerScriptEntry = {

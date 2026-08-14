@@ -73,6 +73,7 @@ export function WidgetFrame({
     widget.type === "weather" ||
     widget.type === "grafana" ||
     widget.type === "log" ||
+    widget.type === "telegram" ||
     widget.type === "script" ||
     widget.type === "host" ||
     widget.type === "raspberryPiStats" ||

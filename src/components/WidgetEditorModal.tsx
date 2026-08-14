@@ -286,6 +286,34 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "telegram") {
+      setSoundDraft({
+        press: resolveDraftSoundValue(
+          widget.interactionSounds?.press,
+          config.uiSounds?.widgetTypeDefaults?.telegram?.press
+        ),
+        scroll: resolveDraftSoundValue(
+          widget.interactionSounds?.scroll,
+          config.uiSounds?.widgetTypeDefaults?.telegram?.scroll
+        ),
+        notify: resolveDraftSoundValue(
+          widget.interactionSounds?.notify,
+          config.uiSounds?.widgetTypeDefaults?.telegram?.notify
+        ),
+      });
+      setWeatherSuggestions([]);
+      setWeatherSearchBusy(false);
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        refreshMs: String(widget.refreshMs || 2500),
+        maxEntries: String(widget.maxEntries || 200),
+        composerEnabled: widget.composerEnabled === false ? "false" : "true",
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "script") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -949,6 +977,20 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         ),
         appearance,
       });
+    } else if (widget.type === "telegram") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 2500, 800),
+        maxEntries: clampIntMax(draft.maxEntries, widget.maxEntries || 200, 10, 200),
+        composerEnabled: draft.composerEnabled !== "false",
+        interactionSounds: buildStoredInteractionSounds(
+          widget.type,
+          soundDraft,
+          config.uiSounds?.widgetTypeDefaults?.[widget.type]
+        ),
+        appearance,
+      });
     } else if (widget.type === "script") {
       onSave(widget.id, {
         title: draft.title,
@@ -1247,6 +1289,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       widget.type !== "link" &&
       widget.type !== "netflix" &&
       widget.type !== "log" &&
+      widget.type !== "telegram" &&
       widget.type !== "script" &&
       widget.type !== "wallbox" &&
       widget.type !== "goe" &&
@@ -2379,6 +2422,59 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                   <EditorButtonPressable onPress={saveSoundsAsTypeDefault} style={styles.inlineActionButton}>
                     <Text style={styles.inlineActionLabel}>Als Default fuer alle Log-Widgets verwenden</Text>
+                  </EditorButtonPressable>
+                </Field>
+              </>
+            ) : null}
+            {widget.type === "telegram" ? (
+              <>
+                <View style={styles.splitRow}>
+                  <Field label="Refresh (ms)">
+                    <TextInput
+                      keyboardType="numeric"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, refreshMs: value }))}
+                      style={styles.input}
+                      value={draft.refreshMs || "2500"}
+                    />
+                  </Field>
+                  <Field label="Nachrichten">
+                    <TextInput
+                      keyboardType="numeric"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, maxEntries: value }))}
+                      style={styles.input}
+                      value={draft.maxEntries || "200"}
+                    />
+                    <Text style={styles.mappingHint}>Maximal 200 Eintraege.</Text>
+                  </Field>
+                </View>
+                <Field label="Antwortfeld">
+                  <CheckboxChoice
+                    label="Nachricht senden erlauben"
+                    value={draft.composerEnabled || "true"}
+                    onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
+                  />
+                </Field>
+                <Field label="Sounds bei Interaktion">
+                  <Field label="Buttons/Kamera oeffnen">
+                    <SoundPickerField
+                      onChange={(value) => setSoundDraft((current) => ({ ...current, press: value }))}
+                      value={soundDraft.press}
+                    />
+                  </Field>
+                  <Field label="Scrollen im Widget">
+                    <SoundPickerField
+                      onChange={(value) => setSoundDraft((current) => ({ ...current, scroll: value }))}
+                      value={soundDraft.scroll}
+                    />
+                  </Field>
+                  <Field label="Neue Nachricht">
+                    <SoundPickerField
+                      onChange={(value) => setSoundDraft((current) => ({ ...current, notify: value }))}
+                      value={soundDraft.notify}
+                    />
+                  </Field>
+                  <EditorButtonPressable onPress={saveSoundsAsTypeDefault} style={styles.inlineActionButton}>
+                    <Text style={styles.inlineActionLabel}>Als Default fuer alle Telegram-Widgets verwenden</Text>
                   </EditorButtonPressable>
                 </Field>
               </>
@@ -4646,6 +4742,17 @@ function getWidgetAppearanceDefaults(
     };
   }
 
+  if (widget.type === "telegram") {
+    return {
+      widgetColor: "rgba(15, 46, 66, 0.95)",
+      widgetColor2: "rgba(8, 24, 36, 0.97)",
+      textColor: palette.text,
+      mutedTextColor: palette.textMuted,
+      cardColor: "rgba(6, 17, 24, 0.7)",
+      cardColor2: "rgba(15, 46, 66, 0.8)",
+    };
+  }
+
   if (widget.type === "script") {
     return {
       widgetColor: "rgba(20, 40, 76, 0.95)",
@@ -5059,6 +5166,7 @@ function buildStoredInteractionSounds(
     widgetType !== "link" &&
     widgetType !== "netflix" &&
     widgetType !== "log" &&
+    widgetType !== "telegram" &&
     widgetType !== "script" &&
     widgetType !== "wallbox" &&
     widgetType !== "goe" &&

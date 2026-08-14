@@ -90,6 +90,12 @@ const OPTIONS: Array<{
     icon: "text-box-search-outline",
   },
   {
+    type: "telegram",
+    title: "Telegram",
+    description: "Telegram-Chatverlauf mit Fotos und Antwortfeld im Dashboard.",
+    icon: "send",
+  },
+  {
     type: "script",
     title: "Scripts",
     description: "Zeigt JavaScript-Skripte mit Start/Stopp direkt im Dashboard.",

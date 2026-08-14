@@ -5,6 +5,7 @@ import {
   IoBrokerObjectEntry,
   IoBrokerScriptEntry,
   StateSnapshot,
+  TelegramWidgetHistoryEntry,
   WidgetImageEntry,
   WidgetSoundEntry,
 } from "../types/dashboard";
@@ -212,6 +213,40 @@ export class IoBrokerClient {
     }
 
     return (await response.json()) as IoBrokerLogEntry[];
+  }
+
+  async readTelegramHistory(): Promise<TelegramWidgetHistoryEntry[]> {
+    const response = await fetch(this.endpoint("/telegram/history"), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Telegram history read failed (${response.status})`);
+    }
+
+    return (await response.json()) as TelegramWidgetHistoryEntry[];
+  }
+
+  async sendTelegramMessage(text: string): Promise<void> {
+    const response = await fetch(this.endpoint("/telegram/send"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeader(this.settings),
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Telegram send failed (${response.status})`);
+    }
+  }
+
+  telegramThumbUrl(fileUniqueId: string, fileId: string): string {
+    return this.endpoint(`/telegram/thumb/${encodeURIComponent(fileUniqueId)}?fileId=${encodeURIComponent(fileId)}`);
   }
 
   async listScripts(options?: {

@@ -48,11 +48,32 @@ let statePushShutdown = null;
 let cameraSnapshotPushShutdown = null;
 let logPushShutdown = null;
 let scriptPushShutdown = null;
+let telegramPushShutdown = null;
 let logPushBroadcast = null;
+let telegramBotTokenCache = null;
+let telegramBotTokenPromise = null;
+const telegramThumbCache = new Map();
 const STATE_PUSH_WS_PATH = "/smarthome-dashboard-v2/ws";
 const CAMERA_SNAPSHOT_WS_PATH = "/smarthome-dashboard-v2/ws-camera-snapshot";
 const LOG_PUSH_WS_PATH = "/smarthome-dashboard-v2/ws-logs";
 const SCRIPT_PUSH_WS_PATH = "/smarthome-dashboard-v2/ws-scripts";
+const TELEGRAM_PUSH_WS_PATH = "/smarthome-dashboard-v2/ws-telegram";
+const TELEGRAM_WIDGET_TARGET_USER = "Sebastian";
+const TELEGRAM_HISTORY_STATE_ID = "0_userdata.0.Telegram.Widget.history";
+const TELEGRAM_LAST_UPDATE_STATE_ID = "0_userdata.0.Telegram.Widget.lastUpdate";
+const TELEGRAM_SEND_INSTANCE = "telegram.1";
+const TELEGRAM_BOT_OBJECT_ID = "system.adapter.telegram.1";
+const TELEGRAM_THUMB_CACHE_LIMIT = 200;
+const TELEGRAM_CAMERA_KEYS = [
+  "garage",
+  "gardenNorth",
+  "gardenSouthEast",
+  "gardenSouthWest",
+  "balkonyNorth",
+  "balkonySouth",
+  "terrace",
+  "driveway",
+];
 const STATE_PUSH_MAX_STATES_PER_CLIENT = 4000;
 const STATE_PUSH_BATCH_MS = 100;
 const CAMERA_SNAPSHOT_MIN_REFRESH_MS = 2000;
@@ -99,13 +120,24 @@ function startAdapter(options) {
       const scriptPushPromise = Promise.resolve(scriptPushShutdown?.()).catch((error) => {
         adapter.log.warn(`Script push cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
       });
+      const telegramPushPromise = Promise.resolve(telegramPushShutdown?.()).catch((error) => {
+        adapter.log.warn(`Telegram push cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
 
-      Promise.allSettled([stopLogPromise, statePushPromise, cameraPushPromise, logPushPromise, scriptPushPromise]).finally(
+      Promise.allSettled([
+        stopLogPromise,
+        statePushPromise,
+        cameraPushPromise,
+        logPushPromise,
+        scriptPushPromise,
+        telegramPushPromise,
+      ]).finally(
         () => {
           statePushShutdown = null;
           cameraSnapshotPushShutdown = null;
           logPushShutdown = null;
           scriptPushShutdown = null;
+          telegramPushShutdown = null;
           logPushBroadcast = null;
           for (const token of instarTalkSessions.keys()) {
             closeInstarTalkSession(token);
@@ -181,6 +213,8 @@ async function main(adapter) {
     },
     native: {},
   });
+
+  await ensureTelegramCameraTriggerStates(adapter);
 
   refreshObjectEntries(adapter).catch((error) => {
     adapter.log.warn(`Object cache warmup failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -402,6 +436,58 @@ async function main(adapter) {
       res.json(images);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Image list failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/telegram/history", async (_req, res) => {
+    try {
+      const history = await readTelegramHistory(adapter);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Telegram history read failed" });
+    }
+  });
+
+  app.post("/smarthome-dashboard-v2/api/telegram/send", async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+    if (!text) {
+      res.status(400).json({ error: "text required" });
+      return;
+    }
+
+    try {
+      await sendTelegramMessage(adapter, text);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Telegram send failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/telegram/thumb/:fileUniqueId", async (req, res) => {
+    const fileUniqueId = typeof req.params?.fileUniqueId === "string" ? req.params.fileUniqueId.trim() : "";
+    const fileId = typeof req.query?.fileId === "string" ? req.query.fileId.trim() : "";
+
+    if (!fileUniqueId || !fileId) {
+      res.status(400).json({ error: "fileUniqueId and fileId required" });
+      return;
+    }
+
+    try {
+      const cached = getTelegramThumbCacheEntry(fileUniqueId);
+      if (cached) {
+        res.setHeader("Content-Type", cached.contentType);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.send(cached.buffer);
+        return;
+      }
+
+      const { buffer, contentType } = await fetchTelegramThumb(adapter, fileId);
+      setTelegramThumbCacheEntry(fileUniqueId, buffer, contentType);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(buffer);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Telegram thumbnail fetch failed" });
     }
   });
 
@@ -790,6 +876,7 @@ async function main(adapter) {
   cameraSnapshotPushShutdown = setupCameraSnapshotWebSocket(adapter, server);
   logPushShutdown = setupLogWebSocket(adapter, server);
   scriptPushShutdown = setupScriptWebSocket(adapter, server);
+  telegramPushShutdown = setupTelegramWebSocket(adapter, server);
 }
 
 function normalizeDashboardName(value) {
@@ -1883,6 +1970,292 @@ function setupScriptWebSocket(adapter, server) {
         // ignore socket close failures
       }
       releaseSession(session);
+    }
+    closeWebSocketServer();
+  };
+}
+
+async function ensureTelegramCameraTriggerStates(adapter) {
+  for (const cameraKey of TELEGRAM_CAMERA_KEYS) {
+    const stateId = `0_userdata.0.Telegram.Widget.cameraTriggers.${cameraKey}`;
+    try {
+      await adapter.setForeignObjectNotExistsAsync(stateId, {
+        type: "state",
+        common: {
+          name: `Telegram widget camera trigger (${cameraKey})`,
+          type: "number",
+          role: "value",
+          read: true,
+          write: true,
+          def: 0,
+        },
+        native: {},
+      });
+    } catch (error) {
+      adapter.log.warn(
+        `Telegram camera trigger state ensure failed for ${cameraKey}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+}
+
+async function readTelegramHistory(adapter) {
+  try {
+    const state = await adapter.getForeignStateAsync(TELEGRAM_HISTORY_STATE_ID);
+    if (!state || typeof state.val !== "string" || !state.val) {
+      return [];
+    }
+    const parsed = JSON.parse(state.val);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    adapter.log.warn(`Telegram history read failed: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+function sendTelegramMessage(adapter, text) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve({ acknowledged: false });
+    }, 8000);
+
+    try {
+      adapter.sendTo(TELEGRAM_SEND_INSTANCE, "send", { user: TELEGRAM_WIDGET_TARGET_USER, text }, (result) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timeout);
+        if (result && result.error) {
+          reject(new Error(String(result.error)));
+          return;
+        }
+        resolve(result || { acknowledged: true });
+      });
+    } catch (error) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
+function getTelegramThumbCacheEntry(fileUniqueId) {
+  const entry = telegramThumbCache.get(fileUniqueId);
+  if (!entry) {
+    return null;
+  }
+  // Bump recency for true LRU behavior (Map preserves insertion order).
+  telegramThumbCache.delete(fileUniqueId);
+  telegramThumbCache.set(fileUniqueId, entry);
+  return entry;
+}
+
+function setTelegramThumbCacheEntry(fileUniqueId, buffer, contentType) {
+  if (telegramThumbCache.has(fileUniqueId)) {
+    telegramThumbCache.delete(fileUniqueId);
+  }
+  telegramThumbCache.set(fileUniqueId, { buffer, contentType, insertedAt: Date.now() });
+  while (telegramThumbCache.size > TELEGRAM_THUMB_CACHE_LIMIT) {
+    const oldestKey = telegramThumbCache.keys().next().value;
+    telegramThumbCache.delete(oldestKey);
+  }
+}
+
+async function getTelegramBotToken(adapter) {
+  if (telegramBotTokenCache) {
+    return telegramBotTokenCache;
+  }
+  if (!telegramBotTokenPromise) {
+    telegramBotTokenPromise = (async () => {
+      const object = await adapter.getForeignObjectAsync(TELEGRAM_BOT_OBJECT_ID);
+      const token = object?.native?.token;
+      if (typeof token !== "string" || !token) {
+        throw new Error("Telegram bot token not configured");
+      }
+      telegramBotTokenCache = token;
+      return token;
+    })().finally(() => {
+      telegramBotTokenPromise = null;
+    });
+  }
+  return telegramBotTokenPromise;
+}
+
+async function fetchTelegramThumb(adapter, fileId) {
+  const token = await getTelegramBotToken(adapter);
+
+  const fileInfoResponse = await fetch(
+    `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`
+  );
+  if (!fileInfoResponse.ok) {
+    throw new Error(`Telegram getFile failed (${fileInfoResponse.status})`);
+  }
+  const fileInfo = await fileInfoResponse.json();
+  const filePath = fileInfo?.result?.file_path;
+  if (!filePath) {
+    throw new Error("Telegram getFile returned no file_path");
+  }
+
+  const fileResponse = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  if (!fileResponse.ok) {
+    throw new Error(`Telegram file download failed (${fileResponse.status})`);
+  }
+
+  const buffer = Buffer.from(await fileResponse.arrayBuffer());
+  const contentType = fileResponse.headers.get("content-type") || "image/jpeg";
+  return { buffer, contentType };
+}
+
+function setupTelegramWebSocket(adapter, server) {
+  const WebSocketServerCtor = WebSocketClient?.WebSocketServer || WebSocketClient?.Server;
+  if (!WebSocketClient || !WebSocketServerCtor) {
+    adapter.log.warn("Telegram websocket disabled: ws server dependency unavailable.");
+    return () => undefined;
+  }
+
+  const wsOpenState = typeof WebSocketClient.OPEN === "number" ? WebSocketClient.OPEN : 1;
+  const sessions = new Set();
+
+  const sendJson = (socket, payload) => {
+    if (!socket || socket.readyState !== wsOpenState) {
+      return;
+    }
+    try {
+      socket.send(JSON.stringify(payload));
+    } catch {
+      // ignore send failures
+    }
+  };
+
+  const sendSnapshot = async (socket) => {
+    const entries = await readTelegramHistory(adapter);
+    sendJson(socket, {
+      type: "snapshot",
+      source: "telegram",
+      entries,
+      ts: Date.now(),
+    });
+  };
+
+  const broadcastSnapshot = async () => {
+    if (!sessions.size) {
+      return;
+    }
+    const entries = await readTelegramHistory(adapter);
+    for (const socket of sessions) {
+      sendJson(socket, {
+        type: "snapshot",
+        source: "telegram",
+        entries,
+        ts: Date.now(),
+      });
+    }
+  };
+
+  const stateChangeHandler = (stateId, state) => {
+    if (stateId !== TELEGRAM_LAST_UPDATE_STATE_ID || !state) {
+      return;
+    }
+    void broadcastSnapshot().catch((error) => {
+      adapter.log.warn(`Telegram push broadcast failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  };
+
+  adapter.on("stateChange", stateChangeHandler);
+  adapter.subscribeForeignStatesAsync(TELEGRAM_LAST_UPDATE_STATE_ID).catch((error) => {
+    adapter.log.warn(
+      `Telegram lastUpdate subscribe failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  });
+
+  const { wss, close: closeWebSocketServer } = createPathWebSocketServer(
+    server,
+    TELEGRAM_PUSH_WS_PATH,
+    WebSocketServerCtor
+  );
+
+  wss.on("connection", (socket) => {
+    sessions.add(socket);
+
+    sendJson(socket, {
+      type: "hello",
+      source: "telegram",
+      path: TELEGRAM_PUSH_WS_PATH,
+      ts: Date.now(),
+    });
+
+    void sendSnapshot(socket).catch(() => undefined);
+
+    socket.on("message", (raw) => {
+      let payload;
+      try {
+        payload = JSON.parse(String(raw || ""));
+      } catch {
+        sendJson(socket, {
+          type: "error",
+          source: "telegram",
+          message: "Invalid JSON payload",
+          ts: Date.now(),
+        });
+        return;
+      }
+
+      const messageType = typeof payload?.type === "string" ? payload.type : "";
+      if (messageType === "ping") {
+        sendJson(socket, { type: "pong", source: "telegram", ts: Date.now() });
+        return;
+      }
+
+      if (messageType === "watch") {
+        void sendSnapshot(socket).catch((error) => {
+          sendJson(socket, {
+            type: "error",
+            source: "telegram",
+            message: error instanceof Error ? error.message : "Telegram watch update failed",
+            ts: Date.now(),
+          });
+        });
+        return;
+      }
+
+      sendJson(socket, {
+        type: "error",
+        source: "telegram",
+        message: `Unsupported message type: ${messageType || "unknown"}`,
+        ts: Date.now(),
+      });
+    });
+
+    socket.on("close", () => {
+      sessions.delete(socket);
+    });
+
+    socket.on("error", () => {
+      sessions.delete(socket);
+    });
+  });
+
+  adapter.log.info(`Telegram websocket enabled on ${TELEGRAM_PUSH_WS_PATH}`);
+
+  return () => {
+    adapter.removeListener("stateChange", stateChangeHandler);
+    void adapter.unsubscribeForeignStatesAsync(TELEGRAM_LAST_UPDATE_STATE_ID).catch(() => undefined);
+    for (const socket of Array.from(sessions)) {
+      try {
+        socket.close();
+      } catch {
+        // ignore socket close failures
+      }
+      sessions.delete(socket);
     }
     closeWebSocketServer();
   };

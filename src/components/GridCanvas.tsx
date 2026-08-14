@@ -21,6 +21,7 @@ import { RaspberryPiStatsWidget } from "./widgets/RaspberryPiStatsWidget";
 import { ScriptWidget } from "./widgets/ScriptWidget";
 import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
+import { TelegramWidget } from "./widgets/TelegramWidget";
 import { WeatherWidget } from "./widgets/WeatherWidget";
 
 const LazyCameraWidget = lazy(() => import("./widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
@@ -211,6 +212,7 @@ export function GridCanvas({
                   widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ||
                   widget.type === "solar" ||
                   widget.type === "log" ||
+                  widget.type === "telegram" ||
                   widget.type === "script" ||
                   widget.type === "host" ||
                   widget.type === "raspberryPiStats" ||
@@ -665,6 +667,7 @@ function getAutoLayoutSpec(
       case "netflix":
         return { w: 1, h: 1 };
       case "log":
+      case "telegram":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
@@ -739,6 +742,7 @@ function getAutoLayoutSpec(
     case "netflix":
       return { w: 1, h: 1 };
     case "log":
+    case "telegram":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
@@ -962,6 +966,7 @@ function WebGridCanvas({
             widget.type === "solar" ||
             widget.type === "grafana" ||
             widget.type === "log" ||
+            widget.type === "telegram" ||
             widget.type === "script" ||
             widget.type === "host" ||
             widget.type === "raspberryPiStats" ||
@@ -1169,6 +1174,7 @@ function WebWidgetShell({
           widget.type === "solar" ||
           widget.type === "grafana" ||
           widget.type === "log" ||
+          widget.type === "telegram" ||
           widget.type === "script" ||
           widget.type === "host" ||
           widget.type === "raspberryPiStats" ||
@@ -1191,7 +1197,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "log" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1221,6 +1227,7 @@ function WebWidgetShell({
           widget.type === "solar" ||
           widget.type === "grafana" ||
           widget.type === "log" ||
+          widget.type === "telegram" ||
           widget.type === "script" ||
           widget.type === "host" ||
           widget.type === "raspberryPiStats" ||
@@ -1691,6 +1698,18 @@ function renderWidget(
     );
   }
 
+  if (effectiveWidget.type === "telegram") {
+    return (
+      <TelegramWidget
+        client={client}
+        config={effectiveWidget}
+        isActivePage={isActivePage}
+        onScrollModeChange={(active) => onWidgetScrollFocusChange?.(effectiveWidget.id, active)}
+        notificationsEnabled={isActivePage}
+      />
+    );
+  }
+
   if (effectiveWidget.type === "script") {
     return (
       <ScriptWidget
@@ -1790,6 +1809,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "grafana" ||
     type === "weather" ||
     type === "log" ||
+    type === "telegram" ||
     type === "script" ||
     type === "host" ||
     type === "raspberryPiStats" ||
@@ -2094,6 +2114,13 @@ function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThe
       background: "linear-gradient(140deg, rgba(11, 22, 44, 0.95), rgba(6, 12, 25, 0.97))",
       border: "1px solid rgba(130, 170, 255, 0.22)",
       boxShadow: "0 14px 24px rgba(4, 10, 22, 0.34)",
+    };
+  }
+  if (type === "telegram") {
+    return {
+      background: "linear-gradient(140deg, rgba(15, 46, 66, 0.95), rgba(8, 24, 36, 0.97))",
+      border: "1px solid rgba(42, 171, 238, 0.26)",
+      boxShadow: "0 14px 24px rgba(4, 16, 22, 0.34)",
     };
   }
   if (type === "script") {

@@ -31,6 +31,8 @@ export function buildWidgetTemplate(
               ? 6
               : type === "log"
                 ? 6
+                : type === "telegram"
+                  ? 6
                 : type === "script"
                   ? 6
                     : type === "host"
@@ -65,6 +67,8 @@ export function buildWidgetTemplate(
               ? 4
               : type === "log"
                 ? 3
+                : type === "telegram"
+                  ? 3
                 : type === "script"
                   ? 3
                     : type === "host"
@@ -279,6 +283,21 @@ export function buildWidgetTemplate(
       minSeverity: "info",
       sourceFilter: "",
       textFilter: "",
+      position: {
+        ...basePosition,
+        w: Math.min(6, grid.columns),
+      },
+    };
+  }
+
+  if (type === "telegram") {
+    return {
+      id: `telegram-${suffix}`,
+      type: "telegram",
+      title: `Telegram ${suffix}`,
+      refreshMs: 2500,
+      maxEntries: 200,
+      composerEnabled: true,
       position: {
         ...basePosition,
         w: Math.min(6, grid.columns),

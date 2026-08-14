@@ -430,6 +430,7 @@ export function DashboardScreen() {
       currentWidget.type === "weather" ||
       currentWidget.type === "grafana" ||
       currentWidget.type === "log" ||
+      currentWidget.type === "telegram" ||
       currentWidget.type === "script" ||
       currentWidget.type === "host" ||
       currentWidget.type === "raspberryPiStats" ||
@@ -477,6 +478,7 @@ export function DashboardScreen() {
             : currentWidget.type === "weather" ||
                 currentWidget.type === "grafana" ||
                 currentWidget.type === "log" ||
+                currentWidget.type === "telegram" ||
                 currentWidget.type === "script" ||
                 currentWidget.type === "host" ||
                 currentWidget.type === "raspberryPiStats" ||
