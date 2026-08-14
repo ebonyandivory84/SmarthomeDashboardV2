@@ -2455,7 +2455,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   />
                 </Field>
                 <Field label="Sounds bei Interaktion">
-                  <Field label="Buttons/Kamera oeffnen">
+                  <Field label="Alle Buttons (Kamera & Aktionen)">
                     <SoundPickerField
                       onChange={(value) => setSoundDraft((current) => ({ ...current, press: value }))}
                       value={soundDraft.press}
