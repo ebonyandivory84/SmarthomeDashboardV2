@@ -630,6 +630,7 @@ export type TelegramWidgetCameraKey =
 export type TelegramWidgetButton = {
   text: string;
   callback_data: string;
+  url?: string;
 };
 
 export type TelegramWidgetHistoryEntry = {

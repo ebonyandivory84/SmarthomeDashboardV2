@@ -245,6 +245,21 @@ export class IoBrokerClient {
     }
   }
 
+  async pressTelegramButton(callbackData: string): Promise<void> {
+    const response = await fetch(this.endpoint("/telegram/button"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeader(this.settings),
+      },
+      body: JSON.stringify({ callbackData }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Telegram button press failed (${response.status})`);
+    }
+  }
+
   telegramThumbUrl(fileUniqueId: string, fileId: string): string {
     return this.endpoint(`/telegram/thumb/${encodeURIComponent(fileUniqueId)}?fileId=${encodeURIComponent(fileId)}`);
   }

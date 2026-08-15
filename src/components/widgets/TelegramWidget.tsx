@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import { TelegramWidgetConfig, TelegramWidgetHistoryEntry } from "../../types/dashboard";
@@ -35,6 +35,7 @@ export function TelegramWidget({
   const [isScrollActive, setIsScrollActive] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [sending, setSending] = useState(false);
+  const [pressingButtons, setPressingButtons] = useState<Set<string>>(new Set());
   const webRootRef = useRef<HTMLDivElement | null>(null);
   const webListRef = useRef<HTMLDivElement | null>(null);
   const nativeListRef = useRef<ScrollView | null>(null);
@@ -318,8 +319,29 @@ export function TelegramWidget({
     void client.writeState(stateId, 0).then(() => client.writeState(stateId, 1));
   };
 
-  const pressButtonChip = (entryId: string, callbackData: string) => {
+  const isButtonPending = useCallback(
+    (entryId: string, callbackData: string) => pressingButtons.has(`${entryId}:${callbackData}`),
+    [pressingButtons]
+  );
+
+  const pressButtonChip = async (entryId: string, callbackData: string) => {
+    const key = `${entryId}:${callbackData}`;
+    if (pressingButtons.has(key)) {
+      return;
+    }
     playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:${entryId}:${callbackData}`);
+    setPressingButtons((current) => new Set(current).add(key));
+    try {
+      await client.pressTelegramButton(callbackData);
+    } catch (pressError) {
+      setError(pressError instanceof Error ? pressError.message : "Telegram-Aktion konnte nicht ausgelöst werden");
+    } finally {
+      setPressingButtons((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
   };
 
   const handleSend = async () => {
@@ -339,6 +361,11 @@ export function TelegramWidget({
     }
   };
 
+  const openButtonLink = (url: string) => {
+    playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:link`);
+    void Linking.openURL(url);
+  };
+
   const messageRows = entries.map((entry) => (
     <TelegramMessageRow
       key={entry.id}
@@ -348,6 +375,8 @@ export function TelegramWidget({
       mutedTextColor={mutedTextColor}
       onOpenCamera={openCamera}
       onPressButton={pressButtonChip}
+      onOpenUrl={openButtonLink}
+      isButtonPending={isButtonPending}
     />
   ));
 
@@ -465,9 +494,20 @@ type TelegramMessageRowProps = {
   mutedTextColor: string;
   onOpenCamera: (cameraKey: string) => void;
   onPressButton: (entryId: string, callbackData: string) => void;
+  isButtonPending: (entryId: string, callbackData: string) => boolean;
+  onOpenUrl: (url: string) => void;
 };
 
-function TelegramMessageRow({ entry, client, textColor, mutedTextColor, onOpenCamera, onPressButton }: TelegramMessageRowProps) {
+function TelegramMessageRow({
+  entry,
+  client,
+  textColor,
+  mutedTextColor,
+  onOpenCamera,
+  onPressButton,
+  isButtonPending,
+  onOpenUrl,
+}: TelegramMessageRowProps) {
   const isOutgoing = entry.direction === "out";
   const thumbUrl =
     entry.kind === "photo" && entry.thumbFileId ? client.telegramThumbUrl(entry.thumbFileId, entry.thumbFileId) : null;
@@ -491,15 +531,22 @@ function TelegramMessageRow({ entry, client, textColor, mutedTextColor, onOpenCa
         ) : null}
         {entry.buttons && entry.buttons.length > 0 ? (
           <View style={styles.buttonChipRow}>
-            {entry.buttons.map((button, index) => (
-              <Pressable
-                key={`${entry.id}-btn-${index}`}
-                onPress={() => onPressButton(entry.id, button.callback_data)}
-                style={styles.buttonChip}
-              >
-                <Text style={styles.buttonChipLabel}>{button.text}</Text>
-              </Pressable>
-            ))}
+            {entry.buttons.map((button, index) => {
+              const isLinkButton = !button.callback_data && Boolean(button.url);
+              const isPending = !isLinkButton && isButtonPending(entry.id, button.callback_data);
+              return (
+                <Pressable
+                  key={`${entry.id}-btn-${index}`}
+                  disabled={isPending}
+                  onPress={() =>
+                    isLinkButton ? onOpenUrl(button.url as string) : onPressButton(entry.id, button.callback_data)
+                  }
+                  style={[styles.buttonChip, isPending ? styles.buttonChipPending : null]}
+                >
+                  <Text style={styles.buttonChipLabel}>{button.text}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
       </View>
@@ -676,6 +723,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
     paddingHorizontal: 9,
     paddingVertical: 4,
+  },
+  buttonChipPending: {
+    opacity: 0.5,
   },
   buttonChipLabel: {
     fontSize: 11,

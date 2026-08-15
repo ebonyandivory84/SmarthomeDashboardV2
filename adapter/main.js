@@ -64,6 +64,8 @@ const TELEGRAM_LAST_UPDATE_STATE_ID = "0_userdata.0.Telegram.Widget.lastUpdate";
 const TELEGRAM_SEND_INSTANCE = "telegram.1";
 const TELEGRAM_BOT_OBJECT_ID = "system.adapter.telegram.1";
 const TELEGRAM_THUMB_CACHE_LIMIT = 200;
+const TELEGRAM_WIDGET_TARGET_CHAT_ID = 6476031186;
+const TELEGRAM_IN_RAW_STATE_ID = "telegram.1.communicate.requestRaw";
 const TELEGRAM_CAMERA_KEYS = [
   "garage",
   "gardenNorth",
@@ -460,6 +462,21 @@ async function main(adapter) {
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Telegram send failed" });
+    }
+  });
+
+  app.post("/smarthome-dashboard-v2/api/telegram/button", async (req, res) => {
+    const callbackData = typeof req.body?.callbackData === "string" ? req.body.callbackData.trim() : "";
+    if (!callbackData) {
+      res.status(400).json({ error: "callbackData required" });
+      return;
+    }
+
+    try {
+      await pressTelegramButton(adapter, callbackData);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Telegram button press failed" });
     }
   });
 
@@ -2046,6 +2063,19 @@ function sendTelegramMessage(adapter, text) {
       reject(error instanceof Error ? error : new Error(String(error)));
     }
   });
+}
+
+function pressTelegramButton(adapter, callbackData) {
+  return adapter.setForeignStateAsync(
+    TELEGRAM_IN_RAW_STATE_ID,
+    JSON.stringify({
+      id: crypto.randomUUID(),
+      from: { id: TELEGRAM_WIDGET_TARGET_CHAT_ID, first_name: TELEGRAM_WIDGET_TARGET_USER },
+      data: callbackData,
+      message: {},
+    }),
+    true
+  );
 }
 
 function getTelegramThumbCacheEntry(fileUniqueId) {
