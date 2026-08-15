@@ -50,6 +50,9 @@ export function CameraTalkWidget({
   const documentVisible = useDocumentVisibility();
   const { activeMediaId, activateMedia, releaseMedia } = useLiveMedia();
   const runtimeActive = isActivePage && documentVisible;
+  // Reolink-Modelle (z.B. Fisheye P520) haben stark abweichende Seitenverhaeltnisse
+  // gegenueber der Duo3 PoE; hier wird beim Verkleinern proportional skaliert statt gecroppt.
+  const isReolink = config.type === "cameraTalkReolink";
   const [tick, setTick] = useState(0);
   const [layerUrls, setLayerUrls] = useState<[string | null, string | null]>([null, null]);
   const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
@@ -1703,7 +1706,7 @@ export function CameraTalkWidget({
             playConfiguredUiSound(config.interactionSounds?.open, "open", `${config.id}:open`);
             openFullscreen();
           }}
-          style={styles.preview}
+          style={[styles.preview, isReolink ? styles.previewLetterbox : null]}
         >
         {previewFeed ? (
           <View style={styles.snapshotWrap}>
@@ -1751,7 +1754,7 @@ export function CameraTalkWidget({
                         src: url,
                         style: showInPlaceFullscreen
                           ? getFullscreenWebLayerStyle(isVisible, webFullscreenZoom, webFullscreenOffset.x, webFullscreenOffset.y)
-                          : getWebLayerStyle(isVisible),
+                          : getWebLayerStyle(isVisible, isReolink ? "contain" : "cover"),
                       })
                     : (
                         <Image
@@ -1777,7 +1780,7 @@ export function CameraTalkWidget({
                               reportAspectRatio(source.width, source.height);
                             }
                           }}
-                          resizeMode="cover"
+                          resizeMode={isReolink ? "contain" : "cover"}
                           source={{ uri: url }}
                           style={[styles.imageLayer, isVisible ? styles.layerVisible : styles.layerHidden]}
                         />
@@ -3137,6 +3140,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "transparent",
   },
+  previewLetterbox: {
+    backgroundColor: "#000000",
+  },
   snapshotWrap: {
     flex: 1,
     alignItems: "center",
@@ -3454,9 +3460,10 @@ const webInPlaceFullscreenHostStyle =
       } as any)
     : null;
 
-function getWebLayerStyle(visible: boolean) {
+function getWebLayerStyle(visible: boolean, objectFit: "cover" | "contain" = "cover") {
   return {
     ...baseWebLayerStyle,
+    objectFit,
     opacity: visible ? 1 : 0,
     visibility: visible ? "visible" : "hidden",
     zIndex: visible ? 2 : 1,
