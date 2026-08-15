@@ -20,6 +20,8 @@ const MAX_HISTORY_ENTRIES_HARD_LIMIT = 200;
 const TELEGRAM_WS_PATH = "/smarthome-dashboard-v2/ws-telegram";
 const WS_RECONNECT_BASE_DELAY_MS = 900;
 const WS_RECONNECT_MAX_DELAY_MS = 9000;
+const WS_HEARTBEAT_INTERVAL_MS = 20000;
+const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
@@ -151,7 +153,9 @@ export function TelegramWidget({
     let active = true;
     let reconnectAttempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let socket: WebSocket | null = null;
+    let lastActivityAt = Date.now();
 
     const clearReconnectTimer = () => {
       if (!reconnectTimer) {
@@ -159,6 +163,14 @@ export function TelegramWidget({
       }
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
+    };
+
+    const clearHeartbeatTimer = () => {
+      if (!heartbeatTimer) {
+        return;
+      }
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
     };
 
     const scheduleReconnect = () => {
@@ -193,14 +205,42 @@ export function TelegramWidget({
           return;
         }
         reconnectAttempt = 0;
+        lastActivityAt = Date.now();
         setWsConnected(true);
         setError(null);
+
+        clearHeartbeatTimer();
+        heartbeatTimer = setInterval(() => {
+          if (!active || !socket) {
+            return;
+          }
+          if (Date.now() - lastActivityAt > WS_STALE_TIMEOUT_MS) {
+            // No message (including pong) received in time; connection is
+            // silently dead (e.g. dropped by a proxy without a close frame).
+            // Force-close so onclose schedules a reconnect.
+            clearHeartbeatTimer();
+            try {
+              socket.close();
+            } catch {
+              // Ignore best-effort socket close failures.
+            }
+            return;
+          }
+          if (socket.readyState === WebSocket.OPEN) {
+            try {
+              socket.send(JSON.stringify({ type: "ping" }));
+            } catch {
+              // Ignore best-effort ping send failures; watchdog will catch it.
+            }
+          }
+        }, WS_HEARTBEAT_INTERVAL_MS);
       };
 
       socket.onmessage = (event) => {
         if (!active) {
           return;
         }
+        lastActivityAt = Date.now();
 
         try {
           const payload = JSON.parse(String(event.data ?? ""));
@@ -220,6 +260,7 @@ export function TelegramWidget({
         if (!active) {
           return;
         }
+        clearHeartbeatTimer();
         setWsConnected(false);
         scheduleReconnect();
       };
@@ -228,6 +269,7 @@ export function TelegramWidget({
         if (!active) {
           return;
         }
+        clearHeartbeatTimer();
         setWsConnected(false);
       };
     };
@@ -237,6 +279,7 @@ export function TelegramWidget({
     return () => {
       active = false;
       clearReconnectTimer();
+      clearHeartbeatTimer();
       if (socket) {
         try {
           socket.close();
