@@ -540,11 +540,20 @@ function TelegramMessageRow({
           </Text>
           <Text style={[styles.timestamp, { color: mutedTextColor }]}>{formatTimestamp(entry.ts)}</Text>
         </View>
-        {thumbUrl ? <Image resizeMode="cover" source={{ uri: thumbUrl }} style={[styles.thumb, thumbSize]} /> : null}
+        {thumbUrl ? (
+          <Pressable
+            onPress={() => {
+              if (entry.cameraKey) onOpenCamera(entry.cameraKey);
+            }}
+            disabled={!entry.cameraKey}
+          >
+            <Image resizeMode="cover" source={{ uri: thumbUrl }} style={[styles.thumb, thumbSize]} />
+          </Pressable>
+        ) : null}
         {entry.text ? <Text style={[styles.message, { color: textColor }]}>{entry.text}</Text> : null}
         {entry.kind === "photo" && entry.cameraKey ? (
           <Pressable onPress={() => onOpenCamera(entry.cameraKey)} style={styles.cameraButton}>
-            <MaterialCommunityIcons color="#08111f" name="camera-outline" size={14} />
+            <MaterialCommunityIcons color="#08111f" name="camera-outline" size={16} />
             <Text style={styles.cameraButtonLabel}>Kamera öffnen</Text>
           </Pressable>
         ) : null}
@@ -553,13 +562,17 @@ function TelegramMessageRow({
             {entry.buttons.map((button, index) => {
               const isLinkButton = !button.callback_data && Boolean(button.url);
               const isPending = !isLinkButton && isButtonPending(entry.id, button.callback_data);
+              const cameraKey = entry.cameraKey;
+              const opensCamera = isLinkButton && Boolean(cameraKey);
               return (
                 <Pressable
                   key={`${entry.id}-btn-${index}`}
                   disabled={isPending}
-                  onPress={() =>
-                    isLinkButton ? onOpenUrl(button.url as string) : onPressButton(entry.id, button.callback_data)
-                  }
+                  onPress={() => {
+                    if (opensCamera && cameraKey) onOpenCamera(cameraKey);
+                    else if (isLinkButton) onOpenUrl(button.url as string);
+                    else onPressButton(entry.id, button.callback_data);
+                  }}
                   style={[styles.buttonChip, isPending ? styles.buttonChipPending : null]}
                 >
                   <Text style={styles.buttonChipLabel}>{button.text}</Text>
@@ -663,7 +676,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 8,
+    gap: 12,
   },
   row: {
     width: "100%",
@@ -680,8 +693,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 10,
-    paddingVertical: 7,
-    gap: 4,
+    paddingVertical: 10,
+    gap: 6,
   },
   bubbleIncoming: {
     backgroundColor: "rgba(255,255,255,0.05)",
@@ -706,8 +719,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   message: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
   thumb: {
     borderRadius: 8,
@@ -716,37 +729,43 @@ const styles = StyleSheet.create({
   cameraButton: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 5,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    justifyContent: "center",
+    alignSelf: "stretch",
+    gap: 6,
+    minHeight: 48,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     backgroundColor: "#79b5ff",
   },
   cameraButtonLabel: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: "700",
     color: "#08111f",
   },
   buttonChipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
+    flexDirection: "column",
+    gap: 8,
   },
   buttonChip: {
-    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
     backgroundColor: "rgba(255,255,255,0.04)",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   buttonChipPending: {
     opacity: 0.5,
   },
   buttonChipLabel: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.65)",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    textAlign: "center",
   },
   composerRow: {
     flexDirection: "row",
