@@ -73,7 +73,10 @@ export function CameraWidget({
   const [previewMjpegLoaded, setPreviewMjpegLoaded] = useState(false);
   const [fullscreenMjpegLoaded, setFullscreenMjpegLoaded] = useState(false);
   const hasReportedAspectRatio = useRef(false);
-  const lastTriggerMatchRef = useRef(false);
+  // Seed with the current match state so a trigger value that was already true before this
+  // widget mounted (e.g. a stale/leftover value from a previous session) isn't misread as a
+  // fresh rising edge and doesn't auto-open fullscreen on every future mount.
+  const lastTriggerMatchRef = useRef(matchesMaximizeTrigger(config, maximizeStateValue));
   const activeLayerRef = useRef<0 | 1>(0);
   const latestRequestedUrlRef = useRef<string | null>(null);
   const loadingJobRef = useRef<{ layer: 0 | 1; url: string } | null>(null);
