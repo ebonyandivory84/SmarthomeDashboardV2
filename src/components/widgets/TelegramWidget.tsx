@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -39,6 +39,7 @@ export function TelegramWidget({
   const [composerText, setComposerText] = useState("");
   const [sending, setSending] = useState(false);
   const [pressingButtons, setPressingButtons] = useState<Set<string>>(new Set());
+  const pendingButtonKeysRef = useRef<Set<string>>(new Set());
   const webRootRef = useRef<HTMLDivElement | null>(null);
   const webListRef = useRef<HTMLDivElement | null>(null);
   const nativeListRef = useRef<ScrollView | null>(null);
@@ -312,40 +313,39 @@ export function TelegramWidget({
     setIsScrollActive(true);
   };
 
-  const openCamera = (cameraKey: string) => {
-    playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:camera:${cameraKey}`);
-    // CameraWidget's maximizeStateId trigger only fires on a rising edge
-    // (non-matching -> matching against the default boolean/"true" format),
-    // so a monotonically increasing timestamp would never reliably match.
-    // Pulse 0 -> 1 instead, which matches the default boolean trigger format.
-    const stateId = `0_userdata.0.Telegram.Widget.cameraTriggers.${cameraKey}`;
-    void client.writeState(stateId, 0).then(() => client.writeState(stateId, 1));
-  };
-
-  const isButtonPending = useCallback(
-    (entryId: string, callbackData: string) => pressingButtons.has(`${entryId}:${callbackData}`),
-    [pressingButtons]
+  const openCamera = useCallback(
+    (cameraKey: string) => {
+      playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:camera:${cameraKey}`);
+      // CameraWidget's maximizeStateId trigger only fires on a rising edge
+      // (non-matching -> matching against the default boolean/"true" format),
+      // so a monotonically increasing timestamp would never reliably match.
+      // Pulse 0 -> 1 instead, which matches the default boolean trigger format.
+      const stateId = `0_userdata.0.Telegram.Widget.cameraTriggers.${cameraKey}`;
+      void client.writeState(stateId, 0).then(() => client.writeState(stateId, 1));
+    },
+    [client, config.id, config.interactionSounds?.press]
   );
 
-  const pressButtonChip = async (entryId: string, callbackData: string) => {
-    const key = `${entryId}:${callbackData}`;
-    if (pressingButtons.has(key)) {
-      return;
-    }
-    playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:${entryId}:${callbackData}`);
-    setPressingButtons((current) => new Set(current).add(key));
-    try {
-      await client.pressTelegramButton(callbackData);
-    } catch (pressError) {
-      setError(pressError instanceof Error ? pressError.message : "Telegram-Aktion konnte nicht ausgelöst werden");
-    } finally {
-      setPressingButtons((current) => {
-        const next = new Set(current);
-        next.delete(key);
-        return next;
-      });
-    }
-  };
+  const pressButtonChip = useCallback(
+    async (entryId: string, callbackData: string) => {
+      const key = `${entryId}:${callbackData}`;
+      if (pendingButtonKeysRef.current.has(key)) {
+        return;
+      }
+      pendingButtonKeysRef.current.add(key);
+      setPressingButtons(new Set(pendingButtonKeysRef.current));
+      playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:${entryId}:${callbackData}`);
+      try {
+        await client.pressTelegramButton(callbackData);
+      } catch (pressError) {
+        setError(pressError instanceof Error ? pressError.message : "Telegram-Aktion konnte nicht ausgelöst werden");
+      } finally {
+        pendingButtonKeysRef.current.delete(key);
+        setPressingButtons(new Set(pendingButtonKeysRef.current));
+      }
+    },
+    [client, config.id, config.interactionSounds?.press]
+  );
 
   const handleSend = async () => {
     const text = composerText.trim();
@@ -364,24 +364,42 @@ export function TelegramWidget({
     }
   };
 
-  const openButtonLink = (url: string) => {
-    playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:link`);
-    void Linking.openURL(url);
-  };
+  const openButtonLink = useCallback(
+    (url: string) => {
+      playConfiguredUiSound(config.interactionSounds?.press, "tap", `${config.id}:button:link`);
+      void Linking.openURL(url);
+    },
+    [config.id, config.interactionSounds?.press]
+  );
 
-  const messageRows = entries.map((entry) => (
-    <TelegramMessageRow
-      key={entry.id}
-      entry={entry}
-      client={client}
-      textColor={textColor}
-      mutedTextColor={mutedTextColor}
-      onOpenCamera={openCamera}
-      onPressButton={pressButtonChip}
-      onOpenUrl={openButtonLink}
-      isButtonPending={isButtonPending}
-    />
-  ));
+  const messageRows = entries.map((entry) => {
+    let pendingCallbackData: string | null = null;
+    if (entry.buttons) {
+      const pendingKeys: string[] = [];
+      for (const button of entry.buttons) {
+        if (button.callback_data && pressingButtons.has(`${entry.id}:${button.callback_data}`)) {
+          pendingKeys.push(button.callback_data);
+        }
+      }
+      // Joined with a separator that can't appear in callback_data itself, so this stays a single
+      // primitive string prop (keeps TelegramMessageRow's React.memo comparison cheap) while still
+      // letting multiple buttons in the same message show as pending at once.
+      pendingCallbackData = pendingKeys.length > 0 ? pendingKeys.join("|") : null;
+    }
+    return (
+      <TelegramMessageRow
+        key={entry.id}
+        entry={entry}
+        client={client}
+        textColor={textColor}
+        mutedTextColor={mutedTextColor}
+        onOpenCamera={openCamera}
+        onPressButton={pressButtonChip}
+        onOpenUrl={openButtonLink}
+        pendingCallbackData={pendingCallbackData}
+      />
+    );
+  });
 
   const scrollContainer =
     Platform.OS === "web"
@@ -497,18 +515,18 @@ type TelegramMessageRowProps = {
   mutedTextColor: string;
   onOpenCamera: (cameraKey: string) => void;
   onPressButton: (entryId: string, callbackData: string) => void;
-  isButtonPending: (entryId: string, callbackData: string) => boolean;
+  pendingCallbackData: string | null;
   onOpenUrl: (url: string) => void;
 };
 
-function TelegramMessageRow({
+const TelegramMessageRow = memo(function TelegramMessageRow({
   entry,
   client,
   textColor,
   mutedTextColor,
   onOpenCamera,
   onPressButton,
-  isButtonPending,
+  pendingCallbackData,
   onOpenUrl,
 }: TelegramMessageRowProps) {
   const isOutgoing = entry.direction === "out";
@@ -561,7 +579,10 @@ function TelegramMessageRow({
           <View style={styles.buttonChipRow}>
             {entry.buttons.map((button, index) => {
               const isLinkButton = !button.callback_data && Boolean(button.url);
-              const isPending = !isLinkButton && isButtonPending(entry.id, button.callback_data);
+              const isPending =
+                !isLinkButton &&
+                Boolean(button.callback_data) &&
+                (pendingCallbackData?.split("|") ?? []).includes(button.callback_data as string);
               const cameraKey = entry.cameraKey;
               const opensCamera = isLinkButton && Boolean(cameraKey);
               return (
@@ -584,7 +605,7 @@ function TelegramMessageRow({
       </View>
     </View>
   );
-}
+});
 
 function clampInt(value: number | undefined, fallback: number, min: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
