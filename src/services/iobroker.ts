@@ -264,6 +264,10 @@ export class IoBrokerClient {
     return this.endpoint(`/telegram/thumb/${encodeURIComponent(fileUniqueId)}?fileId=${encodeURIComponent(fileId)}`);
   }
 
+  telegramLocalSnapshotUrl(cameraKey: string, ts: number): string {
+    return this.endpoint(`/telegram/local-snapshot/${encodeURIComponent(cameraKey)}?ts=${ts}`);
+  }
+
   async listScripts(options?: {
     limit?: number;
     instance?: string;

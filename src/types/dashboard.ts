@@ -643,6 +643,8 @@ export type TelegramWidgetHistoryEntry = {
   kind: "text" | "photo";
   cameraKey: TelegramWidgetCameraKey | "";
   thumbFileId?: string;
+  localSnapshotKey?: TelegramWidgetCameraKey;
+  localSnapshotTs?: number;
   buttons?: TelegramWidgetButton[];
 };
 

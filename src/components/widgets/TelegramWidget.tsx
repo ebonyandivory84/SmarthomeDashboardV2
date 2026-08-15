@@ -510,7 +510,13 @@ function TelegramMessageRow({
 }: TelegramMessageRowProps) {
   const isOutgoing = entry.direction === "out";
   const thumbUrl =
-    entry.kind === "photo" && entry.thumbFileId ? client.telegramThumbUrl(entry.thumbFileId, entry.thumbFileId) : null;
+    entry.kind !== "photo"
+      ? null
+      : entry.localSnapshotKey
+        ? client.telegramLocalSnapshotUrl(entry.localSnapshotKey, entry.localSnapshotTs ?? entry.ts)
+        : entry.thumbFileId
+          ? client.telegramThumbUrl(entry.thumbFileId, entry.thumbFileId)
+          : null;
 
   return (
     <View style={[styles.row, isOutgoing ? styles.rowOutgoing : styles.rowIncoming]}>

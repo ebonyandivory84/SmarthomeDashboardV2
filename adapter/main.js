@@ -76,6 +76,11 @@ const TELEGRAM_CAMERA_KEYS = [
   "terrace",
   "driveway",
 ];
+// Populated by the independent Telegram_WidgetSnapshotCache.js ioBroker
+// script (fetches snapshots directly from the camera URLs, bypassing the
+// Telegram Bot File API entirely — see /telegram/thumb's bot-token
+// limitation below).
+const TELEGRAM_SNAPSHOT_CACHE_BASE = "0_userdata.0.Telegram.WidgetSnapshotCache";
 const STATE_PUSH_MAX_STATES_PER_CLIENT = 4000;
 const STATE_PUSH_BATCH_MS = 100;
 const CAMERA_SNAPSHOT_MIN_REFRESH_MS = 2000;
@@ -505,6 +510,29 @@ async function main(adapter) {
       res.send(buffer);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Telegram thumbnail fetch failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/telegram/local-snapshot/:cameraKey", async (req, res) => {
+    const cameraKey = typeof req.params?.cameraKey === "string" ? req.params.cameraKey.trim() : "";
+
+    if (!TELEGRAM_CAMERA_KEYS.includes(cameraKey)) {
+      res.status(400).json({ error: "unknown cameraKey" });
+      return;
+    }
+
+    try {
+      const snapshot = await readTelegramLocalSnapshot(adapter, cameraKey);
+      if (!snapshot) {
+        res.status(404).json({ error: "no cached snapshot" });
+        return;
+      }
+
+      res.setHeader("Content-Type", snapshot.contentType);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(snapshot.buffer);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Local snapshot read failed" });
     }
   });
 
@@ -2028,6 +2056,27 @@ async function readTelegramHistory(adapter) {
     adapter.log.warn(`Telegram history read failed: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
+}
+
+async function readTelegramLocalSnapshot(adapter, cameraKey) {
+  const state = await adapter.getForeignStateAsync(`${TELEGRAM_SNAPSHOT_CACHE_BASE}.snapshot.${cameraKey}`);
+  if (!state || typeof state.val !== "string" || !state.val) {
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(state.val);
+  } catch {
+    return null;
+  }
+
+  if (!parsed || typeof parsed.dataBase64 !== "string" || !parsed.dataBase64) {
+    return null;
+  }
+
+  const contentType = typeof parsed.contentType === "string" && parsed.contentType ? parsed.contentType : "image/jpeg";
+  return { buffer: Buffer.from(parsed.dataBase64, "base64"), contentType };
 }
 
 function sendTelegramMessage(adapter, text) {
