@@ -3268,6 +3268,14 @@ function immutableStaticOptions() {
   return {
     setHeaders(res, filePath) {
       const fileName = path.basename(filePath);
+      // Der Expo-Web-Export haelt den Hash im Namen des Entry-Bundles ("main-<hash>.js")
+      // teils stabil, obwohl sich sein Inhalt aendert (z.B. bei reinen Aenderungen an
+      // lazy geladenen Widget-Chunks). Deshalb darf diese eine Datei nicht als
+      // 1-Jahr-immutable gecacht werden, sonst bleiben Clients auf altem Code haengen.
+      if (/^main-[a-f0-9]{8,}\.js$/i.test(fileName)) {
+        res.setHeader("Cache-Control", "no-cache");
+        return;
+      }
       if (/[.-][a-f0-9]{8,}\.(?:js|css|png|jpe?g|webp|gif|svg|mp3|wav)$/i.test(fileName)) {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       }

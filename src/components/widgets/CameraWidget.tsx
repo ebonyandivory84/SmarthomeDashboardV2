@@ -864,7 +864,7 @@ export function CameraWidget({
             playConfiguredUiSound(config.interactionSounds?.open, "open", `${config.id}:open`);
             openFullscreen();
           }}
-          style={styles.preview}
+          style={[styles.preview, styles.previewLetterbox]}
         >
         {previewFeed ? (
           <View style={styles.snapshotWrap}>
@@ -911,7 +911,7 @@ export function CameraWidget({
                         src: url,
                         style: showInPlaceFullscreen
                           ? getFullscreenWebLayerStyle(isVisible, webFullscreenZoom, webFullscreenOffset.x, webFullscreenOffset.y)
-                          : getWebLayerStyle(isVisible),
+                          : getWebLayerStyle(isVisible, "contain"),
                       })
                     : (
                         <Image
@@ -937,7 +937,7 @@ export function CameraWidget({
                               reportAspectRatio(source.width, source.height);
                             }
                           }}
-                          resizeMode="cover"
+                          resizeMode="contain"
                           source={{ uri: url }}
                           style={[styles.imageLayer, isVisible ? styles.layerVisible : styles.layerHidden]}
                         />
@@ -2248,6 +2248,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "transparent",
   },
+  previewLetterbox: {
+    backgroundColor: "#000000",
+  },
   snapshotWrap: {
     flex: 1,
     alignItems: "center",
@@ -2446,9 +2449,10 @@ const webInPlaceFullscreenHostStyle =
       } as any)
     : null;
 
-function getWebLayerStyle(visible: boolean) {
+function getWebLayerStyle(visible: boolean, objectFit: "cover" | "contain" = "cover") {
   return {
     ...baseWebLayerStyle,
+    objectFit,
     opacity: visible ? 1 : 0,
     visibility: visible ? "visible" : "hidden",
     zIndex: visible ? 2 : 1,
