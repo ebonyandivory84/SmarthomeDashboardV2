@@ -19,6 +19,9 @@ const MAX_HISTORY_ENTRIES_HARD_LIMIT = 200;
 const TELEGRAM_WS_PATH = "/smarthome-dashboard-v2/ws-telegram";
 const WS_RECONNECT_BASE_DELAY_MS = 900;
 const WS_RECONNECT_MAX_DELAY_MS = 9000;
+const THUMB_MAX_WIDTH = 220;
+const THUMB_MIN_HEIGHT = 90;
+const THUMB_MAX_HEIGHT = 220;
 
 export function TelegramWidget({
   config,
@@ -517,6 +520,16 @@ function TelegramMessageRow({
         : entry.thumbFileId
           ? client.telegramThumbUrl(entry.thumbFileId, entry.thumbFileId)
           : null;
+  const thumbSize =
+    entry.localSnapshotWidth && entry.localSnapshotHeight
+      ? {
+          width: THUMB_MAX_WIDTH,
+          height: Math.min(
+            THUMB_MAX_HEIGHT,
+            Math.max(THUMB_MIN_HEIGHT, Math.round((THUMB_MAX_WIDTH * entry.localSnapshotHeight) / entry.localSnapshotWidth)),
+          ),
+        }
+      : { width: THUMB_MAX_WIDTH, height: 135 };
 
   return (
     <View style={[styles.row, isOutgoing ? styles.rowOutgoing : styles.rowIncoming]}>
@@ -527,7 +540,7 @@ function TelegramMessageRow({
           </Text>
           <Text style={[styles.timestamp, { color: mutedTextColor }]}>{formatTimestamp(entry.ts)}</Text>
         </View>
-        {thumbUrl ? <Image resizeMode="cover" source={{ uri: thumbUrl }} style={styles.thumb} /> : null}
+        {thumbUrl ? <Image resizeMode="cover" source={{ uri: thumbUrl }} style={[styles.thumb, thumbSize]} /> : null}
         {entry.text ? <Text style={[styles.message, { color: textColor }]}>{entry.text}</Text> : null}
         {entry.kind === "photo" && entry.cameraKey ? (
           <Pressable onPress={() => onOpenCamera(entry.cameraKey)} style={styles.cameraButton}>
@@ -697,8 +710,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   thumb: {
-    width: 180,
-    height: 135,
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.06)",
   },
