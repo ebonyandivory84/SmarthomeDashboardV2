@@ -211,6 +211,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         title: widget.title,
         showTitle: widget.showTitle === false ? "false" : "true",
         url: widget.url || "",
+        wide: widget.wide ? "true" : "false",
         ...appearanceDraft,
       });
       return;
@@ -952,6 +953,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         title: draft.title,
         showTitle: draft.showTitle !== "false",
         url: draft.url || widget.url,
+        wide: draft.wide === "true",
         appearance,
       });
     } else if (widget.type === "numpad") {
@@ -2289,6 +2291,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Text style={styles.mappingHint}>
                   Zu finden im ioBroker Admin unter der AlarmSystem-Instanz beim WebUI-Link.
                 </Text>
+                <Field label="Breite (2 von 3 Spalten)">
+                  <ChoiceRow
+                    options={["true", "false"]}
+                    value={draft.wide || "false"}
+                    onSelect={(value) => setDraft((current) => ({ ...current, wide: value }))}
+                  />
+                </Field>
               </>
             ) : null}
             {widget.type === "weather" ? (

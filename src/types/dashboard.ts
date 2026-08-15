@@ -156,6 +156,7 @@ export type GrafanaWidgetConfig = WidgetBase & {
 export type AlarmFloorplanWidgetConfig = WidgetBase & {
   type: "alarmFloorplan";
   manualHeightOverride?: boolean;
+  wide?: boolean;
   url: string;
 };
 

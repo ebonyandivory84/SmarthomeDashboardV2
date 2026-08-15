@@ -729,11 +729,17 @@ function getAutoLayoutSpec(
       // while still leaving enough room for in-scene stat cards.
       return { w: mainColumnWidth, h: roundGridUnit(3.5) };
     case "grafana":
-    case "alarmFloorplan":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
       return { w: mainColumnWidth, h: roundGridUnit(2.2) };
+    case "alarmFloorplan": {
+      const width = widget.wide ? wideWidgetWidth : mainColumnWidth;
+      if (widget.manualHeightOverride) {
+        return { w: width, h: Math.max(1, roundGridUnit(fallbackHeight)) };
+      }
+      return { w: width, h: roundGridUnit(2.2) };
+    }
     case "weather":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
