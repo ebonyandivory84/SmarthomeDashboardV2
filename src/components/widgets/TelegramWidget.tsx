@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   rowOutgoing: {
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   bubble: {
     maxWidth: "82%",
