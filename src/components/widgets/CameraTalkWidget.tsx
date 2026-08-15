@@ -78,7 +78,10 @@ export function CameraTalkWidget({
   const [previewMjpegLoaded, setPreviewMjpegLoaded] = useState(false);
   const [fullscreenMjpegLoaded, setFullscreenMjpegLoaded] = useState(false);
   const hasReportedAspectRatio = useRef(false);
-  const lastTriggerMatchRef = useRef(false);
+  // Seed current match state so trigger value already true before mount
+  // (e.g. stale/leftover value or an already-open steady state) isn't
+  // misread as a fresh rising edge on every mount/remount.
+  const lastTriggerMatchRef = useRef(matchesMaximizeTrigger(config, maximizeStateValue));
   const activeLayerRef = useRef<0 | 1>(0);
   const latestRequestedUrlRef = useRef<string | null>(null);
   const loadingJobRef = useRef<{ layer: 0 | 1; url: string } | null>(null);
