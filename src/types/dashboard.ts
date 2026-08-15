@@ -198,6 +198,8 @@ export type TelegramWidgetConfig = WidgetBase & {
   refreshMs?: number;
   maxEntries?: number;
   composerEnabled?: boolean;
+  backgroundImage?: string;
+  backgroundImageBlur?: number;
 };
 
 export type ScriptWidgetConfig = WidgetBase & {

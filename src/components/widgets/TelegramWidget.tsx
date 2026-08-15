@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, ImageBackground, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useDashboardConfig } from "../../context/DashboardConfigContext";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -58,6 +58,7 @@ export function TelegramWidget({
   const refreshMs = clampInt(config.refreshMs, 2500, 800);
   const maxEntries = clampIntMax(config.maxEntries, 200, 10, MAX_HISTORY_ENTRIES_HARD_LIMIT);
   const composerEnabled = config.composerEnabled !== false;
+  const backgroundBlur = Math.min(24, clampInt(config.backgroundImageBlur, 8, 0));
   const telegramWsUrl = useMemo(() => buildTelegramPushWebSocketUrl(), []);
   const shouldUseTelegramPushWebSocket = Platform.OS === "web" && runtimeActive && Boolean(telegramWsUrl);
 
@@ -464,6 +465,25 @@ export function TelegramWidget({
 
   const content = (
     <View style={[styles.container, isScrollActive ? styles.containerActive : null]}>
+      {config.backgroundImage ? (
+        Platform.OS === "web" ? (
+          <>
+            {createElement("div", {
+              style: buildBlurredWidgetBackgroundStyle(config.backgroundImage, backgroundBlur),
+            })}
+            <View style={styles.backgroundOverlay} />
+          </>
+        ) : (
+          <ImageBackground
+            blurRadius={backgroundBlur}
+            imageStyle={styles.widgetBackgroundImage}
+            source={{ uri: `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.backgroundImage)}` }}
+            style={styles.widgetBackground}
+          >
+            <View style={styles.backgroundOverlay} />
+          </ImageBackground>
+        )
+      ) : null}
       <View style={styles.metaRow}>
         <View style={styles.metaLeft}>
           <MaterialCommunityIcons
@@ -629,6 +649,24 @@ function clampIntMax(value: number | undefined, fallback: number, min: number, m
   return Math.min(max, clampInt(value, fallback, min));
 }
 
+function buildBlurredWidgetBackgroundStyle(imageName: string, blurPx: number): Record<string, string | number> {
+  const encoded = encodeURIComponent(imageName);
+  return {
+    position: "absolute",
+    top: "-12%",
+    left: "-12%",
+    right: "-12%",
+    bottom: "-12%",
+    backgroundImage: `url(/smarthome-dashboard-v2/widget-assets/${encoded})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    filter: `blur(${Math.max(0, blurPx)}px)`,
+    transform: "scale(1.08)",
+    pointerEvents: "none",
+    zIndex: 0,
+  };
+}
+
 function buildTelegramPushWebSocketUrl() {
   if (Platform.OS !== "web" || typeof window === "undefined") {
     return "";
@@ -678,9 +716,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
     backgroundColor: "rgba(6, 10, 18, 0.5)",
     overflow: "hidden",
+    position: "relative",
   },
   containerActive: {
     borderColor: "rgba(93, 168, 255, 0.42)",
+  },
+  widgetBackground: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  widgetBackgroundImage: {
+    resizeMode: "cover",
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(6, 11, 18, 0.48)",
+    zIndex: 1,
   },
   metaRow: {
     flexDirection: "row",

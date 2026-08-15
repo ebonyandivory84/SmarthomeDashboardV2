@@ -309,6 +309,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         refreshMs: String(widget.refreshMs || 2500),
         maxEntries: String(widget.maxEntries || 200),
         composerEnabled: widget.composerEnabled === false ? "false" : "true",
+        backgroundImage: widget.backgroundImage || "",
+        backgroundImageBlur: String(widget.backgroundImageBlur ?? 8),
         ...appearanceDraft,
       });
       return;
@@ -984,6 +986,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 2500, 800),
         maxEntries: clampIntMax(draft.maxEntries, widget.maxEntries || 200, 10, 200),
         composerEnabled: draft.composerEnabled !== "false",
+        backgroundImage: draft.backgroundImage?.trim() || undefined,
+        backgroundImageBlur: clampInt(draft.backgroundImageBlur, widget.backgroundImageBlur ?? 8, 0),
         interactionSounds: buildStoredInteractionSounds(
           widget.type,
           soundDraft,
@@ -2453,6 +2457,27 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.composerEnabled || "true"}
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
                   />
+                </Field>
+                <Field label="Widget-Hintergrundbild (optional)">
+                  <View style={styles.stateFieldRow}>
+                    <TextInput
+                      editable={false}
+                      style={[styles.input, styles.stateFieldInput]}
+                      value={draft.backgroundImage || ""}
+                    />
+                    <EditorButtonPressable
+                      onPress={() => setImagePickerField("backgroundImage")}
+                      style={styles.stateBrowseButton}
+                    >
+                      <Text style={styles.stateBrowseLabel}>Bild waehlen</Text>
+                    </EditorButtonPressable>
+                  </View>
+                  <Field label="Bild-Unschaerfe">
+                    <BlurControl
+                      value={draft.backgroundImageBlur || "8"}
+                      onChange={(value) => setDraft((current) => ({ ...current, backgroundImageBlur: value }))}
+                    />
+                  </Field>
                 </Field>
                 <Field label="Sounds bei Interaktion">
                   <Field label="Alle Buttons (Kamera & Aktionen)">
@@ -4231,6 +4256,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
               ? "Wallbox-Hintergrund waehlen"
               : (widget?.type === "heating" || widget?.type === "heatingV2")
                 ? "Heizung-Hintergrund waehlen"
+              : widget?.type === "telegram"
+                ? "Telegram-Hintergrund waehlen"
               : "Solar-Hintergrund waehlen"
         }
         helperText={
@@ -4242,6 +4269,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
               ? "Waehle ein Hintergrundbild. Drag&Drop, Datei-Upload und Browser-Auswahl sind verfuegbar."
               : (widget?.type === "heating" || widget?.type === "heatingV2")
                 ? "Waehle ein Hintergrundbild fuer das Heizungs-Widget. Drag&Drop und Datei-Upload sind verfuegbar."
+              : widget?.type === "telegram"
+                ? "Waehle ein Hintergrundbild fuer das Telegram-Widget. Drag&Drop und Datei-Upload sind verfuegbar."
               : "Verwendet den festen Ordner `assets/` im Adapter-Paket."
         }
         onClose={() => setImagePickerField(null)}
@@ -4265,7 +4294,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 backgroundImage: entry.name,
               };
             }
-            if (widget?.type === "heating" || widget?.type === "heatingV2") {
+            if (widget?.type === "heating" || widget?.type === "heatingV2" || widget?.type === "telegram") {
               return {
                 ...current,
                 backgroundImage: entry.name,
