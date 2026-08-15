@@ -27,7 +27,6 @@ const WIDGET_AUTO_SCALE_MINIMUMS: Partial<Record<WidgetType, AutoScaleMinimum>> 
   state: { width: 220, height: 180 },
   energy: { width: 380, height: 260 },
   solar: { width: 960, height: 960 },
-  weather: { width: 420, height: 300 },
   numpad: { width: 560, height: 360 },
   host: { width: 560, height: 340 },
   raspberryPiStats: { width: 560, height: 340 },

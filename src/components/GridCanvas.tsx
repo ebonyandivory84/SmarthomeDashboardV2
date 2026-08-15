@@ -975,7 +975,8 @@ function WebGridCanvas({
             widget.type === "goe" ||
             widget.type === "wallboxV2" ||
             widget.type === "heating" ||
-            widget.type === "heatingV2"
+            widget.type === "heatingV2" ||
+            widget.type === "weather"
           }
           lowPowerMode={lowPowerMode}
           mainColumnExtraGap={mainColumnExtraGap}
@@ -1056,6 +1057,7 @@ function WebWidgetShell({
     widget.type !== "coco" &&
     widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
+    widget.type !== "weather" &&
     widget.showTitle !== false &&
     Boolean(widget.title.trim());
   const interaction = useRef<{
@@ -1359,6 +1361,7 @@ function WebWidgetShell({
     widget.type !== "heatingV2" &&
     widget.type !== "numpad" &&
     widget.type !== "grafana" &&
+    widget.type !== "weather" &&
     !linkBorderless
       ? styles.webContentInset
       : null,

@@ -53,6 +53,7 @@ export function WidgetFrame({
     widget.type !== "wallboxV2" &&
     widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
+    widget.type !== "weather" &&
     widget.showTitle !== false &&
     Boolean(widget.title.trim());
   const autoScaleMinimum = getWidgetAutoScaleMinimum(widget.type);
@@ -257,6 +258,7 @@ export function WidgetFrame({
         widget.type !== "heating" &&
         widget.type !== "heatingV2" &&
         widget.type !== "grafana" &&
+        widget.type !== "weather" &&
         !linkBorderless
           ? styles.contentInset
           : null,
