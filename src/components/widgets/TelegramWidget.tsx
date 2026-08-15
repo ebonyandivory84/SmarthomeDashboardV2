@@ -108,8 +108,16 @@ export function TelegramWidget({
   );
 
   useEffect(() => {
+    // Snapshot pushes fire on every history change, including pure edits
+    // (e.g. status updates on expiring actions) that don't add new
+    // messages. Forcing a scroll-to-bottom on those would yank the view
+    // away from whatever the user is currently reading, so only auto-scroll
+    // while the user hasn't activated manual scroll mode.
+    if (isScrollActive) {
+      return;
+    }
     scrollToBottom();
-  }, [entries, scrollToBottom]);
+  }, [entries, isScrollActive, scrollToBottom]);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined" || !isScrollActive) {
