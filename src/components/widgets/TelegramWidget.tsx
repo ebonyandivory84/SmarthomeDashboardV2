@@ -522,7 +522,7 @@ export function TelegramWidget({
             {createElement("div", {
               style: buildBlurredWidgetBackgroundStyle(config.backgroundImage, backgroundBlur),
             })}
-            <View style={styles.backgroundOverlay} />
+            <View pointerEvents="none" style={styles.backgroundOverlay} />
           </>
         ) : (
           <ImageBackground
@@ -531,7 +531,7 @@ export function TelegramWidget({
             source={{ uri: `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.backgroundImage)}` }}
             style={styles.widgetBackground}
           >
-            <View style={styles.backgroundOverlay} />
+            <View pointerEvents="none" style={styles.backgroundOverlay} />
           </ImageBackground>
         )
       ) : null}
