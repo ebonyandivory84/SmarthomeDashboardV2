@@ -6,6 +6,7 @@ export type WidgetType =
   | "energy"
   | "solar"
   | "grafana"
+  | "alarmFloorplan"
   | "weather"
   | "numpad"
   | "link"
@@ -150,6 +151,12 @@ export type GrafanaWidgetConfig = WidgetBase & {
   renderUrl?: string;
   refreshMs?: number;
   allowInteractions?: boolean;
+};
+
+export type AlarmFloorplanWidgetConfig = WidgetBase & {
+  type: "alarmFloorplan";
+  manualHeightOverride?: boolean;
+  url: string;
 };
 
 export type WeatherWidgetConfig = WidgetBase & {
@@ -495,6 +502,7 @@ export type WidgetConfig =
   | EnergyWidgetConfig
   | SolarWidgetConfig
   | GrafanaWidgetConfig
+  | AlarmFloorplanWidgetConfig
   | WeatherWidgetConfig
   | NumpadWidgetConfig
   | LinkWidgetConfig

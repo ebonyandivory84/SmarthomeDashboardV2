@@ -205,6 +205,17 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "alarmFloorplan") {
+      setSoundDraft({});
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        url: widget.url || "",
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "numpad") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -934,6 +945,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           soundDraft,
           config.uiSounds?.widgetTypeDefaults?.[widget.type]
         ),
+        appearance,
+      });
+    } else if (widget.type === "alarmFloorplan") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        url: draft.url || widget.url,
         appearance,
       });
     } else if (widget.type === "numpad") {
@@ -2256,6 +2274,21 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     <Text style={styles.inlineActionLabel}>Als Default fuer alle Grafana-Widgets verwenden</Text>
                   </EditorButtonPressable>
                 </Field>
+              </>
+            ) : null}
+            {widget.type === "alarmFloorplan" ? (
+              <>
+                <Field label="AlarmSystem WebUI-URL">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, url: value }))}
+                    style={styles.input}
+                    value={draft.url || ""}
+                  />
+                </Field>
+                <Text style={styles.mappingHint}>
+                  Zu finden im ioBroker Admin unter der AlarmSystem-Instanz beim WebUI-Link.
+                </Text>
               </>
             ) : null}
             {widget.type === "weather" ? (

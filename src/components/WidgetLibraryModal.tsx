@@ -60,6 +60,12 @@ const OPTIONS: Array<{
     icon: "chart-box-outline",
   },
   {
+    type: "alarmFloorplan",
+    title: "AlarmSystem",
+    description: "Bindet die Alarmsystem-Uebersicht (Grundriss + Bedienbuttons) live als Widget ein.",
+    icon: "shield-home-outline",
+  },
+  {
     type: "weather",
     title: "Wetter",
     description: "Aktuelles Wetter und kurze Vorhersage per Koordinaten anzeigen.",

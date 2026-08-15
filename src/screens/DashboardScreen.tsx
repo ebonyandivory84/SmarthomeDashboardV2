@@ -429,6 +429,7 @@ export function DashboardScreen() {
       currentWidget.type === "solar" ||
       currentWidget.type === "weather" ||
       currentWidget.type === "grafana" ||
+      currentWidget.type === "alarmFloorplan" ||
       currentWidget.type === "log" ||
       currentWidget.type === "telegram" ||
       currentWidget.type === "script" ||
@@ -477,6 +478,7 @@ export function DashboardScreen() {
             ? { minHeight: 2.5, heightSnap: 0.1 }
             : currentWidget.type === "weather" ||
                 currentWidget.type === "grafana" ||
+                currentWidget.type === "alarmFloorplan" ||
                 currentWidget.type === "log" ||
                 currentWidget.type === "telegram" ||
                 currentWidget.type === "script" ||

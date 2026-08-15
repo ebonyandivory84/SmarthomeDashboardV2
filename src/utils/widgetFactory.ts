@@ -27,7 +27,7 @@ export function buildWidgetTemplate(
         ? 6
         : type === "solar"
           ? 8
-            : type === "grafana"
+            : type === "grafana" || type === "alarmFloorplan"
               ? 6
               : type === "log"
                 ? 6
@@ -63,7 +63,7 @@ export function buildWidgetTemplate(
           ? 4
           : type === "energy"
             ? 3
-            : type === "grafana"
+            : type === "grafana" || type === "alarmFloorplan"
               ? 4
               : type === "log"
                 ? 3
@@ -215,6 +215,16 @@ export function buildWidgetTemplate(
         ...basePosition,
         w: Math.min(6, grid.columns),
       },
+    };
+  }
+
+  if (type === "alarmFloorplan") {
+    return {
+      id: `alarm-floorplan-${suffix}`,
+      type: "alarmFloorplan",
+      title: `AlarmSystem ${suffix}`,
+      url: "",
+      position: { ...basePosition, w: Math.min(6, grid.columns) },
     };
   }
 

@@ -31,6 +31,9 @@ const LazyCameraTalkWidget = lazy(() =>
 const LazyGrafanaWidget = lazy(() =>
   import("./widgets/GrafanaWidget").then((module) => ({ default: module.GrafanaWidget }))
 );
+const LazyAlarmFloorplanWidget = lazy(() =>
+  import("./widgets/AlarmFloorplanWidget").then((module) => ({ default: module.AlarmFloorplanWidget }))
+);
 const LazyCocoWidget = lazy(() => import("./widgets/CocoWidget").then((module) => ({ default: module.CocoWidget })));
 const LazyHeatingWidget = lazy(() => import("./widgets/HeatingWidget").then((module) => ({ default: module.HeatingWidget })));
 const LazyHeatingWidgetV2 = lazy(() =>
@@ -222,7 +225,7 @@ export function GridCanvas({
                   widget.type === "wallboxV2" ||
                   widget.type === "heating" ||
                   widget.type === "heatingV2" ||
-                  (Platform.OS === "web" && (widget.type === "weather" || widget.type === "grafana"))
+                  (Platform.OS === "web" && (widget.type === "weather" || widget.type === "grafana" || widget.type === "alarmFloorplan"))
                 }
                 onCommitPosition={(widgetId, position) =>
                   onUpdateWidget(
@@ -650,6 +653,7 @@ function getAutoLayoutSpec(
         }
         return { w: 1, h: roundGridUnit(3.8) };
       case "grafana":
+      case "alarmFloorplan":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
@@ -725,6 +729,7 @@ function getAutoLayoutSpec(
       // while still leaving enough room for in-scene stat cards.
       return { w: mainColumnWidth, h: roundGridUnit(3.5) };
     case "grafana":
+    case "alarmFloorplan":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
@@ -965,6 +970,7 @@ function WebGridCanvas({
             widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ||
             widget.type === "solar" ||
             widget.type === "grafana" ||
+            widget.type === "alarmFloorplan" ||
             widget.type === "log" ||
             widget.type === "telegram" ||
             widget.type === "script" ||
@@ -1175,6 +1181,7 @@ function WebWidgetShell({
           widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ||
           widget.type === "solar" ||
           widget.type === "grafana" ||
+          widget.type === "alarmFloorplan" ||
           widget.type === "log" ||
           widget.type === "telegram" ||
           widget.type === "script" ||
@@ -1199,7 +1206,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1228,6 +1235,7 @@ function WebWidgetShell({
           widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ||
           widget.type === "solar" ||
           widget.type === "grafana" ||
+          widget.type === "alarmFloorplan" ||
           widget.type === "log" ||
           widget.type === "telegram" ||
           widget.type === "script" ||
@@ -1321,7 +1329,7 @@ function WebWidgetShell({
           WebkitBackdropFilter: "none",
         }
       : null),
-    ...(widget.type === "grafana"
+    ...(widget.type === "grafana" || widget.type === "alarmFloorplan"
       ? {
           border: "none",
           background: "transparent",
@@ -1348,7 +1356,7 @@ function WebWidgetShell({
 
   const contentStyle = [
     styles.webContent,
-    widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" || widget.type === "grafana" || linkBorderless ? styles.webContentBleed : null,
+    widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" || widget.type === "grafana" || widget.type === "alarmFloorplan" || linkBorderless ? styles.webContentBleed : null,
     widget.type !== "camera" &&
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
     widget.type !== "solar" &&
@@ -1361,11 +1369,12 @@ function WebWidgetShell({
     widget.type !== "heatingV2" &&
     widget.type !== "numpad" &&
     widget.type !== "grafana" &&
+    widget.type !== "alarmFloorplan" &&
     widget.type !== "weather" &&
     !linkBorderless
       ? styles.webContentInset
       : null,
-    widget.type === "grafana" ? styles.webContentGrafana : null,
+    widget.type === "grafana" || widget.type === "alarmFloorplan" ? styles.webContentGrafana : null,
   ];
   const dragSurfaceStyle = allowResize ? webWidgetDragSurfaceWithCornerReserveStyle : webWidgetDragSurfaceStyle;
   const shouldRenderWidgetContent = isLayoutMode || isInViewport;
@@ -1677,6 +1686,14 @@ function renderWidget(
     );
   }
 
+  if (effectiveWidget.type === "alarmFloorplan") {
+    return (
+      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
+        <LazyAlarmFloorplanWidget config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} />
+      </Suspense>
+    );
+  }
+
   if (effectiveWidget.type === "weather") {
     return <WeatherWidget config={effectiveWidget} isActivePage={isActivePage} />;
   }
@@ -1810,6 +1827,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "cameraTalkReolink" ||
     type === "solar" ||
     type === "grafana" ||
+    type === "alarmFloorplan" ||
     type === "weather" ||
     type === "log" ||
     type === "telegram" ||
@@ -2086,7 +2104,7 @@ function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThe
       boxShadow: "0 18px 30px rgba(10, 62, 82, 0.28)",
     };
   }
-  if (type === "grafana") {
+  if (type === "grafana" || type === "alarmFloorplan") {
     return {
       background: "linear-gradient(180deg, rgba(12,18,30,0.96), rgba(9,13,24,0.98))",
       border: "1px solid rgba(255,255,255,0.06)",

@@ -73,6 +73,7 @@ export function WidgetFrame({
     widget.type === "solar" ||
     widget.type === "weather" ||
     widget.type === "grafana" ||
+    widget.type === "alarmFloorplan" ||
     widget.type === "log" ||
     widget.type === "telegram" ||
     widget.type === "script" ||
@@ -258,6 +259,7 @@ export function WidgetFrame({
         widget.type !== "heating" &&
         widget.type !== "heatingV2" &&
         widget.type !== "grafana" &&
+        widget.type !== "alarmFloorplan" &&
         widget.type !== "weather" &&
         !linkBorderless
           ? styles.contentInset
