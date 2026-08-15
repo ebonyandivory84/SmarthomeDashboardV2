@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useDashboardConfig } from "../../context/DashboardConfigContext";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import { TelegramWidgetConfig, TelegramWidgetHistoryEntry } from "../../types/dashboard";
@@ -32,6 +33,7 @@ export function TelegramWidget({
 }: TelegramWidgetProps) {
   const documentVisible = useDocumentVisibility();
   const runtimeActive = isActivePage && documentVisible;
+  const { dashboardPages, activePageId, setActivePage } = useDashboardConfig();
   const [entries, setEntries] = useState<TelegramWidgetHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
@@ -321,9 +323,18 @@ export function TelegramWidget({
       // so a monotonically increasing timestamp would never reliably match.
       // Pulse 0 -> 1 instead, which matches the default boolean trigger format.
       const stateId = `0_userdata.0.Telegram.Widget.cameraTriggers.${cameraKey}`;
+      // If the camera that owns this trigger lives on a different page, switch to it first so
+      // its CameraWidget is mounted (and seeded with the pre-pulse value) before we pulse the
+      // trigger — otherwise nothing visible would react to the state change.
+      const targetPage = dashboardPages.find((page) =>
+        page.widgets.some((widget) => (widget as { maximizeStateId?: string }).maximizeStateId === stateId)
+      );
+      if (targetPage && targetPage.id !== activePageId) {
+        setActivePage(targetPage.id);
+      }
       void client.writeState(stateId, 0).then(() => client.writeState(stateId, 1));
     },
-    [client, config.id, config.interactionSounds?.press]
+    [client, config.id, config.interactionSounds?.press, dashboardPages, activePageId, setActivePage]
   );
 
   const pressButtonChip = useCallback(
