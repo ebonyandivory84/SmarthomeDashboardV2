@@ -35,7 +35,7 @@ let objectEntriesPromise = null;
 let insecureHttpsDispatcher = null;
 let runningAdapter = null;
 const OBJECT_CACHE_TTL_MS = 5 * 60 * 1000;
-const API_JSON_LIMIT = "2mb";
+const API_JSON_LIMIT = "15mb";
 const CONFIG_STATE_ID = "dashboardConfig";
 const SAVED_DASHBOARDS_STATE_ID = "savedDashboards";
 const LOG_BUFFER_LIMIT = 2000;
@@ -443,6 +443,34 @@ async function main(adapter) {
       res.json(images);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Image list failed" });
+    }
+  });
+
+  app.post("/smarthome-dashboard-v2/api/images/upload", async (req, res) => {
+    const rawName = typeof req.body?.name === "string" ? req.body.name : "";
+    const dataUrl = typeof req.body?.dataUrl === "string" ? req.body.dataUrl : "";
+    const safeName = path.basename(rawName).trim();
+    if (!safeName || !/\.(png|jpe?g|webp|gif)$/i.test(safeName)) {
+      res.status(400).json({ error: "name must end in .png/.jpg/.jpeg/.webp/.gif" });
+      return;
+    }
+
+    const match = /^data:image\/(?:png|jpe?g|webp|gif);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+    if (!match) {
+      res.status(400).json({ error: "dataUrl must be a base64 image data URL" });
+      return;
+    }
+
+    try {
+      const buffer = Buffer.from(match[1], "base64");
+      await fs.promises.mkdir(widgetAssetsRoot, { recursive: true });
+      await fs.promises.writeFile(path.join(widgetAssetsRoot, safeName), buffer);
+      res.json({
+        name: safeName,
+        url: `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(safeName)}`,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Image upload failed" });
     }
   });
 
