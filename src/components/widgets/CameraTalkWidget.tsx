@@ -85,6 +85,10 @@ export function CameraTalkWidget({
   // (e.g. stale/leftover value or an already-open steady state) isn't
   // misread as a fresh rising edge on every mount/remount.
   const lastTriggerMatchRef = useRef(matchesMaximizeTrigger(config, maximizeStateValue));
+  // maximizeStateValue is unknown (undefined) right after a page-switch remount until the
+  // newly (re)subscribed ioBroker state value arrives; without this flag that first arrival
+  // gets misread as a rising edge (mount saw "no match", value then "appears" as true).
+  const hasSeenMaximizeValueRef = useRef(maximizeStateValue !== undefined);
   const activeLayerRef = useRef<0 | 1>(0);
   const latestRequestedUrlRef = useRef<string | null>(null);
   const loadingJobRef = useRef<{ layer: 0 | 1; url: string } | null>(null);
@@ -1385,6 +1389,15 @@ export function CameraTalkWidget({
   }, [fullscreenOpen]);
 
   useEffect(() => {
+    if (!hasSeenMaximizeValueRef.current) {
+      if (maximizeStateValue === undefined) {
+        return;
+      }
+      hasSeenMaximizeValueRef.current = true;
+      lastTriggerMatchRef.current = matchesMaximizeTrigger(config, maximizeStateValue);
+      return;
+    }
+
     const nextMatch = matchesMaximizeTrigger(config, maximizeStateValue);
     const previousMatch = lastTriggerMatchRef.current;
     lastTriggerMatchRef.current = nextMatch;
