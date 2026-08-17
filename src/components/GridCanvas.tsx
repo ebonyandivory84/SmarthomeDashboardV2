@@ -808,7 +808,7 @@ function ceilGridUnit(value: number) {
 }
 
 function ceilGridUnitForWidget(value: number, widgetType: WidgetType) {
-  if (widgetType === "camera" || widgetType === "cameraTalk" || widgetType === "cameraTalkReolink") {
+  if (widgetType === "camera" || widgetType === "cameraTalk" || widgetType === "cameraTalkReolink" || widgetType === "alarmFloorplan") {
     return Math.ceil(value / CAMERA_GRID_SNAP) * CAMERA_GRID_SNAP;
   }
   return ceilGridUnit(value);
