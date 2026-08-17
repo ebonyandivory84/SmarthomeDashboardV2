@@ -1382,6 +1382,7 @@ function WebWidgetShell({
       : null,
     widget.type === "grafana" || widget.type === "alarmFloorplan" ? styles.webContentGrafana : null,
   ];
+  const contentPointerEvents = isLayoutMode && widget.type === "alarmFloorplan" ? "none" : undefined;
   const dragSurfaceStyle = allowResize ? webWidgetDragSurfaceWithCornerReserveStyle : webWidgetDragSurfaceStyle;
   const shouldRenderWidgetContent = isLayoutMode || isInViewport;
   const widgetRuntimeActive = isActivePage && (isLayoutMode || isInViewport);
@@ -1392,7 +1393,7 @@ function WebWidgetShell({
     </div>
   ) : null;
   const widgetContent = (
-    <View style={contentStyle}>
+    <View style={contentStyle} pointerEvents={contentPointerEvents}>
       {shouldRenderWidgetContent ? (
         <ConnectedWidget
           widget={widget}
