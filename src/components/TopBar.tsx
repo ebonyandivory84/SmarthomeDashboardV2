@@ -114,23 +114,17 @@ export function TopBar({
 
   return (
     <View style={[styles.container, isCompact ? styles.containerCompact : null]}>
-      <View>
-        <View style={[styles.titleRow, isCompact ? styles.titleRowCompact : null]}>
-          <Text style={styles.kicker}>{homeLabel}</Text>
-          <View style={[styles.statusDot, isOnline ? styles.statusOnline : styles.statusOffline]} />
-          {isCompact ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pageTabsCompactContent}
-              style={styles.pageTabsCompactScroll}
-            >
-              {pageTabButtons}
-            </ScrollView>
-          ) : (
-            <View style={styles.pageTabs}>{pageTabButtons}</View>
-          )}
-        </View>
+      <View style={[styles.titleRow, isCompact ? styles.titleRowCompact : null]}>
+        <Text style={styles.kicker}>{homeLabel}</Text>
+        <View style={[styles.statusDot, isOnline ? styles.statusOnline : styles.statusOffline]} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pageTabsScrollContent}
+          style={styles.pageTabsScroll}
+        >
+          {pageTabButtons}
+        </ScrollView>
       </View>
       <View style={[styles.actions, isCompact ? styles.actionsCompact : null]}>
         <Pressable
@@ -192,7 +186,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    flexWrap: "wrap",
+    flex: 1,
+    minWidth: 0,
   },
   titleRowCompact: {
     flexWrap: "nowrap",
@@ -202,17 +197,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
   },
-  pageTabs: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    flexShrink: 1,
-  },
-  pageTabsCompactScroll: {
+  pageTabsScroll: {
     flex: 1,
     minWidth: 0,
   },
-  pageTabsCompactContent: {
+  pageTabsScrollContent: {
     flexDirection: "row",
     gap: 8,
     paddingRight: 4,
