@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { createElement, useEffect, useMemo, useState } from "react";
+import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ImagePickerModal } from "./ImagePickerModal";
 import { SoundPickerField } from "./SoundPickerField";
 import { useDashboardConfig } from "../context/DashboardConfigContext";
-import { UiSoundSet } from "../types/dashboard";
+import { IoBrokerClient } from "../services/iobroker";
+import { UiSoundSet, WidgetImageEntry } from "../types/dashboard";
 import { palette } from "../utils/theme";
 
 type SettingsModalProps = {
@@ -26,12 +28,16 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     loadNamedDashboard,
     deleteNamedDashboard,
   } = useDashboardConfig();
+  const client = useMemo(() => new IoBrokerClient(config), [config]);
   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
   const [desktopDraft, setDesktopDraft] = useState(rawDesktopJson);
   const [mobileDraft, setMobileDraft] = useState(rawMobileJson);
   const [activeJsonTarget, setActiveJsonTarget] = useState<"desktop" | "mobile">("desktop");
   const [dashboardName, setDashboardName] = useState("");
   const [homeLabel, setHomeLabel] = useState("");
+  const [backgroundImage, setBackgroundImage] = useState<string | undefined>(undefined);
+  const [backgroundImageBlur, setBackgroundImageBlur] = useState("8");
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundVolume, setSoundVolume] = useState("55");
   const [soundSet, setSoundSet] = useState<UiSoundSet>("voyager");
@@ -57,6 +63,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     setActiveJsonTarget("desktop");
     setDashboardName(config.title || "");
     setHomeLabel(config.homeLabel || "My Home");
+    setBackgroundImage(config.backgroundImage || undefined);
+    setBackgroundImageBlur(String(config.backgroundImageBlur ?? 8));
     setSoundEnabled(config.uiSounds?.enabled !== false);
     setSoundVolume(String(config.uiSounds?.volume ?? 55));
     setSoundSet(config.uiSounds?.soundSet || "voyager");
@@ -95,6 +103,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     try {
       const parsed = JSON.parse(desktopDraft) as Record<string, unknown>;
       parsed.homeLabel = (homeLabel || "").trim() || "My Home";
+      parsed.backgroundImage = backgroundImage || undefined;
+      parsed.backgroundImageBlur = clampInt(backgroundImageBlur, 8, 0);
       parsed.uiSounds = {
         enabled: soundEnabled,
         volume: Math.max(0, Math.min(100, normalizedVolume)),
@@ -160,6 +170,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   };
 
   return (
+    <>
     <Modal animationType="slide" transparent visible={visible}>
       <View style={styles.backdrop}>
         <ScrollView contentContainerStyle={styles.modalScrollContent} style={styles.modalScroll}>
@@ -220,6 +231,28 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     style={styles.input}
                     value={homeLabel}
                   />
+                </View>
+                <View style={styles.libraryCard}>
+                  <Text style={styles.sectionTitle}>Dashboard-Hintergrund</Text>
+                  {backgroundImage ? (
+                    <View style={styles.backgroundPreviewRow}>
+                      <Image
+                        source={{ uri: `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(backgroundImage)}` }}
+                        style={styles.backgroundPreviewImage}
+                      />
+                      <Pressable
+                        onPress={() => setBackgroundImage(undefined)}
+                        style={[styles.button, styles.warningButtonSmall]}
+                      >
+                        <Text style={styles.warningLabel}>Entfernen</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                  <Pressable onPress={() => setImagePickerOpen(true)} style={[styles.button, styles.secondaryButton]}>
+                    <Text style={styles.secondaryLabel}>Bild waehlen</Text>
+                  </Pressable>
+                  <Text style={styles.fieldLabel}>Unschaerfe</Text>
+                  <BlurControl onChange={setBackgroundImageBlur} value={backgroundImageBlur} />
                 </View>
               </>
             )}
@@ -448,6 +481,19 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
         </ScrollView>
       </View>
     </Modal>
+    <ImagePickerModal
+      client={client}
+      helperText="Bild fuer den gesamten Dashboard-Hintergrund hochladen oder per Drag & Drop ablegen."
+      onClose={() => setImagePickerOpen(false)}
+      onSelect={(entry: WidgetImageEntry) => {
+        setBackgroundImage(entry.name);
+        setImagePickerOpen(false);
+      }}
+      selectedName={backgroundImage}
+      title="Dashboard-Hintergrund waehlen"
+      visible={imagePickerOpen}
+    />
+    </>
   );
 }
 
@@ -460,6 +506,46 @@ function MetaPill({ label, value }: { label: string; value: string }) {
       </Text>
     </View>
   );
+}
+
+function BlurControl({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <View style={styles.blurControlRow}>
+      {Platform.OS === "web"
+        ? createElement("input", {
+            type: "range",
+            min: 0,
+            max: 24,
+            step: 1,
+            value,
+            onChange: (event: { target: { value: string } }) => onChange(event.target.value),
+            style: webRangeInputStyle,
+            "aria-label": "Unschärfe in Pixel",
+          })
+        : null}
+      <TextInput
+        keyboardType="numeric"
+        onChangeText={onChange}
+        style={[styles.input, styles.blurInput]}
+        value={value}
+      />
+      <Text style={styles.blurSuffix}>px</Text>
+    </View>
+  );
+}
+
+function clampInt(raw: string | undefined, fallback: number, min: number) {
+  const parsed = Number.parseInt(raw || "", 10);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return Math.max(min, parsed);
 }
 
 const styles = StyleSheet.create({
@@ -754,4 +840,34 @@ const styles = StyleSheet.create({
     color: "#041019",
     fontWeight: "800",
   },
+  backgroundPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  backgroundPreviewImage: {
+    width: 96,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  blurControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  blurInput: {
+    width: 74,
+  },
+  blurSuffix: {
+    color: palette.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
 });
+
+const webRangeInputStyle = {
+  flex: 1,
+  accentColor: palette.accent,
+  cursor: "pointer",
+};

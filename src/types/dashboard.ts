@@ -580,6 +580,8 @@ export type DashboardSettings = {
   backgroundMode: BackgroundMode;
   backgroundColor: string;
   backgroundAccent: string;
+  backgroundImage?: string;
+  backgroundImageBlur?: number;
   theme?: ThemeSettings;
   grid: {
     columns: number;

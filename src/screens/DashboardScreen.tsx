@@ -1,5 +1,6 @@
 import { Suspense, createElement, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ImageBackground,
   Linking,
   Modal,
   NativeScrollEvent,
@@ -846,6 +847,8 @@ export function DashboardScreen() {
       <BackgroundLayer
         accent={config.backgroundAccent}
         color={config.backgroundColor}
+        image={config.backgroundImage}
+        imageBlur={config.backgroundImageBlur}
         mode={config.backgroundMode}
       />
       <TopBar
@@ -1228,19 +1231,77 @@ function extractTouchPoint(event: unknown) {
   return { pageX, pageY };
 }
 
+function clampInt(value: number | undefined, fallback: number, min: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(min, Math.round(value));
+}
+
+function buildBlurredDashboardBackgroundStyle(imageName: string, blurPx: number): Record<string, string | number> {
+  const encoded = encodeURIComponent(imageName);
+  return {
+    position: "absolute",
+    top: "-12%",
+    left: "-12%",
+    right: "-12%",
+    bottom: "-12%",
+    backgroundImage: `url(/smarthome-dashboard-v2/widget-assets/${encoded})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    filter: `blur(${Math.max(0, blurPx)}px)`,
+    transform: "scale(1.08)",
+    pointerEvents: "none",
+    zIndex: 0,
+  };
+}
+
 function BackgroundLayer({
   mode,
   color,
   accent,
+  image,
+  imageBlur,
 }: {
   mode: BackgroundMode;
   color: string;
   accent: string;
+  image?: string;
+  imageBlur?: number;
 }) {
-  void mode;
-  void color;
-  void accent;
-  return <View style={[styles.background, { backgroundColor: "#000000" }]} />;
+  const blur = Math.min(24, clampInt(imageBlur, 8, 0));
+  return (
+    <>
+      <View style={[styles.background, { backgroundColor: color }]}>
+        {mode === "gradient" ? (
+          <>
+            <View style={[styles.gradientTop, { backgroundColor: accent }]} />
+            <View style={[styles.gradientBottom, { backgroundColor: accent }]} />
+          </>
+        ) : null}
+        {mode === "mesh" ? (
+          <>
+            <View style={[styles.meshA, { backgroundColor: accent }]} />
+            <View style={[styles.meshB, { backgroundColor: accent }]} />
+          </>
+        ) : null}
+      </View>
+      {image
+        ? Platform.OS === "web"
+          ? createElement("div", {
+              style: buildBlurredDashboardBackgroundStyle(image, blur),
+            })
+          : (
+              <ImageBackground
+                blurRadius={blur}
+                imageStyle={styles.backgroundImageInner}
+                source={{ uri: `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(image)}` }}
+                style={styles.backgroundImageWrap}
+              />
+            )
+        : null}
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -1273,6 +1334,13 @@ const styles = StyleSheet.create({
   background: {
     ...StyleSheet.absoluteFillObject,
     opacity: 1,
+  },
+  backgroundImageWrap: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  backgroundImageInner: {
+    resizeMode: "cover",
   },
   gradientTop: {
     position: "absolute",
