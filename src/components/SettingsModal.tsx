@@ -35,6 +35,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [activeJsonTarget, setActiveJsonTarget] = useState<"desktop" | "mobile">("desktop");
   const [dashboardName, setDashboardName] = useState("");
   const [homeLabel, setHomeLabel] = useState("");
+  const [backgroundColor, setBackgroundColor] = useState("#08111f");
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(undefined);
   const [backgroundImageBlur, setBackgroundImageBlur] = useState("8");
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
@@ -63,6 +64,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     setActiveJsonTarget("desktop");
     setDashboardName(config.title || "");
     setHomeLabel(config.homeLabel || "My Home");
+    setBackgroundColor(config.backgroundColor || "#08111f");
     setBackgroundImage(config.backgroundImage || undefined);
     setBackgroundImageBlur(String(config.backgroundImageBlur ?? 8));
     setSoundEnabled(config.uiSounds?.enabled !== false);
@@ -79,7 +81,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     setEditorButtonSounds(config.uiSounds?.pageSounds?.editorButton || []);
     setError(null);
     refreshSavedDashboards();
-  }, [config.homeLabel, config.title, rawDesktopJson, rawMobileJson, visible]);
+  }, [config.backgroundColor, config.homeLabel, config.title, rawDesktopJson, rawMobileJson, visible]);
 
   const save = () => {
     if (activeTab === "json" && activeJsonTarget === "mobile") {
@@ -100,9 +102,15 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
       return;
     }
 
+    if (!isHexColor(backgroundColor)) {
+      setError("Hintergrundfarbe muss ein Hex-Wert sein, z. B. #08111f");
+      return;
+    }
+
     try {
       const parsed = JSON.parse(desktopDraft) as Record<string, unknown>;
       parsed.homeLabel = (homeLabel || "").trim() || "My Home";
+      parsed.backgroundColor = backgroundColor;
       parsed.backgroundImage = backgroundImage || undefined;
       parsed.backgroundImageBlur = clampInt(backgroundImageBlur, 8, 0);
       parsed.uiSounds = {
@@ -234,6 +242,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 </View>
                 <View style={styles.libraryCard}>
                   <Text style={styles.sectionTitle}>Dashboard-Hintergrund</Text>
+                  <Text style={styles.fieldLabel}>Hintergrundfarbe (ohne Bild)</Text>
+                  <ColorControl onChange={setBackgroundColor} value={backgroundColor} />
                   {backgroundImage ? (
                     <View style={styles.backgroundPreviewRow}>
                       <Image
@@ -546,6 +556,45 @@ function clampInt(raw: string | undefined, fallback: number, min: number) {
     return fallback;
   }
   return Math.max(min, parsed);
+}
+
+function ColorControl({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const previewColor = isHexColor(value) ? value : "#08111f";
+
+  return (
+    <View style={styles.colorControlRow}>
+      {Platform.OS === "web"
+        ? createElement("input", {
+            type: "color",
+            value: previewColor,
+            onChange: (event: { target: { value: string } }) => onChange(event.target.value),
+            style: webColorInputStyle,
+            "aria-label": "Hintergrundfarbe",
+          })
+        : null}
+      <View style={[styles.colorSwatch, { backgroundColor: previewColor }]} />
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType={Platform.OS === "web" ? "default" : "ascii-capable"}
+        onChangeText={onChange}
+        placeholder="#08111f"
+        placeholderTextColor={palette.textMuted}
+        style={[styles.input, styles.colorTextInput]}
+        value={value}
+      />
+    </View>
+  );
+}
+
+function isHexColor(value: string) {
+  return /^#([0-9a-fA-F]{6})$/.test(value);
 }
 
 const styles = StyleSheet.create({
@@ -864,10 +913,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  colorControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  colorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  colorTextInput: {
+    flex: 1,
+  },
 });
 
 const webRangeInputStyle = {
   flex: 1,
   accentColor: palette.accent,
+  cursor: "pointer",
+};
+
+const webColorInputStyle = {
+  width: 42,
+  height: 42,
+  padding: 0,
+  border: "none",
+  borderRadius: 10,
+  background: "transparent",
   cursor: "pointer",
 };
