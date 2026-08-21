@@ -21,7 +21,8 @@ export type WidgetType =
   | "wallboxV2"
   | "heating"
   | "heatingV2"
-  | "telegram";
+  | "telegram"
+  | "roomSensorHistory";
 
 export type IconPair = {
   active: string;
@@ -237,6 +238,22 @@ export type RaspberryPiStatsWidgetConfig = WidgetBase & {
   diskFreeStateId: string;
   diskFreeUnit?: "auto" | "B" | "kB" | "MB" | "GB" | "percent";
   onlineStateId: string;
+};
+
+export type RoomSensorEntry = {
+  label: string;
+  temperatureStateId?: string;
+  dewPointStateId?: string;
+  co2StateId?: string;
+  vocStateId?: string;
+};
+
+export type RoomSensorHistoryWidgetConfig = WidgetBase & {
+  type: "roomSensorHistory";
+  manualHeightOverride?: boolean;
+  rooms: RoomSensorEntry[];
+  historyHours?: number;
+  refreshMs?: number;
 };
 
 export type CocoLockValueType = "number" | "string";
@@ -518,7 +535,8 @@ export type WidgetConfig =
   | WallboxWidgetV2Config
   | HeatingWidgetConfig
   | HeatingWidgetV2Config
-  | TelegramWidgetConfig;
+  | TelegramWidgetConfig
+  | RoomSensorHistoryWidgetConfig;
 
 export type BackgroundMode = "gradient" | "mesh" | "solid";
 

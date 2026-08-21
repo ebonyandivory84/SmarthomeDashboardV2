@@ -120,6 +120,12 @@ const OPTIONS: Array<{
     icon: "raspberry-pi",
   },
   {
+    type: "roomSensorHistory",
+    title: "Raumsensoren",
+    description: "Kompakter 6-Stunden-Verlauf fuer Temperatur, Taupunkt, CO2 und VOC je Raum.",
+    icon: "thermometer-lines",
+  },
+  {
     type: "coco",
     title: "Coco",
     description: "SureFlap-Status, Lock-Modus und Snapshot der Katzenklappe in einem Widget.",

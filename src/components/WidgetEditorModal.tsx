@@ -387,6 +387,31 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "roomSensorHistory") {
+      const roomSensorDraft = buildRoomSensorEditorDraft(widget.rooms);
+      setSoundDraft({});
+      setWeatherSuggestions([]);
+      setWeatherSearchBusy(false);
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        historyHours: String(widget.historyHours ?? 6),
+        refreshMs: String(widget.refreshMs || 120000),
+        roomSensorCount: String(roomSensorDraft.count),
+        ...roomSensorDraft.entries.reduce<Record<string, string>>((acc, entry, index) => {
+          const item = index + 1;
+          acc[`room${item}Label`] = entry.label;
+          acc[`room${item}TemperatureStateId`] = entry.temperatureStateId;
+          acc[`room${item}DewPointStateId`] = entry.dewPointStateId;
+          acc[`room${item}Co2StateId`] = entry.co2StateId;
+          acc[`room${item}VocStateId`] = entry.vocStateId;
+          return acc;
+        }, {}),
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "coco") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -816,6 +841,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
   const previewCameraUrl = getCameraUrlByMode(draft, previewCameraMode, "preview");
   const fullscreenCameraUrl = getCameraUrlByMode(draft, fullscreenCameraMode, "fullscreen");
   const solarStatCount = clampSolarStatCount(draft.statCount);
+  const roomSensorCount = clampRoomSensorCount(draft.roomSensorCount);
 
   const save = () => {
     const appearance = buildAppearance(draft);
@@ -1297,6 +1323,15 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         tapAction: buildSolarTapAction(draft),
         appearance,
       });
+    } else if (widget.type === "roomSensorHistory") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        historyHours: clampIntMax(draft.historyHours, widget.historyHours ?? 6, 1, 48),
+        refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 120000, 15000),
+        rooms: buildRoomSensorRooms(draft),
+        appearance,
+      });
     } else {
       return;
     }
@@ -1527,6 +1562,26 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     firstLabel="Prozess Badge Start"
                     secondKey="statColor2"
                     secondLabel="Prozess Badge Ende"
+                    values={draft}
+                    onChange={setDraft}
+                  />
+                </>
+              ) : null}
+              {widget.type === "roomSensorHistory" ? (
+                <>
+                  <ColorInputRow
+                    firstKey="cardColor"
+                    firstLabel="Temperatur"
+                    secondKey="cardColor2"
+                    secondLabel="Taupunkt"
+                    values={draft}
+                    onChange={setDraft}
+                  />
+                  <ColorInputRow
+                    firstKey="pvCardColor"
+                    firstLabel="CO2"
+                    secondKey="homeCardColor"
+                    secondLabel="VOC"
                     values={draft}
                     onChange={setDraft}
                   />
@@ -2691,6 +2746,89 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 </Field>
                 <Text style={styles.mappingHint}>
                   Design wie Host-Widget, aber voll ueber externe Datenpunkte steuerbar (z. B. Raspberry Pi im LAN).
+                </Text>
+              </>
+            ) : null}
+            {widget.type === "roomSensorHistory" ? (
+              <>
+                <Field label="Verlauf (Stunden)">
+                  <TextInput
+                    keyboardType="numeric"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, historyHours: value }))}
+                    style={styles.input}
+                    value={draft.historyHours || "6"}
+                  />
+                </Field>
+                <Field label="Refresh (ms)">
+                  <TextInput
+                    keyboardType="numeric"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, refreshMs: value }))}
+                    style={styles.input}
+                    value={draft.refreshMs || "120000"}
+                  />
+                </Field>
+                <Text style={styles.sectionTitle}>Raeume</Text>
+                <Field label="Anzahl Raeume">
+                  <ChoiceRow
+                    options={["1", "2", "3", "4", "5", "6", "7", "8"]}
+                    value={String(roomSensorCount)}
+                    onSelect={(value) => setDraft((current) => ({ ...current, roomSensorCount: value }))}
+                  />
+                </Field>
+                {Array.from({ length: roomSensorCount }, (_, index) => {
+                  const item = index + 1;
+                  const labelKey = `room${item}Label`;
+                  const tempKey = `room${item}TemperatureStateId`;
+                  const dewKey = `room${item}DewPointStateId`;
+                  const co2Key = `room${item}Co2StateId`;
+                  const vocKey = `room${item}VocStateId`;
+                  return (
+                    <View key={`room-sensor-editor-${item}`} style={styles.groupCard}>
+                      <Text style={styles.groupTitle}>{`Raum ${item}`}</Text>
+                      <Field label="Label">
+                        <TextInput
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [labelKey]: value }))}
+                          style={styles.input}
+                          value={draft[labelKey] || ""}
+                        />
+                      </Field>
+                      <Field label="Temperatur">
+                        <StateFieldInput
+                          browseLabel="Objekt"
+                          onBrowse={() => setPickerField(tempKey)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [tempKey]: value }))}
+                          value={draft[tempKey] || ""}
+                        />
+                      </Field>
+                      <Field label="Taupunkt">
+                        <StateFieldInput
+                          browseLabel="Objekt"
+                          onBrowse={() => setPickerField(dewKey)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [dewKey]: value }))}
+                          value={draft[dewKey] || ""}
+                        />
+                      </Field>
+                      <Field label="CO2 (optional)">
+                        <StateFieldInput
+                          browseLabel="Objekt"
+                          onBrowse={() => setPickerField(co2Key)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [co2Key]: value }))}
+                          value={draft[co2Key] || ""}
+                        />
+                      </Field>
+                      <Field label="VOC (optional)">
+                        <StateFieldInput
+                          browseLabel="Objekt"
+                          onBrowse={() => setPickerField(vocKey)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [vocKey]: value }))}
+                          value={draft[vocKey] || ""}
+                        />
+                      </Field>
+                    </View>
+                  );
+                })}
+                <Text style={styles.mappingHint}>
+                  CO2 und VOC sind optional. Wenn beide leer bleiben, zeigt der Raum nur Temperatur und Taupunkt.
                 </Text>
               </>
             ) : null}
@@ -4667,6 +4805,48 @@ function buildSolarTapAction(draft: Record<string, string>) {
   return undefined;
 }
 
+const ROOM_SENSOR_LIMIT = 8;
+
+function clampRoomSensorCount(raw: string | number | undefined, fallback = 6) {
+  const parsed = typeof raw === "number" ? raw : Number.parseInt(raw || "", 10);
+  if (!Number.isFinite(parsed)) {
+    return Math.max(1, Math.min(ROOM_SENSOR_LIMIT, fallback));
+  }
+  return Math.max(1, Math.min(ROOM_SENSOR_LIMIT, Math.round(parsed)));
+}
+
+function buildRoomSensorEditorDraft(rooms: Extract<WidgetConfig, { type: "roomSensorHistory" }>["rooms"] | undefined) {
+  const sourceRooms = Array.isArray(rooms) ? rooms : [];
+  const count = clampRoomSensorCount(sourceRooms.length, sourceRooms.length || 6);
+  const entries = Array.from({ length: ROOM_SENSOR_LIMIT }, (_, index) => {
+    const source = sourceRooms[index];
+    return {
+      label: (source?.label || `Raum ${index + 1}`).trim() || `Raum ${index + 1}`,
+      temperatureStateId: source?.temperatureStateId || "",
+      dewPointStateId: source?.dewPointStateId || "",
+      co2StateId: source?.co2StateId || "",
+      vocStateId: source?.vocStateId || "",
+    };
+  });
+
+  return { count, entries };
+}
+
+function buildRoomSensorRooms(draft: Record<string, string>) {
+  const count = clampRoomSensorCount(draft.roomSensorCount);
+  return Array.from({ length: count }, (_, index) => {
+    const item = index + 1;
+    const label = (draft[`room${item}Label`] || `Raum ${item}`).trim() || `Raum ${item}`;
+    return {
+      label,
+      temperatureStateId: normalizeOptionalInput(draft[`room${item}TemperatureStateId`]),
+      dewPointStateId: normalizeOptionalInput(draft[`room${item}DewPointStateId`]),
+      co2StateId: normalizeOptionalInput(draft[`room${item}Co2StateId`]),
+      vocStateId: normalizeOptionalInput(draft[`room${item}VocStateId`]),
+    };
+  });
+}
+
 function buildAppearanceDraft(
   widget: WidgetConfig,
   theme: ReturnType<typeof resolveThemeSettings>
@@ -4851,6 +5031,19 @@ function getWidgetAppearanceDefaults(
       inactiveWidgetColor2: "#ff7f66",
       statColor: "rgba(130, 182, 255, 0.24)",
       statColor2: "rgba(89, 132, 238, 0.18)",
+    };
+  }
+
+  if (widget.type === "roomSensorHistory") {
+    return {
+      widgetColor: "rgba(15, 34, 66, 0.95)",
+      widgetColor2: "rgba(8, 18, 36, 0.98)",
+      textColor: palette.text,
+      mutedTextColor: palette.textMuted,
+      cardColor: "#ff9152",
+      cardColor2: "#4dd0e1",
+      pvCardColor: "#6ce8b4",
+      homeCardColor: "#c77dff",
     };
   }
 

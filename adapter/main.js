@@ -35,6 +35,13 @@ let objectEntriesPromise = null;
 let insecureHttpsDispatcher = null;
 let runningAdapter = null;
 const OBJECT_CACHE_TTL_MS = 5 * 60 * 1000;
+let influxConfigCache = null;
+let influxConfigCacheTimestamp = 0;
+let influxConfigPromise = null;
+const INFLUX_CONFIG_OBJECT_ID = "system.adapter.influxdb.0";
+const INFLUX_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
+const roomSensorHistoryCache = new Map();
+const ROOM_SENSOR_HISTORY_CACHE_TTL_MS = 45 * 1000;
 const API_JSON_LIMIT = "15mb";
 const CONFIG_STATE_ID = "dashboardConfig";
 const SAVED_DASHBOARDS_STATE_ID = "savedDashboards";
@@ -426,6 +433,24 @@ async function main(adapter) {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Host stats read failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/room-sensor-history", async (req, res) => {
+    try {
+      const idsParam = normalizeFilter(req.query?.ids);
+      const ids = idsParam
+        ? Array.from(new Set(idsParam.split(",").map((id) => id.trim()).filter(Boolean)))
+        : [];
+      if (ids.length === 0) {
+        res.json({});
+        return;
+      }
+      const hours = clampInt(req.query?.hours, 6, 1, 48);
+      const history = await readRoomSensorHistory(adapter, ids, hours);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Room sensor history read failed" });
     }
   });
 
@@ -3314,6 +3339,135 @@ function injectStandaloneMeta(html) {
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, shrink-to-fit=no" />'
     )
     .replace("</head>", `    ${standaloneMeta}\n  </head>`);
+}
+
+async function getInfluxConfig(adapter) {
+  const cacheIsFresh =
+    influxConfigCache && Date.now() - influxConfigCacheTimestamp < INFLUX_CONFIG_CACHE_TTL_MS;
+  if (cacheIsFresh) {
+    return influxConfigCache;
+  }
+
+  return refreshInfluxConfig(adapter);
+}
+
+async function refreshInfluxConfig(adapter) {
+  if (influxConfigPromise) {
+    return influxConfigPromise;
+  }
+
+  influxConfigPromise = adapter
+    .getForeignObjectAsync(INFLUX_CONFIG_OBJECT_ID)
+    .then((object) => {
+      const native = object && object.native ? object.native : null;
+      if (!native || !native.host) {
+        influxConfigCache = null;
+        influxConfigCacheTimestamp = 0;
+        return null;
+      }
+
+      influxConfigCache = {
+        host: String(native.host),
+        port: Number.isFinite(Number(native.port)) ? Number(native.port) : 8086,
+        protocol: native.protocol === "https" ? "https" : "http",
+        dbname: String(native.dbname || "iobroker"),
+      };
+      influxConfigCacheTimestamp = Date.now();
+      return influxConfigCache;
+    })
+    .catch(() => {
+      influxConfigCache = null;
+      influxConfigCacheTimestamp = 0;
+      return null;
+    })
+    .finally(() => {
+      influxConfigPromise = null;
+    });
+
+  return influxConfigPromise;
+}
+
+// InfluxDB GROUP BY time() bins align to fixed Unix-epoch boundaries, so picking
+// a "nice" bucket size keeps series from separate per-id queries in the same
+// request aligned on identical timestamps without needing to merge them client-side.
+const ROOM_SENSOR_BUCKET_STEPS_SECONDS = [30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+
+function bucketSizeForHours(hours) {
+  const totalSeconds = Math.max(1, hours) * 3600;
+  const targetPoints = 120;
+  const rawBucketSeconds = Math.max(30, Math.round(totalSeconds / targetPoints));
+  const bucketSeconds =
+    ROOM_SENSOR_BUCKET_STEPS_SECONDS.find((step) => step >= rawBucketSeconds) ||
+    ROOM_SENSOR_BUCKET_STEPS_SECONDS[ROOM_SENSOR_BUCKET_STEPS_SECONDS.length - 1];
+  return `${bucketSeconds}s`;
+}
+
+async function queryInfluxSeries(influxConfig, stateId, hours, bucket) {
+  // Measurement name equals the raw ioBroker state id verbatim (dbversion 1.x,
+  // usetags: false -> one measurement per state, no tag filtering needed).
+  const escapedId = stateId.replace(/"/g, '\\"');
+  const query = `SELECT mean("value") FROM "${escapedId}" WHERE time > now() - ${hours}h GROUP BY time(${bucket}) fill(null)`;
+  const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
+    influxConfig.dbname
+  )}&q=${encodeURIComponent(query)}`;
+
+  const response = await fetch(url, { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`InfluxDB query failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const series = payload?.results?.[0]?.series?.[0];
+  if (!series || !Array.isArray(series.values)) {
+    return [];
+  }
+
+  return series.values.map((row) => ({
+    t: new Date(row[0]).getTime(),
+    v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
+  }));
+}
+
+function pruneRoomSensorHistoryCache() {
+  const now = Date.now();
+  for (const [key, entry] of roomSensorHistoryCache) {
+    if (now - entry.timestamp > ROOM_SENSOR_HISTORY_CACHE_TTL_MS) {
+      roomSensorHistoryCache.delete(key);
+    }
+  }
+}
+
+async function readRoomSensorHistory(adapter, ids, hours) {
+  const influxConfig = await getInfluxConfig(adapter);
+  if (!influxConfig) {
+    throw new Error("InfluxDB-Instanz (system.adapter.influxdb.0) wurde nicht gefunden");
+  }
+
+  const bucket = bucketSizeForHours(hours);
+  pruneRoomSensorHistoryCache();
+
+  const cacheKey = `${ids.slice().sort().join(",")}|${hours}|${bucket}`;
+  const cached = roomSensorHistoryCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < ROOM_SENSOR_HISTORY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  // Resolve per id so one broken/missing measurement degrades that single
+  // series to an empty array instead of failing the whole request with 500.
+  const entries = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const series = await queryInfluxSeries(influxConfig, id, hours, bucket);
+        return [id, series];
+      } catch {
+        return [id, []];
+      }
+    })
+  );
+
+  const result = Object.fromEntries(entries);
+  roomSensorHistoryCache.set(cacheKey, { timestamp: Date.now(), data: result });
+  return result;
 }
 
 async function getCachedObjectEntries(adapter) {

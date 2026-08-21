@@ -313,6 +313,29 @@ export class IoBrokerClient {
     return (await response.json()) as IoBrokerHostStats;
   }
 
+  async readRoomSensorHistory(
+    ids: string[],
+    hours: number
+  ): Promise<Record<string, Array<{ t: number; v: number | null }>>> {
+    const params = new URLSearchParams({
+      ids: ids.join(","),
+      hours: String(hours),
+    });
+
+    const response = await fetch(this.endpoint(`/room-sensor-history?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Room sensor history read failed (${response.status})`);
+    }
+
+    return (await response.json()) as Record<string, Array<{ t: number; v: number | null }>>;
+  }
+
   private async uploadWidgetFile<T>(path: string, name: string, dataUrl: string): Promise<T> {
     const response = await fetch(this.endpoint(path), {
       method: "POST",

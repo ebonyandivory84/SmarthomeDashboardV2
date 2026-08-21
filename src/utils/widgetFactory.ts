@@ -39,6 +39,8 @@ export function buildWidgetTemplate(
                       ? 6
                     : type === "raspberryPiStats"
                       ? 6
+                    : type === "roomSensorHistory"
+                      ? 6
                     : type === "coco"
                       ? 6
                     : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -75,6 +77,8 @@ export function buildWidgetTemplate(
                       ? 3
                       : type === "raspberryPiStats"
                         ? 3
+                      : type === "roomSensorHistory"
+                        ? 5
                       : type === "coco"
                         ? 3
                       : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -358,6 +362,58 @@ export function buildWidgetTemplate(
       diskFreeStateId: "0_userdata.0.NAS-pi.diskFreePercent",
       diskFreeUnit: "percent",
       onlineStateId: "0_userdata.0.NAS-pi.online",
+      position: {
+        ...basePosition,
+        w: Math.min(6, grid.columns),
+      },
+    };
+  }
+
+  if (type === "roomSensorHistory") {
+    return {
+      id: `room-sensor-history-${suffix}`,
+      type: "roomSensorHistory",
+      title: `Raumsensoren ${suffix}`,
+      rooms: [
+        {
+          label: "Bad Eltern",
+          temperatureStateId: "esphome.0.34945483145D.Sensor.742384553.state",
+          dewPointStateId: "esphome.0.34945483145D.Sensor.1142724906.state",
+        },
+        {
+          label: "HWR",
+          temperatureStateId: "esphome.0.3494548E7937.Sensor.1713073088.state",
+          dewPointStateId: "esphome.0.3494548E7937.Sensor.1978659619.state",
+        },
+        {
+          label: "Hobby",
+          temperatureStateId: "esphome.0.3494548E7EA2.Sensor.3391275423.state",
+          dewPointStateId: "esphome.0.3494548E7EA2.Sensor.663481944.state",
+          co2StateId: "esphome.0.3494548E7EA2.Sensor.1692693914.state",
+          vocStateId: "esphome.0.3494548E7EA2.Sensor.1157634470.state",
+        },
+        {
+          label: "Eltern",
+          temperatureStateId: "esphome.0.3494548E809D.Sensor.170136437.state",
+          dewPointStateId: "esphome.0.3494548E809D.Sensor.811912574.state",
+          co2StateId: "esphome.0.3494548E809D.Sensor.3566460776.state",
+          vocStateId: "esphome.0.3494548E809D.Sensor.3569461996.state",
+        },
+        {
+          label: "Bad Kinder",
+          temperatureStateId: "esphome.0.807D3A17874E.Sensor.470682892.state",
+          dewPointStateId: "esphome.0.807D3A17874E.Sensor.3663697351.state",
+        },
+        {
+          label: "Wohnbereich",
+          temperatureStateId: "esphome.0.B4E62D47A9EA.Sensor.3506860947.state",
+          dewPointStateId: "esphome.0.B4E62D47A9EA.Sensor.199134116.state",
+          co2StateId: "esphome.0.B4E62D47A9EA.Sensor.1494069774.state",
+          vocStateId: "esphome.0.B4E62D47A9EA.Sensor.955067474.state",
+        },
+      ],
+      historyHours: 6,
+      refreshMs: 120000,
       position: {
         ...basePosition,
         w: Math.min(6, grid.columns),

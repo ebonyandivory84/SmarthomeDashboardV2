@@ -18,6 +18,7 @@ import { LinkWidget } from "./widgets/LinkWidget";
 import { LogWidget } from "./widgets/LogWidget";
 import { NumpadWidget } from "./widgets/NumpadWidget";
 import { RaspberryPiStatsWidget } from "./widgets/RaspberryPiStatsWidget";
+import { RoomSensorHistoryWidget } from "./widgets/RoomSensorHistoryWidget";
 import { ScriptWidget } from "./widgets/ScriptWidget";
 import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
@@ -688,6 +689,11 @@ function getAutoLayoutSpec(
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
         return { w: 1, h: roundGridUnit(2.8) };
+      case "roomSensorHistory":
+        if (widget.manualHeightOverride) {
+          return { w: 1, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
+        }
+        return { w: 1, h: roundGridUnit(4.2) };
       case "wallbox":
       case "goe":
       case "wallboxV2":
@@ -770,6 +776,11 @@ function getAutoLayoutSpec(
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
       return { w: mainColumnWidth, h: roundGridUnit(2.8) };
+    case "roomSensorHistory":
+      if (widget.manualHeightOverride) {
+        return { w: wideWidgetWidth, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
+      }
+      return { w: wideWidgetWidth, h: roundGridUnit(4.2) };
     case "wallbox":
     case "goe":
     case "wallboxV2":
@@ -1756,6 +1767,10 @@ function renderWidget(
     return <RaspberryPiStatsWidget config={effectiveWidget} states={states} />;
   }
 
+  if (effectiveWidget.type === "roomSensorHistory") {
+    return <RoomSensorHistoryWidget client={client} config={effectiveWidget} isActivePage={isActivePage} />;
+  }
+
   if (effectiveWidget.type === "coco") {
     return (
       <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
@@ -1841,6 +1856,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "script" ||
     type === "host" ||
     type === "raspberryPiStats" ||
+    type === "roomSensorHistory" ||
     type === "coco" ||
     type === "wallbox" ||
     type === "goe" ||
