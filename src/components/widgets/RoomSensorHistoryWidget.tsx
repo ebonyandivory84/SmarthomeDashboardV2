@@ -186,7 +186,7 @@ function RoomSensorPanel({
           { style: webStatsRowStyle },
           latestTemp !== null ? statBadge("Temp", `${latestTemp.toFixed(1)}°C`, tempColor, "left") : null,
           latestHumidity !== null ? statBadge("Feuchte", `${Math.round(latestHumidity)}%`, humidityColor, "right") : null,
-          latestCo2 !== null ? statBadge("CO2", `${Math.round(latestCo2)}`, co2Color, "right") : null,
+          latestCo2 !== null ? statBadge("CO2", `${Math.round(latestCo2)}`, co2Color, "left") : null,
           latestVoc !== null ? statBadge("VOC", `${Math.round(latestVoc)}`, vocColor, "right") : null
         )
       : null,
