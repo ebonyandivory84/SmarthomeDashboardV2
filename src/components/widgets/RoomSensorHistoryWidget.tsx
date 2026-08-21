@@ -148,10 +148,10 @@ function RoomSensorPanel({
   textColor,
   mutedTextColor,
 }: RoomSensorPanelProps) {
-  const tempPoints = seriesForId(history, room.temperatureStateId);
-  const humidityPoints = seriesForId(history, room.humidityStateId);
-  const co2Points = seriesForId(history, room.co2StateId);
-  const vocPoints = seriesForId(history, room.vocStateId);
+  const tempPoints = interpolateSeries(seriesForId(history, room.temperatureStateId));
+  const humidityPoints = interpolateSeries(seriesForId(history, room.humidityStateId));
+  const co2Points = interpolateSeries(seriesForId(history, room.co2StateId));
+  const vocPoints = interpolateSeries(seriesForId(history, room.vocStateId));
 
   const hasTempData = tempPoints.length > 0;
   const hasSecondaryData = humidityPoints.length > 0 || co2Points.length > 0 || vocPoints.length > 0;
@@ -358,6 +358,29 @@ function seriesForId(history: SensorHistory | null, id?: string): SensorPoint[] 
     return [];
   }
   return history[id] || [];
+}
+
+function interpolateSeries(points: SensorPoint[]): SensorPoint[] {
+  const result = points.map((point) => ({ ...point }));
+  let lastKnownIndex = -1;
+  for (let i = 0; i < result.length; i += 1) {
+    const v = result[i].v;
+    if (v === null || !Number.isFinite(v)) {
+      continue;
+    }
+    if (lastKnownIndex !== -1 && i - lastKnownIndex > 1) {
+      const start = result[lastKnownIndex];
+      const end = result[i];
+      const timeSpan = end.t - start.t || 1;
+      const valueSpan = (end.v as number) - (start.v as number);
+      for (let j = lastKnownIndex + 1; j < i; j += 1) {
+        const ratio = (result[j].t - start.t) / timeSpan;
+        result[j].v = (start.v as number) + valueSpan * ratio;
+      }
+    }
+    lastKnownIndex = i;
+  }
+  return result;
 }
 
 function combinedRange(...seriesList: SensorPoint[][]): ValueRange | null {
