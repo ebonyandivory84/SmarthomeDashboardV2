@@ -27,6 +27,8 @@ const CHART_HEIGHT = AXIS_TOP_PADDING + PLOT_HEIGHT + AXIS_BOTTOM_HEIGHT;
 const AXIS_FONT_SIZE = 8.5;
 const HOUR_STEP_CANDIDATES = [1, 2, 3, 4, 6, 12, 24];
 const MAX_HOUR_TICKS = 8;
+const TEMP_AXIS_MIN = 15;
+const TEMP_AXIS_MAX = 35;
 
 export function RoomSensorHistoryWidget({ config, client, isActivePage = true }: RoomSensorHistoryWidgetProps) {
   const documentVisible = useDocumentVisibility();
@@ -158,8 +160,12 @@ function RoomSensorPanel({
   const hasAnyData = hasTempData || hasSecondaryData;
 
   const domain = timeDomain(tempPoints, humidityPoints, co2Points, vocPoints);
-  const tempRange = combinedRange(tempPoints);
-  const secondaryRange = combinedRange(humidityPoints, co2Points, vocPoints);
+  const tempRange = temperatureAxisRange(tempPoints, room.temperatureMin, room.temperatureMax);
+  const secondaryRange = unionRanges([
+    seriesBoundRange(humidityPoints, room.humidityMin, room.humidityMax),
+    seriesBoundRange(co2Points, room.co2Min, room.co2Max),
+    seriesBoundRange(vocPoints, room.vocMin, room.vocMax),
+  ]);
 
   const tempPath = domain && tempRange ? buildSeriesPath(tempPoints, tempRange, domain) : "";
   const humidityPath = domain && secondaryRange ? buildSeriesPath(humidityPoints, secondaryRange, domain) : "";
@@ -328,9 +334,19 @@ function renderChart({
   }
 
   return createElement(
-    "svg",
-    { viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`, width: "100%", height: CHART_HEIGHT, preserveAspectRatio: "none" },
-    createElement("g", { transform: `translate(${AXIS_LEFT_WIDTH}, ${AXIS_TOP_PADDING})` }, ...children)
+    "div",
+    { style: webChartWrapperStyle },
+    createElement(
+      "svg",
+      {
+        viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`,
+        width: "100%",
+        height: "100%",
+        preserveAspectRatio: "none",
+        style: webChartSvgStyle,
+      },
+      createElement("g", { transform: `translate(${AXIS_LEFT_WIDTH}, ${AXIS_TOP_PADDING})` }, ...children)
+    )
   );
 }
 
@@ -394,6 +410,52 @@ function combinedRange(...seriesList: SensorPoint[][]): ValueRange | null {
       min = Math.min(min, point.v);
       max = Math.max(max, point.v);
     }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return null;
+  }
+  if (min === max) {
+    return { min: min - 1, max: max + 1 };
+  }
+  return { min, max };
+}
+
+function temperatureAxisRange(points: SensorPoint[], overrideMin?: number, overrideMax?: number): ValueRange | null {
+  if (overrideMin !== undefined || overrideMax !== undefined) {
+    return seriesBoundRange(points, overrideMin, overrideMax);
+  }
+  const dataRange = combinedRange(points);
+  if (!dataRange) {
+    return null;
+  }
+  return {
+    min: Math.min(TEMP_AXIS_MIN, dataRange.min),
+    max: Math.max(TEMP_AXIS_MAX, dataRange.max),
+  };
+}
+
+function seriesBoundRange(points: SensorPoint[], overrideMin?: number, overrideMax?: number): ValueRange | null {
+  const dataRange = combinedRange(points);
+  if (overrideMin === undefined && overrideMax === undefined) {
+    return dataRange;
+  }
+  const min = overrideMin !== undefined ? overrideMin : dataRange ? dataRange.min : (overrideMax as number) - 1;
+  const max = overrideMax !== undefined ? overrideMax : dataRange ? dataRange.max : (overrideMin as number) + 1;
+  if (min === max) {
+    return { min: min - 1, max: max + 1 };
+  }
+  return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+function unionRanges(ranges: Array<ValueRange | null>): ValueRange | null {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const range of ranges) {
+    if (!range) {
+      continue;
+    }
+    min = Math.min(min, range.min);
+    max = Math.max(max, range.max);
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
     return null;
@@ -523,8 +585,11 @@ const styles = StyleSheet.create({
 const webGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(2, 1fr)",
+  gridAutoRows: "1fr",
   gap: "8px",
   width: "100%",
+  flex: 1,
+  minHeight: 0,
 };
 
 const webPanelStyle = {
@@ -535,6 +600,17 @@ const webPanelStyle = {
   display: "flex",
   flexDirection: "column" as const,
   gap: "6px",
+  minHeight: 0,
+};
+
+const webChartWrapperStyle = {
+  flex: 1,
+  minHeight: 0,
+  width: "100%",
+};
+
+const webChartSvgStyle = {
+  display: "block",
 };
 
 const webPanelHeaderStyle = {

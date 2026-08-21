@@ -247,6 +247,14 @@ export type RoomSensorEntry = {
   humidityStateId?: string;
   co2StateId?: string;
   vocStateId?: string;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  humidityMin?: number;
+  humidityMax?: number;
+  co2Min?: number;
+  co2Max?: number;
+  vocMin?: number;
+  vocMax?: number;
 };
 
 export type RoomSensorHistoryWidgetConfig = WidgetBase & {
@@ -264,6 +272,8 @@ export type HistoryChartSeriesEntry = {
   color?: string;
   unit?: string;
   decimals?: number;
+  axisMin?: number;
+  axisMax?: number;
 };
 
 export type HistoryChartWidgetConfig = WidgetBase & {

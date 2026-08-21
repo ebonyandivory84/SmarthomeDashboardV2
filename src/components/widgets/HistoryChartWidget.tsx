@@ -143,8 +143,12 @@ function HistoryChartPanel({ series, history, mutedTextColor }: HistoryChartPane
 
   const leftSeries = seriesData.filter((item) => item.entry.axis === "left");
   const rightSeries = seriesData.filter((item) => item.entry.axis === "right");
-  const leftRange = combinedRange(...leftSeries.map((item) => item.points));
-  const rightRange = combinedRange(...rightSeries.map((item) => item.points));
+  const leftRange = unionRanges(
+    leftSeries.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax))
+  );
+  const rightRange = unionRanges(
+    rightSeries.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax))
+  );
 
   const paths = seriesData.map((item) => {
     const range = item.entry.axis === "left" ? leftRange : rightRange;
@@ -273,9 +277,19 @@ function renderChart({ paths, mutedTextColor, leftRange, rightRange, domain }: R
   });
 
   return createElement(
-    "svg",
-    { viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`, width: "100%", height: CHART_HEIGHT, preserveAspectRatio: "none" },
-    createElement("g", { transform: `translate(${AXIS_LEFT_WIDTH}, ${AXIS_TOP_PADDING})` }, ...children)
+    "div",
+    { style: webChartWrapperStyle },
+    createElement(
+      "svg",
+      {
+        viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`,
+        width: "100%",
+        height: "100%",
+        preserveAspectRatio: "none",
+        style: webChartSvgStyle,
+      },
+      createElement("g", { transform: `translate(${AXIS_LEFT_WIDTH}, ${AXIS_TOP_PADDING})` }, ...children)
+    )
   );
 }
 
@@ -338,6 +352,38 @@ function combinedRange(...seriesList: SensorPoint[][]): ValueRange | null {
       min = Math.min(min, point.v);
       max = Math.max(max, point.v);
     }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return null;
+  }
+  if (min === max) {
+    return { min: min - 1, max: max + 1 };
+  }
+  return { min, max };
+}
+
+function seriesBoundRange(points: SensorPoint[], overrideMin?: number, overrideMax?: number): ValueRange | null {
+  const dataRange = combinedRange(points);
+  if (overrideMin === undefined && overrideMax === undefined) {
+    return dataRange;
+  }
+  const min = overrideMin !== undefined ? overrideMin : dataRange ? dataRange.min : (overrideMax as number) - 1;
+  const max = overrideMax !== undefined ? overrideMax : dataRange ? dataRange.max : (overrideMin as number) + 1;
+  if (min === max) {
+    return { min: min - 1, max: max + 1 };
+  }
+  return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+function unionRanges(ranges: Array<ValueRange | null>): ValueRange | null {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const range of ranges) {
+    if (!range) {
+      continue;
+    }
+    min = Math.min(min, range.min);
+    max = Math.max(max, range.max);
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
     return null;
@@ -472,6 +518,18 @@ const webPanelStyle = {
   display: "flex",
   flexDirection: "column" as const,
   gap: "6px",
+  flex: 1,
+  minHeight: 0,
+};
+
+const webChartWrapperStyle = {
+  flex: 1,
+  minHeight: 0,
+  width: "100%",
+};
+
+const webChartSvgStyle = {
+  display: "block",
 };
 
 const webStatsRowStyle = {

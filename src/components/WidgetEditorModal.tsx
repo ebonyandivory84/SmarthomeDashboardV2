@@ -405,6 +405,14 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           acc[`room${item}HumidityStateId`] = entry.humidityStateId;
           acc[`room${item}Co2StateId`] = entry.co2StateId;
           acc[`room${item}VocStateId`] = entry.vocStateId;
+          acc[`room${item}TemperatureMin`] = entry.temperatureMin;
+          acc[`room${item}TemperatureMax`] = entry.temperatureMax;
+          acc[`room${item}HumidityMin`] = entry.humidityMin;
+          acc[`room${item}HumidityMax`] = entry.humidityMax;
+          acc[`room${item}Co2Min`] = entry.co2Min;
+          acc[`room${item}Co2Max`] = entry.co2Max;
+          acc[`room${item}VocMin`] = entry.vocMin;
+          acc[`room${item}VocMax`] = entry.vocMax;
           return acc;
         }, {}),
         ...appearanceDraft,
@@ -431,6 +439,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           acc[`series${item}Color`] = entry.color;
           acc[`series${item}Unit`] = entry.unit;
           acc[`series${item}Decimals`] = entry.decimals;
+          acc[`series${item}AxisMin`] = entry.axisMin;
+          acc[`series${item}AxisMax`] = entry.axisMax;
           return acc;
         }, {}),
         ...appearanceDraft,
@@ -2818,6 +2828,14 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   const humidityKey = `room${item}HumidityStateId`;
                   const co2Key = `room${item}Co2StateId`;
                   const vocKey = `room${item}VocStateId`;
+                  const tempMinKey = `room${item}TemperatureMin`;
+                  const tempMaxKey = `room${item}TemperatureMax`;
+                  const humidityMinKey = `room${item}HumidityMin`;
+                  const humidityMaxKey = `room${item}HumidityMax`;
+                  const co2MinKey = `room${item}Co2Min`;
+                  const co2MaxKey = `room${item}Co2Max`;
+                  const vocMinKey = `room${item}VocMin`;
+                  const vocMaxKey = `room${item}VocMax`;
                   return (
                     <View key={`room-sensor-editor-${item}`} style={styles.groupCard}>
                       <Text style={styles.groupTitle}>{`Raum ${item}`}</Text>
@@ -2836,6 +2854,24 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                           value={draft[tempKey] || ""}
                         />
                       </Field>
+                      <View style={styles.splitRow}>
+                        <Field label="Temp. Min (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [tempMinKey]: value }))}
+                            style={styles.input}
+                            value={draft[tempMinKey] || ""}
+                          />
+                        </Field>
+                        <Field label="Temp. Max (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [tempMaxKey]: value }))}
+                            style={styles.input}
+                            value={draft[tempMaxKey] || ""}
+                          />
+                        </Field>
+                      </View>
                       <Field label="Luftfeuchte (optional)">
                         <StateFieldInput
                           browseLabel="Objekt"
@@ -2844,6 +2880,24 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                           value={draft[humidityKey] || ""}
                         />
                       </Field>
+                      <View style={styles.splitRow}>
+                        <Field label="Feuchte Min (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [humidityMinKey]: value }))}
+                            style={styles.input}
+                            value={draft[humidityMinKey] || ""}
+                          />
+                        </Field>
+                        <Field label="Feuchte Max (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [humidityMaxKey]: value }))}
+                            style={styles.input}
+                            value={draft[humidityMaxKey] || ""}
+                          />
+                        </Field>
+                      </View>
                       <Field label="CO2 (optional)">
                         <StateFieldInput
                           browseLabel="Objekt"
@@ -2852,6 +2906,24 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                           value={draft[co2Key] || ""}
                         />
                       </Field>
+                      <View style={styles.splitRow}>
+                        <Field label="CO2 Min (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [co2MinKey]: value }))}
+                            style={styles.input}
+                            value={draft[co2MinKey] || ""}
+                          />
+                        </Field>
+                        <Field label="CO2 Max (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [co2MaxKey]: value }))}
+                            style={styles.input}
+                            value={draft[co2MaxKey] || ""}
+                          />
+                        </Field>
+                      </View>
                       <Field label="VOC (optional)">
                         <StateFieldInput
                           browseLabel="Objekt"
@@ -2860,6 +2932,24 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                           value={draft[vocKey] || ""}
                         />
                       </Field>
+                      <View style={styles.splitRow}>
+                        <Field label="VOC Min (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [vocMinKey]: value }))}
+                            style={styles.input}
+                            value={draft[vocMinKey] || ""}
+                          />
+                        </Field>
+                        <Field label="VOC Max (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [vocMaxKey]: value }))}
+                            style={styles.input}
+                            value={draft[vocMaxKey] || ""}
+                          />
+                        </Field>
+                      </View>
                     </View>
                   );
                 })}
@@ -2902,6 +2992,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   const colorKey = `series${item}Color`;
                   const unitKey = `series${item}Unit`;
                   const decimalsKey = `series${item}Decimals`;
+                  const axisMinKey = `series${item}AxisMin`;
+                  const axisMaxKey = `series${item}AxisMax`;
                   return (
                     <View key={`history-chart-series-editor-${item}`} style={styles.groupCard}>
                       <Text style={styles.groupTitle}>{`Serie ${item}`}</Text>
@@ -2946,6 +3038,24 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                             onChangeText={(value) => setDraft((current) => ({ ...current, [decimalsKey]: value }))}
                             style={styles.input}
                             value={draft[decimalsKey] || ""}
+                          />
+                        </Field>
+                      </View>
+                      <View style={styles.splitRow}>
+                        <Field label="Achsen-Min (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [axisMinKey]: value }))}
+                            style={styles.input}
+                            value={draft[axisMinKey] || ""}
+                          />
+                        </Field>
+                        <Field label="Achsen-Max (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [axisMaxKey]: value }))}
+                            style={styles.input}
+                            value={draft[axisMaxKey] || ""}
                           />
                         </Field>
                       </View>
@@ -4948,10 +5058,27 @@ function buildRoomSensorEditorDraft(rooms: Extract<WidgetConfig, { type: "roomSe
       humidityStateId: source?.humidityStateId || "",
       co2StateId: source?.co2StateId || "",
       vocStateId: source?.vocStateId || "",
+      temperatureMin: source?.temperatureMin !== undefined ? String(source.temperatureMin) : "",
+      temperatureMax: source?.temperatureMax !== undefined ? String(source.temperatureMax) : "",
+      humidityMin: source?.humidityMin !== undefined ? String(source.humidityMin) : "",
+      humidityMax: source?.humidityMax !== undefined ? String(source.humidityMax) : "",
+      co2Min: source?.co2Min !== undefined ? String(source.co2Min) : "",
+      co2Max: source?.co2Max !== undefined ? String(source.co2Max) : "",
+      vocMin: source?.vocMin !== undefined ? String(source.vocMin) : "",
+      vocMax: source?.vocMax !== undefined ? String(source.vocMax) : "",
     };
   });
 
   return { count, entries };
+}
+
+function parseOptionalNumberInput(raw: string | undefined) {
+  const normalized = normalizeOptionalInput(raw);
+  if (normalized === undefined) {
+    return undefined;
+  }
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function buildRoomSensorRooms(draft: Record<string, string>) {
@@ -4965,6 +5092,14 @@ function buildRoomSensorRooms(draft: Record<string, string>) {
       humidityStateId: normalizeOptionalInput(draft[`room${item}HumidityStateId`]),
       co2StateId: normalizeOptionalInput(draft[`room${item}Co2StateId`]),
       vocStateId: normalizeOptionalInput(draft[`room${item}VocStateId`]),
+      temperatureMin: parseOptionalNumberInput(draft[`room${item}TemperatureMin`]),
+      temperatureMax: parseOptionalNumberInput(draft[`room${item}TemperatureMax`]),
+      humidityMin: parseOptionalNumberInput(draft[`room${item}HumidityMin`]),
+      humidityMax: parseOptionalNumberInput(draft[`room${item}HumidityMax`]),
+      co2Min: parseOptionalNumberInput(draft[`room${item}Co2Min`]),
+      co2Max: parseOptionalNumberInput(draft[`room${item}Co2Max`]),
+      vocMin: parseOptionalNumberInput(draft[`room${item}VocMin`]),
+      vocMax: parseOptionalNumberInput(draft[`room${item}VocMax`]),
     };
   });
 }
@@ -4991,6 +5126,8 @@ function buildHistoryChartEditorDraft(series: Extract<WidgetConfig, { type: "his
       color: source?.color || "",
       unit: source?.unit || "",
       decimals: source?.decimals !== undefined ? String(source.decimals) : "",
+      axisMin: source?.axisMin !== undefined ? String(source.axisMin) : "",
+      axisMax: source?.axisMax !== undefined ? String(source.axisMax) : "",
     };
   });
 
@@ -5012,6 +5149,8 @@ function buildHistoryChartSeries(draft: Record<string, string>): Extract<WidgetC
       color: normalizeOptionalInput(draft[`series${item}Color`]),
       unit: normalizeOptionalInput(draft[`series${item}Unit`]),
       decimals: decimalsParsed !== undefined && Number.isFinite(decimalsParsed) ? decimalsParsed : undefined,
+      axisMin: parseOptionalNumberInput(draft[`series${item}AxisMin`]),
+      axisMax: parseOptionalNumberInput(draft[`series${item}AxisMax`]),
     };
   });
 }
