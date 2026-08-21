@@ -162,17 +162,15 @@ function RoomSensorPanel({
     createElement(
       "div",
       { style: webPanelHeaderStyle },
-      createElement("span", { style: { ...webRoomLabelStyle, color: textColor } }, room.label),
-      latestTemp !== null
-        ? createElement("span", { style: { ...webLatestValueStyle, color: mutedTextColor } }, `${latestTemp.toFixed(1)} °C`)
-        : null
+      createElement("span", { style: { ...webRoomLabelStyle, color: textColor } }, room.label)
     ),
-    hasAirData
+    latestTemp !== null || hasAirData
       ? createElement(
           "div",
-          { style: webAirStatsRowStyle },
-          latestCo2 !== null ? airStatBadge("CO2", Math.round(latestCo2), co2Color) : null,
-          latestVoc !== null ? airStatBadge("VOC", Math.round(latestVoc), vocColor) : null
+          { style: webStatsRowStyle },
+          latestTemp !== null ? airStatBadge("Temp", `${latestTemp.toFixed(1)}°C`, tempColor) : null,
+          latestCo2 !== null ? airStatBadge("CO2", `${Math.round(latestCo2)}`, co2Color) : null,
+          latestVoc !== null ? airStatBadge("VOC", `${Math.round(latestVoc)}`, vocColor) : null
         )
       : null,
     !hasClimateData && !hasAirData
@@ -205,12 +203,12 @@ function legendEntry(label: string, color: string, mutedTextColor: string) {
   );
 }
 
-function airStatBadge(label: string, value: number, color: string) {
+function airStatBadge(label: string, valueText: string, color: string) {
   return createElement(
     "span",
-    { style: webAirStatBadgeStyle, key: label },
+    { style: webStatBadgeStyle, key: label },
     createElement("span", { style: { ...webLegendDotStyle, backgroundColor: color } }),
-    createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${value}`)
+    createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${valueText}`)
   );
 }
 
@@ -314,7 +312,7 @@ const styles = StyleSheet.create({
 
 const webGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+  gridTemplateColumns: "repeat(2, 1fr)",
   gap: "8px",
   width: "100%",
 };
@@ -342,19 +340,14 @@ const webRoomLabelStyle = {
   fontWeight: 800,
 };
 
-const webLatestValueStyle = {
-  fontSize: "12px",
-  fontWeight: 700,
-};
-
-const webAirStatsRowStyle = {
+const webStatsRowStyle = {
   display: "flex",
   flexDirection: "row" as const,
   flexWrap: "wrap" as const,
   gap: "8px",
 };
 
-const webAirStatBadgeStyle = {
+const webStatBadgeStyle = {
   display: "flex",
   flexDirection: "row" as const,
   alignItems: "center",

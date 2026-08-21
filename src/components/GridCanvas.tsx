@@ -220,6 +220,7 @@ export function GridCanvas({
                   widget.type === "script" ||
                   widget.type === "host" ||
                   widget.type === "raspberryPiStats" ||
+                  widget.type === "roomSensorHistory" ||
                   widget.type === "coco" ||
                   widget.type === "wallbox" ||
                   widget.type === "goe" ||
@@ -993,6 +994,7 @@ function WebGridCanvas({
             widget.type === "script" ||
             widget.type === "host" ||
             widget.type === "raspberryPiStats" ||
+            widget.type === "roomSensorHistory" ||
             widget.type === "coco" ||
             widget.type === "wallbox" ||
             widget.type === "goe" ||
