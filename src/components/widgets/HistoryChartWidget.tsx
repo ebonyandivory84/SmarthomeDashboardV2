@@ -388,10 +388,8 @@ function seriesBoundRange(points: SensorPoint[], overrideMin?: number, overrideM
 }
 
 function axisRange(entries: SeriesData[]): ValueRange | null {
-  const hasOverride = entries.some((item) => item.entry.axisMin !== undefined || item.entry.axisMax !== undefined);
-  const relevant = hasOverride
-    ? entries.filter((item) => item.entry.axisMin !== undefined || item.entry.axisMax !== undefined)
-    : entries;
+  const fixedEntries = entries.filter((item) => item.entry.axisMin !== undefined && item.entry.axisMax !== undefined);
+  const relevant = fixedEntries.length > 0 ? fixedEntries : entries;
   return unionRanges(relevant.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax)));
 }
 
