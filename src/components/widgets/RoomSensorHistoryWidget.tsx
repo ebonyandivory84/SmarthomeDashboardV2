@@ -551,10 +551,9 @@ const webRoomLabelStyle = {
 };
 
 const webStatsRowStyle = {
-  display: "flex",
-  flexDirection: "row" as const,
-  flexWrap: "wrap" as const,
-  gap: "8px",
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "4px 8px",
 };
 
 const webStatBadgeStyle = {
