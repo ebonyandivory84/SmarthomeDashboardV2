@@ -10,6 +10,7 @@ const http = require("http");
 const https = require("https");
 const crypto = require("crypto");
 const { resolveWebRoot } = require("./lib/static");
+const { buildWaterSummary } = require("./lib/waterSummary");
 let WebSocketClient = null;
 try {
   WebSocketClient = require("ws");
@@ -42,6 +43,8 @@ const INFLUX_CONFIG_OBJECT_ID = "system.adapter.influxdb.0";
 const INFLUX_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const roomSensorHistoryCache = new Map();
 const ROOM_SENSOR_HISTORY_CACHE_TTL_MS = 45 * 1000;
+const waterSummaryCache = new Map();
+const WATER_SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const API_JSON_LIMIT = "15mb";
 const CONFIG_STATE_ID = "dashboardConfig";
 const SAVED_DASHBOARDS_STATE_ID = "savedDashboards";
@@ -451,6 +454,37 @@ async function main(adapter) {
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Room sensor history read failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/water-summary", async (req, res) => {
+    try {
+      const stateId = normalizeFilter(req.query?.stateId);
+      if (!stateId) {
+        res.status(400).json({ error: "stateId is required" });
+        return;
+      }
+
+      const days = clampInt(req.query?.days, 7, 3, 14);
+      const requestedMultiplier = Number(req.query?.multiplier);
+      const requestedMaxFlow = Number(req.query?.maxFlow);
+      const multiplier = Number.isFinite(requestedMultiplier)
+        ? clampNumber(requestedMultiplier, 0.001, 1_000_000)
+        : 1000;
+      const maxFlowLitersPerMinute = Number.isFinite(requestedMaxFlow)
+        ? clampNumber(requestedMaxFlow, 1, 1000)
+        : 80;
+      const timezone = normalizeFilter(req.query?.timezone) || "Europe/Berlin";
+      const summary = await readWaterSummary(adapter, {
+        stateId,
+        days,
+        multiplier,
+        maxFlowLitersPerMinute,
+        timezone,
+      });
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Water summary read failed" });
     }
   });
 
@@ -3426,6 +3460,68 @@ async function queryInfluxSeries(influxConfig, stateId, hours, bucket) {
     t: new Date(row[0]).getTime(),
     v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
   }));
+}
+
+async function queryInfluxWaterSeries(influxConfig, stateId, rangeDays) {
+  const escapedId = stateId.replace(/"/g, '\\"');
+  const query = `SELECT last("value") FROM "${escapedId}" WHERE time > now() - ${rangeDays}d GROUP BY time(10m) fill(previous)`;
+  const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
+    influxConfig.dbname
+  )}&q=${encodeURIComponent(query)}`;
+  const response = await fetch(url, { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`InfluxDB water query failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const series = payload?.results?.[0]?.series?.[0];
+  if (!series || !Array.isArray(series.values)) {
+    return [];
+  }
+
+  return series.values.map((row) => ({
+    t: new Date(row[0]).getTime(),
+    v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
+  }));
+}
+
+function pruneWaterSummaryCache() {
+  const now = Date.now();
+  for (const [key, entry] of waterSummaryCache) {
+    if (now - entry.timestamp > WATER_SUMMARY_CACHE_TTL_MS) {
+      waterSummaryCache.delete(key);
+    }
+  }
+}
+
+async function readWaterSummary(adapter, options) {
+  const influxConfig = await getInfluxConfig(adapter);
+  if (!influxConfig) {
+    throw new Error("InfluxDB-Instanz (system.adapter.influxdb.0) ist nicht konfiguriert");
+  }
+
+  pruneWaterSummaryCache();
+  const cacheKey = [
+    options.stateId,
+    options.days,
+    options.multiplier,
+    options.maxFlowLitersPerMinute,
+    options.timezone,
+  ].join("|");
+  const cached = waterSummaryCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < WATER_SUMMARY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const points = await queryInfluxWaterSeries(influxConfig, options.stateId, options.days * 2 + 2);
+  const summary = buildWaterSummary(points, {
+    displayDays: options.days,
+    multiplier: options.multiplier,
+    maxFlowLitersPerMinute: options.maxFlowLitersPerMinute,
+    timezone: options.timezone,
+  });
+  waterSummaryCache.set(cacheKey, { timestamp: Date.now(), data: summary });
+  return summary;
 }
 
 function pruneRoomSensorHistoryCache() {

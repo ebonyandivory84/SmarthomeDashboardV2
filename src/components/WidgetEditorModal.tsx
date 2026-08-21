@@ -448,6 +448,27 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "waterMeter") {
+      setSoundDraft({});
+      setWeatherSuggestions([]);
+      setWeatherSearchBusy(false);
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        meterValueStateId: widget.meterValueStateId,
+        flowRateStateId: widget.flowRateStateId || "",
+        errorStateId: widget.errorStateId || "",
+        meterValueMultiplier: String(widget.meterValueMultiplier ?? 1000),
+        flowRateMultiplier: String(widget.flowRateMultiplier ?? 1000),
+        maxFlowLitersPerMinute: String(widget.maxFlowLitersPerMinute ?? 80),
+        historyDays: String(widget.historyDays ?? 7),
+        refreshMs: String(widget.refreshMs ?? 300000),
+        timezone: widget.timezone || "Europe/Berlin",
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "coco") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -1376,6 +1397,36 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         historyHours: clampIntMax(draft.historyHours, widget.historyHours ?? 12, 1, 48),
         refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 120000, 15000),
         series: buildHistoryChartSeries(draft),
+        appearance,
+      });
+    } else if (widget.type === "waterMeter") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        meterValueStateId: draft.meterValueStateId || widget.meterValueStateId,
+        flowRateStateId: draft.flowRateStateId || undefined,
+        errorStateId: draft.errorStateId || undefined,
+        meterValueMultiplier: clampFloatRange(
+          draft.meterValueMultiplier,
+          widget.meterValueMultiplier ?? 1000,
+          0.001,
+          1_000_000
+        ),
+        flowRateMultiplier: clampFloatRange(
+          draft.flowRateMultiplier,
+          widget.flowRateMultiplier ?? 1000,
+          0.001,
+          1_000_000
+        ),
+        maxFlowLitersPerMinute: clampFloatRange(
+          draft.maxFlowLitersPerMinute,
+          widget.maxFlowLitersPerMinute ?? 80,
+          1,
+          1000
+        ),
+        historyDays: clampIntMax(draft.historyDays, widget.historyDays ?? 7, 3, 14),
+        refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 300000, 60000),
+        timezone: draft.timezone?.trim() || "Europe/Berlin",
         appearance,
       });
     } else {

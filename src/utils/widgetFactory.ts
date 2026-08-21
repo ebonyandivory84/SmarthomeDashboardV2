@@ -1,4 +1,5 @@
 import { WidgetConfig, WidgetType } from "../types/dashboard";
+import { getPrimarySectionWidth } from "./gridLayout";
 import {
   HEATING_V2_STATE_DEFAULTS,
   HEATING_V2_STATE_DEFAULTS_VERSION,
@@ -43,7 +44,9 @@ export function buildWidgetTemplate(
                       ? 3
                     : type === "historyChart"
                       ? 4
-                    : type === "coco"
+                      : type === "waterMeter"
+                        ? getPrimarySectionWidth(grid.columns)
+                        : type === "coco"
                       ? 6
                     : type === "wallbox" || type === "goe" || type === "wallboxV2"
                       ? 6
@@ -83,7 +86,9 @@ export function buildWidgetTemplate(
                         ? 6
                       : type === "historyChart"
                         ? 3
-                      : type === "coco"
+                        : type === "waterMeter"
+                          ? 3
+                          : type === "coco"
                         ? 3
                       : type === "wallbox" || type === "goe" || type === "wallboxV2"
                         ? 3
@@ -433,6 +438,27 @@ export function buildWidgetTemplate(
       position: {
         ...basePosition,
         w: Math.min(4, grid.columns),
+      },
+    };
+  }
+
+  if (type === "waterMeter") {
+    return {
+      id: `water-meter-${suffix}`,
+      type: "waterMeter",
+      title: "Wasser",
+      meterValueStateId: "mqtt.1.watermeter.main.value",
+      flowRateStateId: "mqtt.1.watermeter.main.rate_per_time_unit",
+      errorStateId: "",
+      meterValueMultiplier: 1000,
+      flowRateMultiplier: 1000,
+      maxFlowLitersPerMinute: 80,
+      historyDays: 7,
+      refreshMs: 300000,
+      timezone: "Europe/Berlin",
+      position: {
+        ...basePosition,
+        w: Math.min(getPrimarySectionWidth(grid.columns), grid.columns),
       },
     };
   }

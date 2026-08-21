@@ -132,6 +132,12 @@ const OPTIONS: Array<{
     icon: "chart-line",
   },
   {
+    type: "waterMeter",
+    title: "Wasser",
+    description: "Tagesverbrauch, Vergleichswerte und Zählerstand in einer kompakten Wasseruhr.",
+    icon: "water-outline",
+  },
+  {
     type: "coco",
     title: "Coco",
     description: "SureFlap-Status, Lock-Modus und Snapshot der Katzenklappe in einem Widget.",

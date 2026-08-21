@@ -23,7 +23,8 @@ export type WidgetType =
   | "heatingV2"
   | "telegram"
   | "roomSensorHistory"
-  | "historyChart";
+  | "historyChart"
+  | "waterMeter";
 
 export type IconPair = {
   active: string;
@@ -282,6 +283,37 @@ export type HistoryChartWidgetConfig = WidgetBase & {
   series: HistoryChartSeriesEntry[];
   historyHours?: number;
   refreshMs?: number;
+};
+
+export type WaterMeterDailyValue = {
+  date: string;
+  liters: number;
+  isToday?: boolean;
+};
+
+export type WaterMeterSummary = {
+  generatedAt: number;
+  todayLiters: number;
+  yesterdayLiters: number;
+  averageDayLiters: number;
+  averageUntilNowLiters: number;
+  comparisonPercent: number | null;
+  trendPercent: number | null;
+  daily: WaterMeterDailyValue[];
+};
+
+export type WaterMeterWidgetConfig = WidgetBase & {
+  type: "waterMeter";
+  manualHeightOverride?: boolean;
+  meterValueStateId: string;
+  flowRateStateId?: string;
+  errorStateId?: string;
+  meterValueMultiplier?: number;
+  flowRateMultiplier?: number;
+  maxFlowLitersPerMinute?: number;
+  historyDays?: number;
+  refreshMs?: number;
+  timezone?: string;
 };
 
 export type CocoLockValueType = "number" | "string";
@@ -565,7 +597,8 @@ export type WidgetConfig =
   | HeatingWidgetV2Config
   | TelegramWidgetConfig
   | RoomSensorHistoryWidgetConfig
-  | HistoryChartWidgetConfig;
+  | HistoryChartWidgetConfig
+  | WaterMeterWidgetConfig;
 
 export type BackgroundMode = "gradient" | "mesh" | "solid";
 

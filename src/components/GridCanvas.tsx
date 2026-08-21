@@ -25,6 +25,7 @@ import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
 import { TelegramWidget } from "./widgets/TelegramWidget";
 import { WeatherWidget } from "./widgets/WeatherWidget";
+import { WaterMeterWidget } from "./widgets/WaterMeterWidget";
 
 const LazyCameraWidget = lazy(() => import("./widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
 const LazyCameraTalkWidget = lazy(() =>
@@ -1790,6 +1791,18 @@ function renderWidget(
     return <HistoryChartWidget client={client} config={effectiveWidget} isActivePage={isActivePage} />;
   }
 
+  if (effectiveWidget.type === "waterMeter") {
+    return (
+      <WaterMeterWidget
+        client={client}
+        config={effectiveWidget}
+        isActivePage={isActivePage}
+        lowPowerMode={lowPowerMode}
+        states={states}
+      />
+    );
+  }
+
   if (effectiveWidget.type === "coco") {
     return (
       <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
@@ -1877,6 +1890,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "raspberryPiStats" ||
     type === "roomSensorHistory" ||
     type === "historyChart" ||
+    type === "waterMeter" ||
     type === "coco" ||
     type === "wallbox" ||
     type === "goe" ||

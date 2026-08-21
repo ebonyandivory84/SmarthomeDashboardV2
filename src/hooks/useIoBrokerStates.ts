@@ -181,6 +181,9 @@ export const collectWidgetStateIds = (widget: WidgetConfig) => {
       ...HEATING_FALLBACK_STATE_IDS,
     ];
   }
+  if (widget.type === "waterMeter") {
+    return collectExplicitStateIds(widget);
+  }
   return [];
 };
 

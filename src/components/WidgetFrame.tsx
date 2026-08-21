@@ -81,6 +81,7 @@ export function WidgetFrame({
     widget.type === "raspberryPiStats" ||
     widget.type === "roomSensorHistory" ||
     widget.type === "historyChart" ||
+    widget.type === "waterMeter" ||
     widget.type === "coco" ||
     widget.type === "wallbox" ||
     widget.type === "goe" ||

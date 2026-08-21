@@ -6,6 +6,7 @@ import {
   IoBrokerScriptEntry,
   StateSnapshot,
   TelegramWidgetHistoryEntry,
+  WaterMeterSummary,
   WidgetImageEntry,
   WidgetSoundEntry,
 } from "../types/dashboard";
@@ -334,6 +335,34 @@ export class IoBrokerClient {
     }
 
     return (await response.json()) as Record<string, Array<{ t: number; v: number | null }>>;
+  }
+
+  async readWaterSummary(options: {
+    stateId: string;
+    days: number;
+    multiplier: number;
+    maxFlowLitersPerMinute: number;
+    timezone: string;
+  }): Promise<WaterMeterSummary> {
+    const params = new URLSearchParams({
+      stateId: options.stateId,
+      days: String(options.days),
+      multiplier: String(options.multiplier),
+      maxFlow: String(options.maxFlowLitersPerMinute),
+      timezone: options.timezone,
+    });
+    const response = await fetch(this.endpoint(`/water-summary?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Water summary read failed (${response.status})`);
+    }
+
+    return (await response.json()) as WaterMeterSummary;
   }
 
   private async uploadWidgetFile<T>(path: string, name: string, dataUrl: string): Promise<T> {
