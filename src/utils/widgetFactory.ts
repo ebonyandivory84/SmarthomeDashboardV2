@@ -40,7 +40,7 @@ export function buildWidgetTemplate(
                     : type === "raspberryPiStats"
                       ? 6
                     : type === "roomSensorHistory"
-                      ? 6
+                      ? 3
                     : type === "coco"
                       ? 6
                     : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -78,7 +78,7 @@ export function buildWidgetTemplate(
                       : type === "raspberryPiStats"
                         ? 3
                       : type === "roomSensorHistory"
-                        ? 5
+                        ? 6
                       : type === "coco"
                         ? 3
                       : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -416,7 +416,7 @@ export function buildWidgetTemplate(
       refreshMs: 120000,
       position: {
         ...basePosition,
-        w: Math.min(6, grid.columns),
+        w: Math.min(3, grid.columns),
       },
     };
   }

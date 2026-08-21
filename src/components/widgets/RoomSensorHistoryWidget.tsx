@@ -15,7 +15,7 @@ type SensorPoint = { t: number; v: number | null };
 type SensorHistory = Record<string, SensorPoint[]>;
 
 const CHART_WIDTH = 240;
-const CHART_HEIGHT = 90;
+const CHART_HEIGHT = 110;
 
 export function RoomSensorHistoryWidget({ config, client, isActivePage = true }: RoomSensorHistoryWidgetProps) {
   const documentVisible = useDocumentVisibility();
@@ -153,6 +153,8 @@ function RoomSensorPanel({
   const vocPath = airRange ? buildSeriesPath(vocPoints, airRange.min, airRange.max) : "";
 
   const latestTemp = latestValue(tempPoints);
+  const latestCo2 = latestValue(co2Points);
+  const latestVoc = latestValue(vocPoints);
 
   return createElement(
     "div",
@@ -165,6 +167,14 @@ function RoomSensorPanel({
         ? createElement("span", { style: { ...webLatestValueStyle, color: mutedTextColor } }, `${latestTemp.toFixed(1)} °C`)
         : null
     ),
+    hasAirData
+      ? createElement(
+          "div",
+          { style: webAirStatsRowStyle },
+          latestCo2 !== null ? airStatBadge("CO2", Math.round(latestCo2), co2Color) : null,
+          latestVoc !== null ? airStatBadge("VOC", Math.round(latestVoc), vocColor) : null
+        )
+      : null,
     !hasClimateData && !hasAirData
       ? createElement("div", { style: { ...webEmptyStateStyle, color: mutedTextColor } }, "Keine Daten")
       : createElement(
@@ -192,6 +202,15 @@ function legendEntry(label: string, color: string, mutedTextColor: string) {
     { style: webLegendItemStyle, key: label },
     createElement("span", { style: { ...webLegendDotStyle, backgroundColor: color } }),
     createElement("span", { style: { color: mutedTextColor } }, label)
+  );
+}
+
+function airStatBadge(label: string, value: number, color: string) {
+  return createElement(
+    "span",
+    { style: webAirStatBadgeStyle, key: label },
+    createElement("span", { style: { ...webLegendDotStyle, backgroundColor: color } }),
+    createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${value}`)
   );
 }
 
@@ -295,7 +314,7 @@ const styles = StyleSheet.create({
 
 const webGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
   gap: "8px",
   width: "100%",
 };
@@ -304,10 +323,10 @@ const webPanelStyle = {
   borderRadius: "12px",
   border: "1px solid rgba(255,255,255,0.08)",
   backgroundColor: "rgba(255,255,255,0.03)",
-  padding: "8px",
+  padding: "10px",
   display: "flex",
   flexDirection: "column" as const,
-  gap: "4px",
+  gap: "6px",
 };
 
 const webPanelHeaderStyle = {
@@ -319,17 +338,32 @@ const webPanelHeaderStyle = {
 };
 
 const webRoomLabelStyle = {
-  fontSize: "12px",
+  fontSize: "13px",
   fontWeight: 800,
 };
 
 const webLatestValueStyle = {
-  fontSize: "11px",
+  fontSize: "12px",
   fontWeight: 700,
 };
 
-const webEmptyStateStyle = {
+const webAirStatsRowStyle = {
+  display: "flex",
+  flexDirection: "row" as const,
+  flexWrap: "wrap" as const,
+  gap: "8px",
+};
+
+const webAirStatBadgeStyle = {
+  display: "flex",
+  flexDirection: "row" as const,
+  alignItems: "center",
+  gap: "3px",
   fontSize: "11px",
+};
+
+const webEmptyStateStyle = {
+  fontSize: "12px",
   fontWeight: 600,
   textAlign: "center" as const,
   padding: "16px 0",
@@ -347,7 +381,7 @@ const webLegendItemStyle = {
   flexDirection: "row" as const,
   alignItems: "center",
   gap: "3px",
-  fontSize: "9px",
+  fontSize: "10px",
   fontWeight: 700,
 };
 

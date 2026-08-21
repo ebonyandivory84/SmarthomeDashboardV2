@@ -693,7 +693,7 @@ function getAutoLayoutSpec(
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
         }
-        return { w: 1, h: roundGridUnit(4.2) };
+        return { w: 1, h: roundGridUnit(6) };
       case "wallbox":
       case "goe":
       case "wallboxV2":
@@ -778,9 +778,9 @@ function getAutoLayoutSpec(
       return { w: mainColumnWidth, h: roundGridUnit(2.8) };
     case "roomSensorHistory":
       if (widget.manualHeightOverride) {
-        return { w: wideWidgetWidth, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
+        return { w: mainColumnWidth, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
       }
-      return { w: wideWidgetWidth, h: roundGridUnit(4.2) };
+      return { w: mainColumnWidth, h: roundGridUnit(6) };
     case "wallbox":
     case "goe":
     case "wallboxV2":

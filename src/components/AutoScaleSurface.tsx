@@ -32,6 +32,7 @@ const WIDGET_AUTO_SCALE_MINIMUMS: Partial<Record<WidgetType, AutoScaleMinimum>> 
   raspberryPiStats: { width: 560, height: 340 },
   coco: { width: 560, height: 320 },
   heating: { width: 560, height: 680 },
+  roomSensorHistory: { width: 320, height: 560 },
 };
 
 export function getWidgetAutoScaleMinimum(type: WidgetType): AutoScaleMinimum | null {
