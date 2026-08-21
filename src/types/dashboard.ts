@@ -243,7 +243,7 @@ export type RaspberryPiStatsWidgetConfig = WidgetBase & {
 export type RoomSensorEntry = {
   label: string;
   temperatureStateId?: string;
-  dewPointStateId?: string;
+  humidityStateId?: string;
   co2StateId?: string;
   vocStateId?: string;
 };

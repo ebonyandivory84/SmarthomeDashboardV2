@@ -122,7 +122,7 @@ const OPTIONS: Array<{
   {
     type: "roomSensorHistory",
     title: "Raumsensoren",
-    description: "Kompakter 6-Stunden-Verlauf fuer Temperatur, Taupunkt, CO2 und VOC je Raum.",
+    description: "Kompakter 6-Stunden-Verlauf fuer Temperatur, Luftfeuchte, CO2 und VOC je Raum.",
     icon: "thermometer-lines",
   },
   {

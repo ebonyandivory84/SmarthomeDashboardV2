@@ -402,7 +402,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           const item = index + 1;
           acc[`room${item}Label`] = entry.label;
           acc[`room${item}TemperatureStateId`] = entry.temperatureStateId;
-          acc[`room${item}DewPointStateId`] = entry.dewPointStateId;
+          acc[`room${item}HumidityStateId`] = entry.humidityStateId;
           acc[`room${item}Co2StateId`] = entry.co2StateId;
           acc[`room${item}VocStateId`] = entry.vocStateId;
           return acc;
@@ -1573,7 +1573,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     firstKey="cardColor"
                     firstLabel="Temperatur"
                     secondKey="cardColor2"
-                    secondLabel="Taupunkt"
+                    secondLabel="Luftfeuchte"
                     values={draft}
                     onChange={setDraft}
                   />
@@ -2779,7 +2779,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   const item = index + 1;
                   const labelKey = `room${item}Label`;
                   const tempKey = `room${item}TemperatureStateId`;
-                  const dewKey = `room${item}DewPointStateId`;
+                  const humidityKey = `room${item}HumidityStateId`;
                   const co2Key = `room${item}Co2StateId`;
                   const vocKey = `room${item}VocStateId`;
                   return (
@@ -2800,12 +2800,12 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                           value={draft[tempKey] || ""}
                         />
                       </Field>
-                      <Field label="Taupunkt">
+                      <Field label="Luftfeuchte (optional)">
                         <StateFieldInput
                           browseLabel="Objekt"
-                          onBrowse={() => setPickerField(dewKey)}
-                          onChangeText={(value) => setDraft((current) => ({ ...current, [dewKey]: value }))}
-                          value={draft[dewKey] || ""}
+                          onBrowse={() => setPickerField(humidityKey)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [humidityKey]: value }))}
+                          value={draft[humidityKey] || ""}
                         />
                       </Field>
                       <Field label="CO2 (optional)">
@@ -2828,7 +2828,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   );
                 })}
                 <Text style={styles.mappingHint}>
-                  CO2 und VOC sind optional. Wenn beide leer bleiben, zeigt der Raum nur Temperatur und Taupunkt.
+                  Luftfeuchte, CO2 und VOC sind optional. Wenn alle drei leer bleiben, zeigt der Raum nur Temperatur.
                 </Text>
               </>
             ) : null}
@@ -4823,7 +4823,7 @@ function buildRoomSensorEditorDraft(rooms: Extract<WidgetConfig, { type: "roomSe
     return {
       label: (source?.label || `Raum ${index + 1}`).trim() || `Raum ${index + 1}`,
       temperatureStateId: source?.temperatureStateId || "",
-      dewPointStateId: source?.dewPointStateId || "",
+      humidityStateId: source?.humidityStateId || "",
       co2StateId: source?.co2StateId || "",
       vocStateId: source?.vocStateId || "",
     };
@@ -4840,7 +4840,7 @@ function buildRoomSensorRooms(draft: Record<string, string>) {
     return {
       label,
       temperatureStateId: normalizeOptionalInput(draft[`room${item}TemperatureStateId`]),
-      dewPointStateId: normalizeOptionalInput(draft[`room${item}DewPointStateId`]),
+      humidityStateId: normalizeOptionalInput(draft[`room${item}HumidityStateId`]),
       co2StateId: normalizeOptionalInput(draft[`room${item}Co2StateId`]),
       vocStateId: normalizeOptionalInput(draft[`room${item}VocStateId`]),
     };
