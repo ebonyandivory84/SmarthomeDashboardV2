@@ -1631,7 +1631,19 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     values={draft}
                     onChange={setDraft}
                   />
+                  <ColorField
+                    label="Achsenbeschriftung"
+                    value={draft.mutedTextColor || ""}
+                    onChange={(value) => setDraft((current) => ({ ...current, mutedTextColor: value }))}
+                  />
                 </>
+              ) : null}
+              {widget.type === "historyChart" ? (
+                <ColorField
+                  label="Achsenbeschriftung"
+                  value={draft.mutedTextColor || ""}
+                  onChange={(value) => setDraft((current) => ({ ...current, mutedTextColor: value }))}
+                />
               ) : null}
               {widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" ? (
                 <>
