@@ -33,6 +33,7 @@ const WIDGET_AUTO_SCALE_MINIMUMS: Partial<Record<WidgetType, AutoScaleMinimum>> 
   coco: { width: 560, height: 320 },
   heating: { width: 560, height: 680 },
   roomSensorHistory: { width: 320, height: 560 },
+  historyChart: { width: 420, height: 260 },
 };
 
 export function getWidgetAutoScaleMinimum(type: WidgetType): AutoScaleMinimum | null {

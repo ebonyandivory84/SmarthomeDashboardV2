@@ -126,6 +126,12 @@ const OPTIONS: Array<{
     icon: "thermometer-lines",
   },
   {
+    type: "historyChart",
+    title: "Verlauf",
+    description: "Frei konfigurierbarer 12-Stunden-Verlauf fuer beliebige ioBroker-Datenpunkte.",
+    icon: "chart-line",
+  },
+  {
     type: "coco",
     title: "Coco",
     description: "SureFlap-Status, Lock-Modus und Snapshot der Katzenklappe in einem Widget.",

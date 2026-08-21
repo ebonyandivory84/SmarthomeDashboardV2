@@ -19,6 +19,7 @@ import { LogWidget } from "./widgets/LogWidget";
 import { NumpadWidget } from "./widgets/NumpadWidget";
 import { RaspberryPiStatsWidget } from "./widgets/RaspberryPiStatsWidget";
 import { RoomSensorHistoryWidget } from "./widgets/RoomSensorHistoryWidget";
+import { HistoryChartWidget } from "./widgets/HistoryChartWidget";
 import { ScriptWidget } from "./widgets/ScriptWidget";
 import { SolarWidget } from "./widgets/SolarWidget";
 import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
@@ -221,6 +222,7 @@ export function GridCanvas({
                   widget.type === "host" ||
                   widget.type === "raspberryPiStats" ||
                   widget.type === "roomSensorHistory" ||
+                  widget.type === "historyChart" ||
                   widget.type === "coco" ||
                   widget.type === "wallbox" ||
                   widget.type === "goe" ||
@@ -695,6 +697,11 @@ function getAutoLayoutSpec(
           return { w: 1, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
         }
         return { w: 1, h: roundGridUnit(6) };
+      case "historyChart":
+        if (widget.manualHeightOverride) {
+          return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
+        }
+        return { w: 1, h: roundGridUnit(3) };
       case "wallbox":
       case "goe":
       case "wallboxV2":
@@ -782,6 +789,11 @@ function getAutoLayoutSpec(
         return { w: mainColumnWidth, h: Math.max(1.5, roundGridUnit(fallbackHeight)) };
       }
       return { w: mainColumnWidth, h: roundGridUnit(6) };
+    case "historyChart":
+      if (widget.manualHeightOverride) {
+        return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
+      }
+      return { w: mainColumnWidth, h: roundGridUnit(3) };
     case "wallbox":
     case "goe":
     case "wallboxV2":
@@ -995,6 +1007,7 @@ function WebGridCanvas({
             widget.type === "host" ||
             widget.type === "raspberryPiStats" ||
             widget.type === "roomSensorHistory" ||
+            widget.type === "historyChart" ||
             widget.type === "coco" ||
             widget.type === "wallbox" ||
             widget.type === "goe" ||
@@ -1773,6 +1786,10 @@ function renderWidget(
     return <RoomSensorHistoryWidget client={client} config={effectiveWidget} isActivePage={isActivePage} />;
   }
 
+  if (effectiveWidget.type === "historyChart") {
+    return <HistoryChartWidget client={client} config={effectiveWidget} isActivePage={isActivePage} />;
+  }
+
   if (effectiveWidget.type === "coco") {
     return (
       <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
@@ -1859,6 +1876,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "host" ||
     type === "raspberryPiStats" ||
     type === "roomSensorHistory" ||
+    type === "historyChart" ||
     type === "coco" ||
     type === "wallbox" ||
     type === "goe" ||

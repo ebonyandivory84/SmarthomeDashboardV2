@@ -41,6 +41,8 @@ export function buildWidgetTemplate(
                       ? 6
                     : type === "roomSensorHistory"
                       ? 3
+                    : type === "historyChart"
+                      ? 4
                     : type === "coco"
                       ? 6
                     : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -79,6 +81,8 @@ export function buildWidgetTemplate(
                         ? 3
                       : type === "roomSensorHistory"
                         ? 6
+                      : type === "historyChart"
+                        ? 3
                       : type === "coco"
                         ? 3
                       : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -411,6 +415,24 @@ export function buildWidgetTemplate(
       position: {
         ...basePosition,
         w: Math.min(3, grid.columns),
+      },
+    };
+  }
+
+  if (type === "historyChart") {
+    return {
+      id: `history-chart-${suffix}`,
+      type: "historyChart",
+      title: `Verlauf ${suffix}`,
+      series: [
+        { label: "Serie 1", stateId: "", axis: "left", color: "#ff9152" },
+        { label: "Serie 2", stateId: "", axis: "right", color: "#4dd0e1" },
+      ],
+      historyHours: 12,
+      refreshMs: 120000,
+      position: {
+        ...basePosition,
+        w: Math.min(4, grid.columns),
       },
     };
   }

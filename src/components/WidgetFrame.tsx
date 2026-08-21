@@ -80,6 +80,7 @@ export function WidgetFrame({
     widget.type === "host" ||
     widget.type === "raspberryPiStats" ||
     widget.type === "roomSensorHistory" ||
+    widget.type === "historyChart" ||
     widget.type === "coco" ||
     widget.type === "wallbox" ||
     widget.type === "goe" ||

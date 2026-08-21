@@ -412,6 +412,32 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "historyChart") {
+      const historyChartDraft = buildHistoryChartEditorDraft(widget.series);
+      setSoundDraft({});
+      setWeatherSuggestions([]);
+      setWeatherSearchBusy(false);
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        historyHours: String(widget.historyHours ?? 12),
+        refreshMs: String(widget.refreshMs || 120000),
+        historyChartCount: String(historyChartDraft.count),
+        ...historyChartDraft.entries.reduce<Record<string, string>>((acc, entry, index) => {
+          const item = index + 1;
+          acc[`series${item}Label`] = entry.label;
+          acc[`series${item}StateId`] = entry.stateId;
+          acc[`series${item}Axis`] = entry.axis;
+          acc[`series${item}Color`] = entry.color;
+          acc[`series${item}Unit`] = entry.unit;
+          acc[`series${item}Decimals`] = entry.decimals;
+          return acc;
+        }, {}),
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "coco") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -842,6 +868,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
   const fullscreenCameraUrl = getCameraUrlByMode(draft, fullscreenCameraMode, "fullscreen");
   const solarStatCount = clampSolarStatCount(draft.statCount);
   const roomSensorCount = clampRoomSensorCount(draft.roomSensorCount);
+  const historyChartCount = clampHistoryChartCount(draft.historyChartCount);
 
   const save = () => {
     const appearance = buildAppearance(draft);
@@ -1330,6 +1357,15 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         historyHours: clampIntMax(draft.historyHours, widget.historyHours ?? 6, 1, 48),
         refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 120000, 15000),
         rooms: buildRoomSensorRooms(draft),
+        appearance,
+      });
+    } else if (widget.type === "historyChart") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        historyHours: clampIntMax(draft.historyHours, widget.historyHours ?? 12, 1, 48),
+        refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 120000, 15000),
+        series: buildHistoryChartSeries(draft),
         appearance,
       });
     } else {
@@ -2830,6 +2866,92 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Text style={styles.mappingHint}>
                   Luftfeuchte, CO2 und VOC sind optional. Wenn alle drei leer bleiben, zeigt der Raum nur Temperatur.
                 </Text>
+              </>
+            ) : null}
+            {widget.type === "historyChart" ? (
+              <>
+                <Field label="Verlauf (Stunden)">
+                  <TextInput
+                    keyboardType="numeric"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, historyHours: value }))}
+                    style={styles.input}
+                    value={draft.historyHours || "12"}
+                  />
+                </Field>
+                <Field label="Refresh (ms)">
+                  <TextInput
+                    keyboardType="numeric"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, refreshMs: value }))}
+                    style={styles.input}
+                    value={draft.refreshMs || "120000"}
+                  />
+                </Field>
+                <Text style={styles.sectionTitle}>Serien</Text>
+                <Field label="Anzahl Serien">
+                  <ChoiceRow
+                    options={["1", "2", "3", "4", "5", "6", "7", "8"]}
+                    value={String(historyChartCount)}
+                    onSelect={(value) => setDraft((current) => ({ ...current, historyChartCount: value }))}
+                  />
+                </Field>
+                {Array.from({ length: historyChartCount }, (_, index) => {
+                  const item = index + 1;
+                  const labelKey = `series${item}Label`;
+                  const stateIdKey = `series${item}StateId`;
+                  const axisKey = `series${item}Axis`;
+                  const colorKey = `series${item}Color`;
+                  const unitKey = `series${item}Unit`;
+                  const decimalsKey = `series${item}Decimals`;
+                  return (
+                    <View key={`history-chart-series-editor-${item}`} style={styles.groupCard}>
+                      <Text style={styles.groupTitle}>{`Serie ${item}`}</Text>
+                      <Field label="Label">
+                        <TextInput
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [labelKey]: value }))}
+                          style={styles.input}
+                          value={draft[labelKey] || ""}
+                        />
+                      </Field>
+                      <Field label="Datenpunkt">
+                        <StateFieldInput
+                          browseLabel="Objekt"
+                          onBrowse={() => setPickerField(stateIdKey)}
+                          onChangeText={(value) => setDraft((current) => ({ ...current, [stateIdKey]: value }))}
+                          value={draft[stateIdKey] || ""}
+                        />
+                      </Field>
+                      <Field label="Achse">
+                        <ChoiceRow
+                          options={["left", "right"]}
+                          value={draft[axisKey] === "right" ? "right" : "left"}
+                          onSelect={(value) => setDraft((current) => ({ ...current, [axisKey]: value }))}
+                        />
+                      </Field>
+                      <ColorField
+                        label="Farbe"
+                        value={draft[colorKey] || ""}
+                        onChange={(value) => setDraft((current) => ({ ...current, [colorKey]: value }))}
+                      />
+                      <View style={styles.splitRow}>
+                        <Field label="Einheit (optional)">
+                          <TextInput
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [unitKey]: value }))}
+                            style={styles.input}
+                            value={draft[unitKey] || ""}
+                          />
+                        </Field>
+                        <Field label="Nachkommastellen (optional)">
+                          <TextInput
+                            keyboardType="numeric"
+                            onChangeText={(value) => setDraft((current) => ({ ...current, [decimalsKey]: value }))}
+                            style={styles.input}
+                            value={draft[decimalsKey] || ""}
+                          />
+                        </Field>
+                      </View>
+                    </View>
+                  );
+                })}
               </>
             ) : null}
             {widget.type === "coco" ? (
@@ -4843,6 +4965,53 @@ function buildRoomSensorRooms(draft: Record<string, string>) {
       humidityStateId: normalizeOptionalInput(draft[`room${item}HumidityStateId`]),
       co2StateId: normalizeOptionalInput(draft[`room${item}Co2StateId`]),
       vocStateId: normalizeOptionalInput(draft[`room${item}VocStateId`]),
+    };
+  });
+}
+
+const HISTORY_CHART_SERIES_LIMIT = 8;
+
+function clampHistoryChartCount(raw: string | number | undefined, fallback = 2) {
+  const parsed = typeof raw === "number" ? raw : Number.parseInt(raw || "", 10);
+  if (!Number.isFinite(parsed)) {
+    return Math.max(1, Math.min(HISTORY_CHART_SERIES_LIMIT, fallback));
+  }
+  return Math.max(1, Math.min(HISTORY_CHART_SERIES_LIMIT, Math.round(parsed)));
+}
+
+function buildHistoryChartEditorDraft(series: Extract<WidgetConfig, { type: "historyChart" }>["series"] | undefined) {
+  const sourceSeries = Array.isArray(series) ? series : [];
+  const count = clampHistoryChartCount(sourceSeries.length, sourceSeries.length || 2);
+  const entries = Array.from({ length: HISTORY_CHART_SERIES_LIMIT }, (_, index) => {
+    const source = sourceSeries[index];
+    return {
+      label: (source?.label || `Serie ${index + 1}`).trim() || `Serie ${index + 1}`,
+      stateId: source?.stateId || "",
+      axis: source?.axis === "right" ? "right" : "left",
+      color: source?.color || "",
+      unit: source?.unit || "",
+      decimals: source?.decimals !== undefined ? String(source.decimals) : "",
+    };
+  });
+
+  return { count, entries };
+}
+
+function buildHistoryChartSeries(draft: Record<string, string>): Extract<WidgetConfig, { type: "historyChart" }>["series"] {
+  const count = clampHistoryChartCount(draft.historyChartCount);
+  return Array.from({ length: count }, (_, index) => {
+    const item = index + 1;
+    const label = (draft[`series${item}Label`] || `Serie ${item}`).trim() || `Serie ${item}`;
+    const axis: "left" | "right" = draft[`series${item}Axis`] === "right" ? "right" : "left";
+    const decimalsRaw = normalizeOptionalInput(draft[`series${item}Decimals`]);
+    const decimalsParsed = decimalsRaw !== undefined ? Number.parseInt(decimalsRaw, 10) : undefined;
+    return {
+      label,
+      stateId: (draft[`series${item}StateId`] || "").trim(),
+      axis,
+      color: normalizeOptionalInput(draft[`series${item}Color`]),
+      unit: normalizeOptionalInput(draft[`series${item}Unit`]),
+      decimals: decimalsParsed !== undefined && Number.isFinite(decimalsParsed) ? decimalsParsed : undefined,
     };
   });
 }

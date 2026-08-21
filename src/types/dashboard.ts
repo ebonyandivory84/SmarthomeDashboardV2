@@ -22,7 +22,8 @@ export type WidgetType =
   | "heating"
   | "heatingV2"
   | "telegram"
-  | "roomSensorHistory";
+  | "roomSensorHistory"
+  | "historyChart";
 
 export type IconPair = {
   active: string;
@@ -252,6 +253,23 @@ export type RoomSensorHistoryWidgetConfig = WidgetBase & {
   type: "roomSensorHistory";
   manualHeightOverride?: boolean;
   rooms: RoomSensorEntry[];
+  historyHours?: number;
+  refreshMs?: number;
+};
+
+export type HistoryChartSeriesEntry = {
+  label: string;
+  stateId: string;
+  axis: "left" | "right";
+  color?: string;
+  unit?: string;
+  decimals?: number;
+};
+
+export type HistoryChartWidgetConfig = WidgetBase & {
+  type: "historyChart";
+  manualHeightOverride?: boolean;
+  series: HistoryChartSeriesEntry[];
   historyHours?: number;
   refreshMs?: number;
 };
@@ -536,7 +554,8 @@ export type WidgetConfig =
   | HeatingWidgetConfig
   | HeatingWidgetV2Config
   | TelegramWidgetConfig
-  | RoomSensorHistoryWidgetConfig;
+  | RoomSensorHistoryWidgetConfig
+  | HistoryChartWidgetConfig;
 
 export type BackgroundMode = "gradient" | "mesh" | "solid";
 
