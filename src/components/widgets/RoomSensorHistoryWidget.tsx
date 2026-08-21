@@ -184,10 +184,10 @@ function RoomSensorPanel({
       ? createElement(
           "div",
           { style: webStatsRowStyle },
-          latestTemp !== null ? statBadge("Temp", `${latestTemp.toFixed(1)}°C`, tempColor) : null,
-          latestHumidity !== null ? statBadge("Feuchte", `${Math.round(latestHumidity)}%`, humidityColor) : null,
-          latestCo2 !== null ? statBadge("CO2", `${Math.round(latestCo2)}`, co2Color) : null,
-          latestVoc !== null ? statBadge("VOC", `${Math.round(latestVoc)}`, vocColor) : null
+          latestTemp !== null ? statBadge("Temp", `${latestTemp.toFixed(1)}°C`, tempColor, "left") : null,
+          latestHumidity !== null ? statBadge("Feuchte", `${Math.round(latestHumidity)}%`, humidityColor, "right") : null,
+          latestCo2 !== null ? statBadge("CO2", `${Math.round(latestCo2)}`, co2Color, "right") : null,
+          latestVoc !== null ? statBadge("VOC", `${Math.round(latestVoc)}`, vocColor, "right") : null
         )
       : null,
     !hasAnyData || !domain
@@ -209,10 +209,10 @@ function RoomSensorPanel({
   );
 }
 
-function statBadge(label: string, valueText: string, color: string) {
+function statBadge(label: string, valueText: string, color: string, align: "left" | "right") {
   return createElement(
     "span",
-    { style: webStatBadgeStyle, key: label },
+    { style: { ...webStatBadgeStyle, justifySelf: align, textAlign: align }, key: label },
     createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${valueText}`)
   );
 }
