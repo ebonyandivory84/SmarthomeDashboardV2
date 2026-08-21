@@ -160,10 +160,10 @@ function RoomSensorPanel({
 
   const domain = timeDomain(tempPoints, humidityPoints, co2Points, vocPoints);
   const tempRange = temperatureAxisRange(tempPoints, room.temperatureMin, room.temperatureMax);
-  const secondaryRange = unionRanges([
-    seriesBoundRange(humidityPoints, room.humidityMin, room.humidityMax),
-    seriesBoundRange(co2Points, room.co2Min, room.co2Max),
-    seriesBoundRange(vocPoints, room.vocMin, room.vocMax),
+  const secondaryRange = axisRange([
+    { points: humidityPoints, overrideMin: room.humidityMin, overrideMax: room.humidityMax },
+    { points: co2Points, overrideMin: room.co2Min, overrideMax: room.co2Max },
+    { points: vocPoints, overrideMin: room.vocMin, overrideMax: room.vocMax },
   ]);
 
   const tempPath = domain && tempRange ? buildSeriesPath(tempPoints, tempRange, domain) : "";
@@ -468,6 +468,14 @@ function seriesBoundRange(points: SensorPoint[], overrideMin?: number, overrideM
     return { min: min - 1, max: max + 1 };
   }
   return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+function axisRange(entries: Array<{ points: SensorPoint[]; overrideMin?: number; overrideMax?: number }>): ValueRange | null {
+  const hasOverride = entries.some((item) => item.overrideMin !== undefined || item.overrideMax !== undefined);
+  const relevant = hasOverride
+    ? entries.filter((item) => item.overrideMin !== undefined || item.overrideMax !== undefined)
+    : entries;
+  return unionRanges(relevant.map((item) => seriesBoundRange(item.points, item.overrideMin, item.overrideMax)));
 }
 
 function unionRanges(ranges: Array<ValueRange | null>): ValueRange | null {

@@ -142,12 +142,8 @@ function HistoryChartPanel({ series, history, mutedTextColor }: HistoryChartPane
 
   const leftSeries = seriesData.filter((item) => item.entry.axis === "left");
   const rightSeries = seriesData.filter((item) => item.entry.axis === "right");
-  const leftRange = unionRanges(
-    leftSeries.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax))
-  );
-  const rightRange = unionRanges(
-    rightSeries.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax))
-  );
+  const leftRange = axisRange(leftSeries);
+  const rightRange = axisRange(rightSeries);
 
   const paths = seriesData.map((item) => {
     const range = item.entry.axis === "left" ? leftRange : rightRange;
@@ -389,6 +385,14 @@ function seriesBoundRange(points: SensorPoint[], overrideMin?: number, overrideM
     return { min: min - 1, max: max + 1 };
   }
   return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+function axisRange(entries: SeriesData[]): ValueRange | null {
+  const hasOverride = entries.some((item) => item.entry.axisMin !== undefined || item.entry.axisMax !== undefined);
+  const relevant = hasOverride
+    ? entries.filter((item) => item.entry.axisMin !== undefined || item.entry.axisMax !== undefined)
+    : entries;
+  return unionRanges(relevant.map((item) => seriesBoundRange(item.points, item.entry.axisMin, item.entry.axisMax)));
 }
 
 function unionRanges(ranges: Array<ValueRange | null>): ValueRange | null {
