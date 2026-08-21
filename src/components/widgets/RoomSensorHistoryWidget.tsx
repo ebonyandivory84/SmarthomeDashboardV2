@@ -24,7 +24,6 @@ const AXIS_TOP_PADDING = 4;
 const AXIS_BOTTOM_HEIGHT = 14;
 const CHART_WIDTH = AXIS_LEFT_WIDTH + PLOT_WIDTH + AXIS_RIGHT_WIDTH;
 const CHART_HEIGHT = AXIS_TOP_PADDING + PLOT_HEIGHT + AXIS_BOTTOM_HEIGHT;
-const AXIS_FONT_SIZE = 8.5;
 const HOUR_STEP_CANDIDATES = [1, 2, 3, 4, 6, 12, 24];
 const MAX_HOUR_TICKS = 8;
 const TEMP_AXIS_MIN = 15;
@@ -254,6 +253,7 @@ function renderChart({
 }: RenderChartParams) {
   const hourTicks = buildHourTicks(domain);
   const children: ReactNode[] = [];
+  const labels: ReactNode[] = [];
 
   children.push(
     createElement("rect", {
@@ -293,29 +293,38 @@ function renderChart({
         strokeWidth: 1,
       })
     );
-    children.push(
-      createElement(
-        "text",
-        {
-          key: `xlabel-${tick.t}`,
-          x,
-          y: PLOT_HEIGHT + 11,
-          fill: mutedTextColor,
-          fontSize: AXIS_FONT_SIZE,
-          textAnchor: "middle",
-        },
-        tick.label
-      )
+    labels.push(
+      axisLabel(`xlabel-${tick.t}`, tick.label, x + AXIS_LEFT_WIDTH, PLOT_HEIGHT + 11 + AXIS_TOP_PADDING, "center", mutedTextColor)
     );
   });
 
   if (tempRange) {
-    children.push(yAxisLabel("t-top", tempRange.max.toFixed(1), -4, 5, tempColor, "end"));
-    children.push(yAxisLabel("t-bottom", tempRange.min.toFixed(1), -4, PLOT_HEIGHT, tempColor, "end"));
+    labels.push(axisLabel("t-top", tempRange.max.toFixed(1), AXIS_LEFT_WIDTH - 4, 5 + AXIS_TOP_PADDING, "right", tempColor));
+    labels.push(
+      axisLabel("t-bottom", tempRange.min.toFixed(1), AXIS_LEFT_WIDTH - 4, PLOT_HEIGHT + AXIS_TOP_PADDING, "right", tempColor)
+    );
   }
   if (secondaryRange) {
-    children.push(yAxisLabel("s-top", `${Math.round(secondaryRange.max)}`, PLOT_WIDTH + 4, 5, mutedTextColor, "start"));
-    children.push(yAxisLabel("s-bottom", `${Math.round(secondaryRange.min)}`, PLOT_WIDTH + 4, PLOT_HEIGHT, mutedTextColor, "start"));
+    labels.push(
+      axisLabel(
+        "s-top",
+        `${Math.round(secondaryRange.max)}`,
+        AXIS_LEFT_WIDTH + PLOT_WIDTH + 4,
+        5 + AXIS_TOP_PADDING,
+        "left",
+        mutedTextColor
+      )
+    );
+    labels.push(
+      axisLabel(
+        "s-bottom",
+        `${Math.round(secondaryRange.min)}`,
+        AXIS_LEFT_WIDTH + PLOT_WIDTH + 4,
+        PLOT_HEIGHT + AXIS_TOP_PADDING,
+        "left",
+        mutedTextColor
+      )
+    );
   }
 
   if (tempPath) {
@@ -346,14 +355,28 @@ function renderChart({
         style: webChartSvgStyle,
       },
       createElement("g", { transform: `translate(${AXIS_LEFT_WIDTH}, ${AXIS_TOP_PADDING})` }, ...children)
-    )
+    ),
+    createElement("div", { style: webAxisLabelLayerStyle }, ...labels)
   );
 }
 
-function yAxisLabel(key: string, text: string, x: number, y: number, color: string, anchor: "start" | "end") {
+function axisLabel(key: string, text: string, x: number, y: number, align: "left" | "center" | "right", color: string) {
+  const translateX = align === "center" ? "-50%" : align === "right" ? "-100%" : "0%";
   return createElement(
-    "text",
-    { key, x, y, fill: color, fontSize: AXIS_FONT_SIZE, textAnchor: anchor, fontWeight: 700 },
+    "span",
+    {
+      key,
+      style: {
+        position: "absolute" as const,
+        left: `${(x / CHART_WIDTH) * 100}%`,
+        top: `${(y / CHART_HEIGHT) * 100}%`,
+        transform: `translate(${translateX}, -50%)`,
+        color,
+        fontSize: "10px",
+        fontWeight: 700,
+        whiteSpace: "nowrap" as const,
+      },
+    },
     text
   );
 }
@@ -604,6 +627,7 @@ const webPanelStyle = {
 };
 
 const webChartWrapperStyle = {
+  position: "relative" as const,
   flex: 1,
   minHeight: 0,
   width: "100%",
@@ -611,6 +635,12 @@ const webChartWrapperStyle = {
 
 const webChartSvgStyle = {
   display: "block",
+};
+
+const webAxisLabelLayerStyle = {
+  position: "absolute" as const,
+  inset: 0,
+  pointerEvents: "none" as const,
 };
 
 const webPanelHeaderStyle = {
