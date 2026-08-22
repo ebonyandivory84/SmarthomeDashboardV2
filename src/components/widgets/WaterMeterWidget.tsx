@@ -241,6 +241,9 @@ function WaterMeterWeb({
         { style: webChartAreaStyle },
         createElement(
           "div",
+          { style: webChartContentStyle },
+        createElement(
+          "div",
           { style: webChartHeaderStyle },
           createElement("strong", null, "Tagesverbrauch"),
           createElement("span", { style: { color: mutedTextColor } }, `Ø ${formatLiters(summary.averageDayLiters)}`)
@@ -275,6 +278,7 @@ function WaterMeterWeb({
           { style: webWeekCostStyle },
           createElement("span", { style: { ...webEyebrowStyle, color: mutedTextColor } }, "KOSTEN SEIT MONTAG"),
           createElement("strong", null, currentWeekCost)
+        )
         )
       )
     ),
@@ -681,16 +685,17 @@ const webDialContentStyle: CSSProperties = { position: "relative", zIndex: 3, te
 const webEyebrowStyle: CSSProperties = { display: "block", fontSize: 8, letterSpacing: ".1em", textTransform: "uppercase" };
 const webTodayValueStyle: CSSProperties = { marginTop: 2, fontSize: 30, lineHeight: 1, fontWeight: 850, letterSpacing: "-.04em" };
 const webComparisonStyle: CSSProperties = { display: "inline-flex", marginTop: 7, padding: "3px 6px", borderRadius: 999, fontSize: 8, fontWeight: 800 };
-const webTodayCostStyle: CSSProperties = { position: "absolute", top: 142, left: -3, width: 142, display: "flex", alignItems: "baseline", justifyContent: "center", gap: 5, whiteSpace: "nowrap", fontSize: 10 };
+const webTodayCostStyle: CSSProperties = { position: "absolute", top: 142, left: -3, width: 142, minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "center", gap: 5, whiteSpace: "nowrap", fontSize: 10, lineHeight: "12px" };
 
-const webChartAreaStyle: CSSProperties = { minWidth: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "center" };
+const webChartAreaStyle: CSSProperties = { minWidth: 0, alignSelf: "stretch", paddingLeft: 12, borderLeft: `1px solid ${palette.border}` };
+const webChartContentStyle: CSSProperties = { position: "relative", top: 6, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" };
 const webChartHeaderStyle: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 10 };
 const webBarsStyle: CSSProperties = { height: 112, display: "grid", gridAutoFlow: "column", gridAutoColumns: "minmax(16px, 1fr)", alignItems: "end", gap: 5, borderBottom: `1px solid ${palette.border}` };
 const webBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: 3 };
 const webBarValueStyle: CSSProperties = { fontSize: 7, whiteSpace: "nowrap" };
 const webBarStyle: CSSProperties = { width: "60%", minWidth: 8, maxWidth: 22, borderRadius: "5px 5px 1px 1px" };
 const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight: 700, whiteSpace: "nowrap" };
-const webWeekCostStyle: CSSProperties = { minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, paddingTop: 5, fontSize: 10 };
+const webWeekCostStyle: CSSProperties = { minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, paddingTop: 5, fontSize: 10, lineHeight: "12px" };
 
 const webIntradayPanelStyle: CSSProperties = {
   minHeight: 100,
