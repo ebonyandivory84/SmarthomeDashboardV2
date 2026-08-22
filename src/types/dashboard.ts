@@ -308,6 +308,7 @@ export type WaterMeterSummary = {
   daily: WaterMeterDailyValue[];
   intraday: WaterMeterIntradayValue[];
   recentLitersPerHour: number;
+  currentWeekLiters: number;
 };
 
 export type WaterMeterWidgetConfig = WidgetBase & {
@@ -319,6 +320,8 @@ export type WaterMeterWidgetConfig = WidgetBase & {
   meterValueMultiplier?: number;
   flowRateMultiplier?: number;
   maxFlowLitersPerMinute?: number;
+  drinkingWaterPricePerCubicMeter?: number;
+  wastewaterPricePerCubicMeter?: number;
   historyDays?: number;
   refreshMs?: number;
   timezone?: string;

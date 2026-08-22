@@ -461,6 +461,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         meterValueMultiplier: String(widget.meterValueMultiplier ?? 1000),
         flowRateMultiplier: String(widget.flowRateMultiplier ?? 1000),
         maxFlowLitersPerMinute: String(widget.maxFlowLitersPerMinute ?? 80),
+        drinkingWaterPricePerCubicMeter: String(widget.drinkingWaterPricePerCubicMeter ?? 2.01),
+        wastewaterPricePerCubicMeter: String(widget.wastewaterPricePerCubicMeter ?? 3.57),
         historyDays: String(widget.historyDays ?? 7),
         refreshMs: String(widget.refreshMs ?? 300000),
         timezone: widget.timezone || "Europe/Berlin",
@@ -1422,6 +1424,18 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           draft.maxFlowLitersPerMinute,
           widget.maxFlowLitersPerMinute ?? 80,
           1,
+          1000
+        ),
+        drinkingWaterPricePerCubicMeter: clampLocalizedFloatRange(
+          draft.drinkingWaterPricePerCubicMeter,
+          widget.drinkingWaterPricePerCubicMeter ?? 2.01,
+          0,
+          1000
+        ),
+        wastewaterPricePerCubicMeter: clampLocalizedFloatRange(
+          draft.wastewaterPricePerCubicMeter,
+          widget.wastewaterPricePerCubicMeter ?? 3.57,
+          0,
           1000
         ),
         historyDays: clampIntMax(draft.historyDays, widget.historyDays ?? 7, 3, 14),
@@ -3125,6 +3139,36 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </View>
                   );
                 })}
+              </>
+            ) : null}
+            {widget.type === "waterMeter" ? (
+              <>
+                <Text style={styles.sectionTitle}>Wasserpreise</Text>
+                <View style={styles.splitRow}>
+                  <Field label="Trinkwasser (€/m³)">
+                    <TextInput
+                      keyboardType="decimal-pad"
+                      onChangeText={(value) =>
+                        setDraft((current) => ({ ...current, drinkingWaterPricePerCubicMeter: value }))
+                      }
+                      style={styles.input}
+                      value={draft.drinkingWaterPricePerCubicMeter || "2.01"}
+                    />
+                  </Field>
+                  <Field label="Abwasser (€/m³)">
+                    <TextInput
+                      keyboardType="decimal-pad"
+                      onChangeText={(value) =>
+                        setDraft((current) => ({ ...current, wastewaterPricePerCubicMeter: value }))
+                      }
+                      style={styles.input}
+                      value={draft.wastewaterPricePerCubicMeter || "3.57"}
+                    />
+                  </Field>
+                </View>
+                <Text style={styles.mappingHint}>
+                  Verbrauchskosten pro Kubikmeter. Grundpreise und fixe Gebühren sind nicht enthalten.
+                </Text>
               </>
             ) : null}
             {widget.type === "coco" ? (
@@ -5021,6 +5065,10 @@ function clampFloatRange(raw: string | undefined, fallback: number, min: number,
     return fallback;
   }
   return Math.max(min, Math.min(max, parsed));
+}
+
+function clampLocalizedFloatRange(raw: string | undefined, fallback: number, min: number, max: number) {
+  return clampFloatRange(raw?.replace(",", "."), fallback, min, max);
 }
 
 const SOLAR_STAT_LIMIT = 6;

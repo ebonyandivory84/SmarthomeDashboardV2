@@ -31,6 +31,7 @@ const EMPTY_SUMMARY: WaterMeterSummary = {
   daily: [],
   intraday: [],
   recentLitersPerHour: 0,
+  currentWeekLiters: 0,
 };
 
 const LEGACY_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.value";
@@ -52,6 +53,8 @@ export function WaterMeterWidget({
   const meterValueMultiplier = clampNumber(config.meterValueMultiplier, 1000, 0.001, 1_000_000);
   const flowRateMultiplier = clampNumber(config.flowRateMultiplier, 1000, 0.001, 1_000_000);
   const maxFlowLitersPerMinute = clampNumber(config.maxFlowLitersPerMinute, 80, 1, 1000);
+  const drinkingWaterPrice = clampNumber(config.drinkingWaterPricePerCubicMeter, 2.01, 0, 1000);
+  const wastewaterPrice = clampNumber(config.wastewaterPricePerCubicMeter, 3.57, 0, 1000);
   const timezone = config.timezone?.trim() || "Europe/Berlin";
   const meterValueStateId =
     config.meterValueStateId.trim() === LEGACY_METER_VALUE_STATE_ID
@@ -134,6 +137,7 @@ export function WaterMeterWidget({
     meterValue: liveMeterValue,
     meterValueMultiplier,
     flowLitersPerMinute,
+    totalPricePerCubicMeter: drinkingWaterPrice + wastewaterPrice,
     error,
     timezone,
     lowPowerMode,
@@ -147,6 +151,7 @@ type WaterMeterWebProps = {
   meterValue: number | null;
   meterValueMultiplier: number;
   flowLitersPerMinute: number | null;
+  totalPricePerCubicMeter: number;
   error: string | null;
   timezone: string;
   lowPowerMode: boolean;
@@ -159,6 +164,7 @@ function WaterMeterWeb({
   meterValue,
   meterValueMultiplier,
   flowLitersPerMinute,
+  totalPricePerCubicMeter,
   error,
   timezone,
   lowPowerMode,
@@ -181,6 +187,8 @@ function WaterMeterWeb({
       : `letzte 30 Min · ${formatNumber(summary.recentLitersPerHour, 0)} L/h · ${currentUsage.label}`;
   const meterCubicMeters = meterValue === null ? null : (meterValue * meterValueMultiplier) / 1000;
   const counterDigits = buildCounterDigits(meterCubicMeters);
+  const todayCost = formatEuro((summary.todayLiters / 1000) * totalPricePerCubicMeter);
+  const currentWeekCost = formatEuro(((summary.currentWeekLiters || 0) / 1000) * totalPricePerCubicMeter);
   const ringStyle: CSSProperties = {
     ...webDialStyle,
     background: `conic-gradient(from -140deg, #6ddcff 0deg, #5c7cff ${gaugeDegrees}deg, rgba(157,173,214,.11) ${gaugeDegrees}deg 280deg, transparent 280deg)`,
@@ -220,6 +228,12 @@ function WaterMeterWeb({
             },
             `${comparison.arrow} ${comparison.text} vs. Ø bis jetzt`
           )
+        ),
+        createElement(
+          "div",
+          { style: webTodayCostStyle },
+          createElement("span", { style: { ...webEyebrowStyle, color: mutedTextColor } }, "WASSERKOSTEN HEUTE"),
+          createElement("strong", null, todayCost)
         )
       ),
       createElement(
@@ -255,6 +269,12 @@ function WaterMeterWeb({
               )
             );
           })
+        ),
+        createElement(
+          "div",
+          { style: webWeekCostStyle },
+          createElement("span", { style: { ...webEyebrowStyle, color: mutedTextColor } }, "KOSTEN SEIT MONTAG"),
+          createElement("strong", null, currentWeekCost)
         )
       )
     ),
@@ -332,7 +352,12 @@ function renderIntradayPanel(
     createElement(
       "div",
       { style: webIntradayHeaderStyle },
-      createElement("strong", null, "Verbrauch · letzte 12 Stunden"),
+      createElement(
+        "strong",
+        null,
+        "Verbrauch · letzte 12 Stunden",
+        createElement("span", { style: { ...webIntradayUnitStyle, color: mutedTextColor } }, " · Ø L/h")
+      ),
       createElement(
         "span",
         {
@@ -351,7 +376,6 @@ function renderIntradayPanel(
       createElement(
         "div",
         { style: { ...webYAxisStyle, color: mutedTextColor } },
-        createElement("span", { style: webYAxisUnitStyle }, "L/h"),
         createElement("span", { style: { ...webYAxisTickStyle, top: 0 } }, formatAxisRate(axisMaximum)),
         createElement("span", { style: { ...webYAxisTickStyle, top: 20 } }, formatAxisRate(axisMaximum / 2)),
         createElement("span", { style: { ...webYAxisTickStyle, top: 40 } }, "0")
@@ -453,6 +477,15 @@ function formatDecimal(value: number, decimals: number) {
 
 function formatLiters(value: number) {
   return `${formatNumber(value, value >= 100 ? 0 : 1)} L`;
+}
+
+function formatEuro(value: number) {
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 function formatCompactLiters(value: number) {
@@ -570,6 +603,7 @@ function applyLiveMeterDelta(
       index === entries.length - 1 ? { ...entry, liters: entry.liters + deltaLiters } : entry
     ),
     recentLitersPerHour: summary.recentLitersPerHour + deltaLiters * 2,
+    currentWeekLiters: (summary.currentWeekLiters || 0) + deltaLiters,
     daily: summary.daily.map((entry) =>
       entry.isToday
         ? {
@@ -605,7 +639,7 @@ const webStatusDotStyle: CSSProperties = { width: 6, height: 6, borderRadius: "5
 
 const webMainStyle: CSSProperties = {
   flex: 1,
-  minHeight: 150,
+  minHeight: 170,
   display: "grid",
   gridTemplateColumns: "142px minmax(0, 1fr)",
   gap: 12,
@@ -619,6 +653,7 @@ const webDialStyle: CSSProperties = {
   borderRadius: "50%",
   display: "grid",
   placeItems: "center",
+  marginBottom: 24,
 };
 
 const webDialInnerStyle: CSSProperties = {
@@ -646,6 +681,7 @@ const webDialContentStyle: CSSProperties = { position: "relative", zIndex: 3, te
 const webEyebrowStyle: CSSProperties = { display: "block", fontSize: 8, letterSpacing: ".1em", textTransform: "uppercase" };
 const webTodayValueStyle: CSSProperties = { marginTop: 2, fontSize: 30, lineHeight: 1, fontWeight: 850, letterSpacing: "-.04em" };
 const webComparisonStyle: CSSProperties = { display: "inline-flex", marginTop: 7, padding: "3px 6px", borderRadius: 999, fontSize: 8, fontWeight: 800 };
+const webTodayCostStyle: CSSProperties = { position: "absolute", top: 142, left: -3, width: 142, display: "flex", alignItems: "baseline", justifyContent: "center", gap: 5, whiteSpace: "nowrap", fontSize: 10 };
 
 const webChartAreaStyle: CSSProperties = { minWidth: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "center" };
 const webChartHeaderStyle: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 10 };
@@ -654,6 +690,7 @@ const webBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display:
 const webBarValueStyle: CSSProperties = { fontSize: 7, whiteSpace: "nowrap" };
 const webBarStyle: CSSProperties = { width: "60%", minWidth: 8, maxWidth: 22, borderRadius: "5px 5px 1px 1px" };
 const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight: 700, whiteSpace: "nowrap" };
+const webWeekCostStyle: CSSProperties = { minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, paddingTop: 5, fontSize: 10 };
 
 const webIntradayPanelStyle: CSSProperties = {
   minHeight: 100,
@@ -663,10 +700,10 @@ const webIntradayPanelStyle: CSSProperties = {
   background: "rgba(8,14,27,.52)",
 };
 const webIntradayHeaderStyle: CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 9 };
+const webIntradayUnitStyle: CSSProperties = { fontSize: 7, fontWeight: 500, whiteSpace: "nowrap" };
 const webUsageBadgeStyle: CSSProperties = { padding: "2px 6px", borderRadius: 999, fontSize: 8, fontWeight: 800, whiteSpace: "nowrap" };
-const webIntradayChartStyle: CSSProperties = { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr)", gap: 4, marginTop: 3 };
+const webIntradayChartStyle: CSSProperties = { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr)", gap: 4, marginTop: 7 };
 const webYAxisStyle: CSSProperties = { position: "relative", height: 54, fontSize: 7, textAlign: "right" };
-const webYAxisUnitStyle: CSSProperties = { position: "absolute", right: 0, top: -10, fontSize: 6, fontWeight: 800, letterSpacing: ".04em" };
 const webYAxisTickStyle: CSSProperties = { position: "absolute", right: 0, lineHeight: "8px", transform: "translateY(-50%)", whiteSpace: "nowrap" };
 const webIntradaySvgStyle: CSSProperties = { display: "block", width: "100%", height: 54, overflow: "visible" };
 const webXAxisStyle: CSSProperties = { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr)", gap: 4, fontSize: 7 };

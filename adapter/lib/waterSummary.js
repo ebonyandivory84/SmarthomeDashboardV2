@@ -55,6 +55,12 @@ function shiftDateKey(dateKey, offsetDays) {
   return new Date(Date.UTC(year, month - 1, day) + offsetDays * DAY_MS).toISOString().slice(0, 10);
 }
 
+function startOfWeekDateKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return shiftDateKey(dateKey, weekday === 0 ? -6 : 1 - weekday);
+}
+
 function average(values) {
   const finite = values.filter((value) => Number.isFinite(value));
   if (finite.length === 0) {
@@ -91,7 +97,12 @@ function buildWaterSummary(points, options = {}) {
   const previousKeys = Array.from({ length: displayDays }, (_, index) =>
     shiftDateKey(nowLocal.date, index - displayDays * 2)
   );
-  const relevantKeys = new Set([...previousKeys, ...recentKeys, nowLocal.date]);
+  const weekStartKey = startOfWeekDateKey(nowLocal.date);
+  const weekKeys = [];
+  for (let date = weekStartKey; date <= nowLocal.date; date = shiftDateKey(date, 1)) {
+    weekKeys.push(date);
+  }
+  const relevantKeys = new Set([...previousKeys, ...recentKeys, ...weekKeys, nowLocal.date]);
   const dailyLiters = new Map([...relevantKeys].map((key) => [key, 0]));
   const untilNowLiters = new Map([...recentKeys].map((key) => [key, 0]));
   const coveredDays = new Set();
@@ -168,6 +179,7 @@ function buildWaterSummary(points, options = {}) {
     })),
     intraday: intraday.map((entry) => ({ t: entry.t, liters: round(entry.liters) })),
     recentLitersPerHour: round(recentLiters * 2),
+    currentWeekLiters: round(weekKeys.reduce((sum, date) => sum + (dailyLiters.get(date) || 0), 0)),
   };
 }
 

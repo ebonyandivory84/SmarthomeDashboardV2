@@ -453,6 +453,8 @@ export function buildWidgetTemplate(
       meterValueMultiplier: 1000,
       flowRateMultiplier: 1000,
       maxFlowLitersPerMinute: 80,
+      drinkingWaterPricePerCubicMeter: 2.01,
+      wastewaterPricePerCubicMeter: 3.57,
       historyDays: 7,
       refreshMs: 300000,
       timezone: "Europe/Berlin",
