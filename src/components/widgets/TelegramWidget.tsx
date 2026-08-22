@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 12,
+    gap: 24,
   },
   row: {
     width: "100%",
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   bubble: {
-    maxWidth: "82%",
+    width: "100%",
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 10,
@@ -955,5 +955,5 @@ const webScrollContentStyle = {
   padding: 10,
   display: "flex",
   flexDirection: "column" as const,
-  gap: 8,
+  gap: 16,
 };
