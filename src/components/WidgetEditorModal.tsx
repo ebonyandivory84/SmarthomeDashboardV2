@@ -324,6 +324,11 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         backgroundImage: widget.backgroundImage || "",
         backgroundImageBlur: String(widget.backgroundImageBlur ?? 8),
         colorTheme: widget.colorTheme === "alarm" ? "alarm" : "standard",
+        alarmMessageTextColor: widget.alarmMessageTextColor || "",
+        alarmPrimaryButtonColor: widget.alarmPrimaryButtonColor || "",
+        alarmPrimaryButtonTextColor: widget.alarmPrimaryButtonTextColor || "",
+        alarmSecondaryButtonColor: widget.alarmSecondaryButtonColor || "",
+        alarmSecondaryButtonTextColor: widget.alarmSecondaryButtonTextColor || "",
         ...appearanceDraft,
       });
       return;
@@ -1097,6 +1102,11 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         backgroundImage: draft.backgroundImage?.trim() || undefined,
         backgroundImageBlur: clampInt(draft.backgroundImageBlur, widget.backgroundImageBlur ?? 8, 0),
         colorTheme: draft.colorTheme === "alarm" ? "alarm" : "standard",
+        alarmMessageTextColor: normalizeColor(draft.alarmMessageTextColor),
+        alarmPrimaryButtonColor: normalizeColor(draft.alarmPrimaryButtonColor),
+        alarmPrimaryButtonTextColor: normalizeColor(draft.alarmPrimaryButtonTextColor),
+        alarmSecondaryButtonColor: normalizeColor(draft.alarmSecondaryButtonColor),
+        alarmSecondaryButtonTextColor: normalizeColor(draft.alarmSecondaryButtonTextColor),
         interactionSounds: buildStoredInteractionSounds(
           widget.type,
           soundDraft,
@@ -2689,6 +2699,37 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     onSelect={(value) => setDraft((current) => ({ ...current, colorTheme: value }))}
                   />
                 </Field>
+                {draft.colorTheme === "alarm" ? (
+                  <>
+                    <ColorField
+                      label="Nachrichtentext-Farbe"
+                      value={draft.alarmMessageTextColor || ""}
+                      onChange={(value) => setDraft((current) => ({ ...current, alarmMessageTextColor: value }))}
+                    />
+                    <ColorField
+                      label="Primärfarbe Buttons (Kamera öffnen)"
+                      value={draft.alarmPrimaryButtonColor || ""}
+                      onChange={(value) => setDraft((current) => ({ ...current, alarmPrimaryButtonColor: value }))}
+                    />
+                    <ColorField
+                      label="Primärfarbe Button-Text (Kamera öffnen)"
+                      value={draft.alarmPrimaryButtonTextColor || ""}
+                      onChange={(value) => setDraft((current) => ({ ...current, alarmPrimaryButtonTextColor: value }))}
+                    />
+                    <ColorField
+                      label="Sekundärfarbe Buttons (Aktionen)"
+                      value={draft.alarmSecondaryButtonColor || ""}
+                      onChange={(value) => setDraft((current) => ({ ...current, alarmSecondaryButtonColor: value }))}
+                    />
+                    <ColorField
+                      label="Sekundärfarbe Button-Text (Aktionen)"
+                      value={draft.alarmSecondaryButtonTextColor || ""}
+                      onChange={(value) =>
+                        setDraft((current) => ({ ...current, alarmSecondaryButtonTextColor: value }))
+                      }
+                    />
+                  </>
+                ) : null}
                 <Field label="Widget-Hintergrundbild (optional)">
                   <View style={styles.stateFieldRow}>
                     <TextInput

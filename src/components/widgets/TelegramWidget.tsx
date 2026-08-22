@@ -26,8 +26,11 @@ const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
-const ALARM_THEME_TEXT_COLOR = "#8fffb6";
-const ALARM_THEME_MUTED_COLOR = "#8fffb6";
+const ALARM_DEFAULT_MESSAGE_TEXT_COLOR = "#8fffb6";
+const ALARM_DEFAULT_PRIMARY_BUTTON_COLOR = "#2dbf6d";
+const ALARM_DEFAULT_PRIMARY_BUTTON_TEXT_COLOR = "#08150d";
+const ALARM_DEFAULT_SECONDARY_BUTTON_COLOR = "#1a6b3e";
+const ALARM_DEFAULT_SECONDARY_BUTTON_TEXT_COLOR = "#ffffff";
 
 const ALARM_BUBBLE_GRADIENT = {
   backgroundColor: "transparent",
@@ -66,6 +69,12 @@ export function TelegramWidget({
   const textColor = config.appearance?.textColor || palette.text;
   const mutedTextColor = config.appearance?.mutedTextColor || palette.textMuted;
   const isAlarmTheme = config.colorTheme === "alarm";
+  const alarmMessageTextColor = config.alarmMessageTextColor || ALARM_DEFAULT_MESSAGE_TEXT_COLOR;
+  const alarmPrimaryButtonColor = config.alarmPrimaryButtonColor || ALARM_DEFAULT_PRIMARY_BUTTON_COLOR;
+  const alarmPrimaryButtonTextColor = config.alarmPrimaryButtonTextColor || ALARM_DEFAULT_PRIMARY_BUTTON_TEXT_COLOR;
+  const alarmSecondaryButtonColor = config.alarmSecondaryButtonColor || ALARM_DEFAULT_SECONDARY_BUTTON_COLOR;
+  const alarmSecondaryButtonTextColor =
+    config.alarmSecondaryButtonTextColor || ALARM_DEFAULT_SECONDARY_BUTTON_TEXT_COLOR;
   const refreshMs = clampInt(config.refreshMs, 2500, 800);
   const maxEntries = clampIntMax(config.maxEntries, 200, 10, MAX_HISTORY_ENTRIES_HARD_LIMIT);
   const composerEnabled = config.composerEnabled !== false;
@@ -470,6 +479,11 @@ export function TelegramWidget({
         onOpenUrl={openButtonLink}
         pendingCallbackData={pendingCallbackData}
         isAlarmTheme={isAlarmTheme}
+        alarmMessageTextColor={alarmMessageTextColor}
+        alarmPrimaryButtonColor={alarmPrimaryButtonColor}
+        alarmPrimaryButtonTextColor={alarmPrimaryButtonTextColor}
+        alarmSecondaryButtonColor={alarmSecondaryButtonColor}
+        alarmSecondaryButtonTextColor={alarmSecondaryButtonTextColor}
       />
     );
   });
@@ -614,6 +628,11 @@ type TelegramMessageRowProps = {
   pendingCallbackData: string | null;
   onOpenUrl: (url: string) => void;
   isAlarmTheme: boolean;
+  alarmMessageTextColor: string;
+  alarmPrimaryButtonColor: string;
+  alarmPrimaryButtonTextColor: string;
+  alarmSecondaryButtonColor: string;
+  alarmSecondaryButtonTextColor: string;
 };
 
 const TelegramMessageRow = memo(function TelegramMessageRow({
@@ -626,6 +645,11 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
   pendingCallbackData,
   onOpenUrl,
   isAlarmTheme,
+  alarmMessageTextColor,
+  alarmPrimaryButtonColor,
+  alarmPrimaryButtonTextColor,
+  alarmSecondaryButtonColor,
+  alarmSecondaryButtonTextColor,
 }: TelegramMessageRowProps) {
   const isOutgoing = entry.direction === "out";
   const thumbUrl =
@@ -660,11 +684,11 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
         <View style={styles.bubbleHeaderRow}>
           <Text
             numberOfLines={1}
-            style={[styles.sender, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}
+            style={[styles.sender, { color: isAlarmTheme ? alarmMessageTextColor : mutedTextColor }]}
           >
             {entry.sender || (isOutgoing ? "Ich" : "Unbekannt")}
           </Text>
-          <Text style={[styles.timestamp, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
+          <Text style={[styles.timestamp, { color: isAlarmTheme ? alarmMessageTextColor : mutedTextColor }]}>
             {formatTimestamp(entry.ts)}
           </Text>
         </View>
@@ -679,17 +703,23 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
           </Pressable>
         ) : null}
         {entry.text ? (
-          <Text style={[styles.message, { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor }]}>
+          <Text style={[styles.message, { color: isAlarmTheme ? alarmMessageTextColor : textColor }]}>
             {entry.text}
           </Text>
         ) : null}
         {entry.kind === "photo" && entry.cameraKey ? (
           <Pressable
             onPress={() => onOpenCamera(entry.cameraKey)}
-            style={[styles.cameraButton, isAlarmTheme ? styles.cameraButtonAlarm : null]}
+            style={[styles.cameraButton, isAlarmTheme ? { backgroundColor: alarmPrimaryButtonColor } : null]}
           >
-            <MaterialCommunityIcons color={isAlarmTheme ? "#08150d" : "#08111f"} name="camera-outline" size={16} />
-            <Text style={[styles.cameraButtonLabel, isAlarmTheme ? styles.cameraButtonLabelAlarm : null]}>Kamera öffnen</Text>
+            <MaterialCommunityIcons
+              color={isAlarmTheme ? alarmPrimaryButtonTextColor : "#08111f"}
+              name="camera-outline"
+              size={16}
+            />
+            <Text style={[styles.cameraButtonLabel, isAlarmTheme ? { color: alarmPrimaryButtonTextColor } : null]}>
+              Kamera öffnen
+            </Text>
           </Pressable>
         ) : null}
         {entry.buttons && entry.buttons.length > 0 ? (
@@ -713,11 +743,18 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
                   }}
                   style={[
                     styles.buttonChip,
-                    isAlarmTheme ? styles.buttonChipAlarm : null,
+                    isAlarmTheme
+                      ? { backgroundColor: alarmSecondaryButtonColor, borderColor: alarmSecondaryButtonColor }
+                      : null,
                     isPending ? styles.buttonChipPending : null,
                   ]}
                 >
-                  <Text style={[styles.buttonChipLabel, isAlarmTheme ? styles.buttonChipLabelAlarm : null]}>
+                  <Text
+                    style={[
+                      styles.buttonChipLabel,
+                      isAlarmTheme ? { color: alarmSecondaryButtonTextColor } : null,
+                    ]}
+                  >
                     {button.text}
                   </Text>
                 </Pressable>
@@ -926,12 +963,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#08111f",
   },
-  cameraButtonAlarm: {
-    backgroundColor: "#2dbf6d",
-  },
-  cameraButtonLabelAlarm: {
-    color: "#08150d",
-  },
   buttonChipRow: {
     flexDirection: "column",
     gap: 8,
@@ -950,18 +981,11 @@ const styles = StyleSheet.create({
   buttonChipPending: {
     opacity: 0.5,
   },
-  buttonChipAlarm: {
-    borderColor: "#2dbf6d",
-    backgroundColor: "#1a6b3e",
-  },
   buttonChipLabel: {
     fontSize: 15,
     fontWeight: "600",
     color: "rgba(255,255,255,0.85)",
     textAlign: "center",
-  },
-  buttonChipLabelAlarm: {
-    color: "#ffffff",
   },
   composerRow: {
     flexDirection: "row",

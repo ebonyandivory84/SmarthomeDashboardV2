@@ -212,6 +212,11 @@ export type TelegramWidgetConfig = WidgetBase & {
   backgroundImage?: string;
   backgroundImageBlur?: number;
   colorTheme?: "standard" | "alarm";
+  alarmMessageTextColor?: string;
+  alarmPrimaryButtonColor?: string;
+  alarmPrimaryButtonTextColor?: string;
+  alarmSecondaryButtonColor?: string;
+  alarmSecondaryButtonTextColor?: string;
 };
 
 export type ScriptWidgetConfig = WidgetBase & {
