@@ -26,15 +26,21 @@ const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
-const ALARM_THEME_TEXT_COLOR = "#39ff88";
-const ALARM_THEME_MUTED_COLOR = "#39ff88";
+const ALARM_THEME_TEXT_COLOR = "#8fffb6";
+const ALARM_THEME_MUTED_COLOR = "#8fffb6";
+const ALARM_THEME_TEXT_GLOW = {
+  textShadowColor: "rgba(143,255,182,0.75)",
+  textShadowRadius: 6,
+  textShadowOffset: { width: 0, height: 0 },
+};
+const ALARM_THEME_BUTTON_TEXT_GLOW = {
+  textShadowColor: "rgba(255,255,255,0.55)",
+  textShadowRadius: 4,
+  textShadowOffset: { width: 0, height: 0 },
+};
 
-const ALARM_BUBBLE_GRADIENT_INCOMING = {
+const ALARM_BUBBLE_GRADIENT = {
   backgroundImage: "linear-gradient(180deg, rgba(30,120,56,0.28), rgba(9,22,14,0.85))",
-} as unknown as ViewStyle;
-
-const ALARM_BUBBLE_GRADIENT_OUTGOING = {
-  backgroundImage: "linear-gradient(135deg, #145f34, #2dbf6d)",
 } as unknown as ViewStyle;
 
 export function TelegramWidget({
@@ -657,18 +663,27 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
           styles.bubble,
           isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming,
           isAlarmTheme ? (isOutgoing ? styles.bubbleOutgoingAlarm : styles.bubbleIncomingAlarm) : null,
-          isAlarmTheme && Platform.OS === "web"
-            ? isOutgoing
-              ? ALARM_BUBBLE_GRADIENT_OUTGOING
-              : ALARM_BUBBLE_GRADIENT_INCOMING
-            : null,
+          isAlarmTheme && Platform.OS === "web" ? ALARM_BUBBLE_GRADIENT : null,
         ]}
       >
         <View style={styles.bubbleHeaderRow}>
-          <Text numberOfLines={1} style={[styles.sender, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.sender,
+              { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor },
+              isAlarmTheme ? ALARM_THEME_TEXT_GLOW : null,
+            ]}
+          >
             {entry.sender || (isOutgoing ? "Ich" : "Unbekannt")}
           </Text>
-          <Text style={[styles.timestamp, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
+          <Text
+            style={[
+              styles.timestamp,
+              { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor },
+              isAlarmTheme ? ALARM_THEME_TEXT_GLOW : null,
+            ]}
+          >
             {formatTimestamp(entry.ts)}
           </Text>
         </View>
@@ -683,7 +698,15 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
           </Pressable>
         ) : null}
         {entry.text ? (
-          <Text style={[styles.message, { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor }]}>{entry.text}</Text>
+          <Text
+            style={[
+              styles.message,
+              { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor },
+              isAlarmTheme ? [ALARM_THEME_TEXT_GLOW, styles.messageAlarm] : null,
+            ]}
+          >
+            {entry.text}
+          </Text>
         ) : null}
         {entry.kind === "photo" && entry.cameraKey ? (
           <Pressable
@@ -719,7 +742,13 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
                     isPending ? styles.buttonChipPending : null,
                   ]}
                 >
-                  <Text style={[styles.buttonChipLabel, isAlarmTheme ? styles.buttonChipLabelAlarm : null]}>
+                  <Text
+                    style={[
+                      styles.buttonChipLabel,
+                      isAlarmTheme ? styles.buttonChipLabelAlarm : null,
+                      isAlarmTheme ? ALARM_THEME_BUTTON_TEXT_GLOW : null,
+                    ]}
+                  >
                     {button.text}
                   </Text>
                 </Pressable>
@@ -882,12 +911,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(93, 168, 255, 0.32)",
   },
   bubbleIncomingAlarm: {
-    backgroundColor: "rgba(20, 62, 38, 0.55)",
-    borderColor: "rgba(47, 138, 69, 0.45)",
+    backgroundColor: "rgba(12, 22, 16, 0.9)",
+    borderColor: "#2f8a45",
   },
   bubbleOutgoingAlarm: {
-    backgroundColor: "rgba(29, 140, 80, 0.4)",
-    borderColor: "rgba(45, 191, 109, 0.55)",
+    backgroundColor: "rgba(12, 22, 16, 0.9)",
+    borderColor: "#2f8a45",
   },
   bubbleHeaderRow: {
     flexDirection: "row",
@@ -906,6 +935,9 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  messageAlarm: {
+    fontWeight: "800",
   },
   thumb: {
     borderRadius: 8,
