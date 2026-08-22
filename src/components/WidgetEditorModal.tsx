@@ -2743,6 +2743,14 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     >
                       <Text style={styles.stateBrowseLabel}>Bild waehlen</Text>
                     </EditorButtonPressable>
+                    {draft.backgroundImage ? (
+                      <EditorButtonPressable
+                        onPress={() => setDraft((current) => ({ ...current, backgroundImage: "" }))}
+                        style={styles.stateBrowseButton}
+                      >
+                        <Text style={styles.stateBrowseLabel}>Entfernen</Text>
+                      </EditorButtonPressable>
+                    ) : null}
                   </View>
                   <Field label="Bild-Unschaerfe">
                     <BlurControl

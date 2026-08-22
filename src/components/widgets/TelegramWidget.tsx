@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(6, 11, 18, 0.48)",
-    zIndex: 1,
+    zIndex: 0,
   },
   metaRow: {
     flexDirection: "row",
