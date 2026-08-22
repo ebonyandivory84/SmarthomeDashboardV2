@@ -317,7 +317,7 @@ function WaterMeterWeb({
           "div",
           { style: { ...webMonthBarsStyle, display: chartView === "month" ? "grid" : "none" } },
           monthlyCosts.map((entry, index) => {
-            const height = Math.max(44, (entry.cost / monthlyBarMaximum) * 84);
+            const height = Math.max(18, (entry.cost / monthlyBarMaximum) * 84);
             const isCurrentMonth = index === monthlyCosts.length - 1;
             return createElement(
               "div",
@@ -333,7 +333,11 @@ function WaterMeterWeb({
                       : "rgba(109,220,255,.30)",
                   },
                 },
-                createElement("span", { style: webMonthCostTextStyle }, formatEuro(entry.cost))
+                createElement(
+                  "span",
+                  { style: webMonthCostTextStyle, title: formatEuro(entry.cost) },
+                  `${formatNumber(entry.cost, 0)} €`
+                )
               ),
               createElement(
                 "span",
@@ -795,7 +799,7 @@ const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight
 const webMonthBarsStyle: CSSProperties = { height: 112, display: "grid", gridTemplateColumns: "repeat(12, minmax(0, 1fr))", alignItems: "end", gap: 2, borderBottom: `1px solid ${palette.border}` };
 const webMonthBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: 3 };
 const webMonthBarStyle: CSSProperties = { position: "relative", width: "76%", minWidth: 10, maxWidth: 18, borderRadius: "4px 4px 1px 1px" };
-const webMonthCostTextStyle: CSSProperties = { position: "absolute", left: "50%", bottom: 4, color: "#eafcff", transform: "translateX(-50%) rotate(-90deg)", transformOrigin: "center", fontSize: 6, fontWeight: 850, lineHeight: 1, whiteSpace: "nowrap" };
+const webMonthCostTextStyle: CSSProperties = { position: "absolute", top: "50%", left: "50%", color: "#eafcff", transform: "translate(-50%, -50%) rotate(-90deg)", transformOrigin: "center", fontSize: 6, fontWeight: 850, lineHeight: 1, whiteSpace: "nowrap" };
 const webWeekCostStyle: CSSProperties = { minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, paddingTop: 5, fontSize: 10, lineHeight: "12px" };
 
 const webIntradayPanelStyle: CSSProperties = {
