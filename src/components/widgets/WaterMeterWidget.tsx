@@ -16,6 +16,7 @@ type WaterMeterWidgetProps = {
 
 const EMPTY_SUMMARY: WaterMeterSummary = {
   generatedAt: 0,
+  latestMeterValue: null,
   todayLiters: 0,
   yesterdayLiters: 0,
   averageDayLiters: 0,
@@ -24,6 +25,9 @@ const EMPTY_SUMMARY: WaterMeterSummary = {
   trendPercent: null,
   daily: [],
 };
+
+const LEGACY_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.value";
+const CURRENT_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.raw";
 
 export function WaterMeterWidget({
   config,
@@ -42,9 +46,13 @@ export function WaterMeterWidget({
   const flowRateMultiplier = clampNumber(config.flowRateMultiplier, 1000, 0.001, 1_000_000);
   const maxFlowLitersPerMinute = clampNumber(config.maxFlowLitersPerMinute, 80, 1, 1000);
   const timezone = config.timezone?.trim() || "Europe/Berlin";
+  const meterValueStateId =
+    config.meterValueStateId.trim() === LEGACY_METER_VALUE_STATE_ID
+      ? CURRENT_METER_VALUE_STATE_ID
+      : config.meterValueStateId.trim();
 
   useEffect(() => {
-    if (!runtimeActive || !config.meterValueStateId.trim()) {
+    if (!runtimeActive || !meterValueStateId) {
       return;
     }
 
@@ -58,7 +66,7 @@ export function WaterMeterWidget({
       inFlight = true;
       try {
         const next = await client.readWaterSummary({
-          stateId: config.meterValueStateId,
+          stateId: meterValueStateId,
           days: historyDays,
           multiplier: meterValueMultiplier,
           maxFlowLitersPerMinute,
@@ -85,19 +93,24 @@ export function WaterMeterWidget({
     };
   }, [
     client,
-    config.meterValueStateId,
     historyDays,
     maxFlowLitersPerMinute,
     meterValueMultiplier,
     refreshMs,
     runtimeActive,
+    meterValueStateId,
     timezone,
   ]);
 
-  const liveMeterValue = finiteNumber(states[config.meterValueStateId]);
+  const liveMeterValue = finiteNumber(states[meterValueStateId]);
   const liveFlow = config.flowRateStateId ? finiteNumber(states[config.flowRateStateId]) : null;
   const flowLitersPerMinute = liveFlow === null ? null : Math.max(0, liveFlow * flowRateMultiplier);
-  const data = summary || EMPTY_SUMMARY;
+  const data = applyLiveMeterDelta(
+    summary || EMPTY_SUMMARY,
+    liveMeterValue,
+    meterValueMultiplier,
+    maxFlowLitersPerMinute
+  );
 
   if (Platform.OS !== "web") {
     return (
@@ -341,6 +354,44 @@ function buildCounterDigits(value: number | null) {
   }
   const fixed = Math.max(0, value).toFixed(3).replace(".", "");
   return fixed.padStart(8, "0").slice(-8).split("");
+}
+
+function applyLiveMeterDelta(
+  summary: WaterMeterSummary,
+  liveMeterValue: number | null,
+  multiplier: number,
+  maxFlowLitersPerMinute: number
+) {
+  if (liveMeterValue === null || summary.latestMeterValue === null) {
+    return summary;
+  }
+
+  const deltaLiters = (liveMeterValue - summary.latestMeterValue) * multiplier;
+  const maxRecentDelta = maxFlowLitersPerMinute * 30;
+  if (!Number.isFinite(deltaLiters) || deltaLiters <= 0 || deltaLiters > maxRecentDelta) {
+    return summary;
+  }
+
+  const todayLiters = summary.todayLiters + deltaLiters;
+  const comparisonPercent =
+    summary.averageUntilNowLiters > 0
+      ? ((todayLiters - summary.averageUntilNowLiters) / summary.averageUntilNowLiters) * 100
+      : null;
+
+  return {
+    ...summary,
+    latestMeterValue: liveMeterValue,
+    todayLiters,
+    comparisonPercent,
+    daily: summary.daily.map((entry) =>
+      entry.isToday
+        ? {
+            ...entry,
+            liters: entry.liters + deltaLiters,
+          }
+        : entry
+    ),
+  };
 }
 
 const webRootStyle: CSSProperties = {

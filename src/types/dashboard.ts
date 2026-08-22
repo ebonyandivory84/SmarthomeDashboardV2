@@ -293,6 +293,7 @@ export type WaterMeterDailyValue = {
 
 export type WaterMeterSummary = {
   generatedAt: number;
+  latestMeterValue: number | null;
   todayLiters: number;
   yesterdayLiters: number;
   averageDayLiters: number;

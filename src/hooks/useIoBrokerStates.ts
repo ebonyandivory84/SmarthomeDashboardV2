@@ -182,7 +182,12 @@ export const collectWidgetStateIds = (widget: WidgetConfig) => {
     ];
   }
   if (widget.type === "waterMeter") {
-    return collectExplicitStateIds(widget);
+    return [
+      ...collectExplicitStateIds(widget),
+      ...(widget.meterValueStateId === "mqtt.1.watermeter.main.value"
+        ? ["mqtt.1.watermeter.main.raw"]
+        : []),
+    ];
   }
   return [];
 };

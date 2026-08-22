@@ -133,6 +133,7 @@ function buildWaterSummary(points, options = {}) {
 
   return {
     generatedAt: now,
+    latestMeterValue: samples.length > 0 ? samples[samples.length - 1].v : null,
     todayLiters: round(todayLiters),
     yesterdayLiters: round(dailyLiters.get(shiftDateKey(nowLocal.date, -1)) || 0),
     averageDayLiters: round(averageDayLiters),

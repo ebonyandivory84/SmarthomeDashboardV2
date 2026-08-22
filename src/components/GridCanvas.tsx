@@ -699,6 +699,7 @@ function getAutoLayoutSpec(
         }
         return { w: 1, h: roundGridUnit(6) };
       case "historyChart":
+      case "waterMeter":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
@@ -791,6 +792,7 @@ function getAutoLayoutSpec(
       }
       return { w: mainColumnWidth, h: roundGridUnit(6) };
     case "historyChart":
+    case "waterMeter":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }

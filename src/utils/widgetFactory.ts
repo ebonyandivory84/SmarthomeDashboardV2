@@ -447,7 +447,7 @@ export function buildWidgetTemplate(
       id: `water-meter-${suffix}`,
       type: "waterMeter",
       title: "Wasser",
-      meterValueStateId: "mqtt.1.watermeter.main.value",
+      meterValueStateId: "mqtt.1.watermeter.main.raw",
       flowRateStateId: "mqtt.1.watermeter.main.rate_per_time_unit",
       errorStateId: "",
       meterValueMultiplier: 1000,
