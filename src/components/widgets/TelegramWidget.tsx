@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, ImageBackground, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import type { ViewStyle } from "react-native";
 import { useDashboardConfig } from "../../context/DashboardConfigContext";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -25,8 +26,16 @@ const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
-const ALARM_THEME_TEXT_COLOR = "#eafff1";
+const ALARM_THEME_TEXT_COLOR = "#8fffb6";
 const ALARM_THEME_MUTED_COLOR = "#8fffb6";
+
+const ALARM_BUBBLE_GRADIENT_INCOMING = {
+  backgroundImage: "linear-gradient(180deg, rgba(30,120,56,0.28), rgba(9,22,14,0.85))",
+} as unknown as ViewStyle;
+
+const ALARM_BUBBLE_GRADIENT_OUTGOING = {
+  backgroundImage: "linear-gradient(135deg, #145f34, #2dbf6d)",
+} as unknown as ViewStyle;
 
 export function TelegramWidget({
   config,
@@ -648,6 +657,11 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
           styles.bubble,
           isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming,
           isAlarmTheme ? (isOutgoing ? styles.bubbleOutgoingAlarm : styles.bubbleIncomingAlarm) : null,
+          isAlarmTheme && Platform.OS === "web"
+            ? isOutgoing
+              ? ALARM_BUBBLE_GRADIENT_OUTGOING
+              : ALARM_BUBBLE_GRADIENT_INCOMING
+            : null,
         ]}
       >
         <View style={styles.bubbleHeaderRow}>
@@ -949,7 +963,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   buttonChipLabelAlarm: {
-    color: "#eafff1",
+    color: "#ffffff",
   },
   composerRow: {
     flexDirection: "row",
