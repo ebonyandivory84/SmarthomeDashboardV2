@@ -25,6 +25,8 @@ const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
+const ALARM_THEME_TEXT_COLOR = "#eafff1";
+const ALARM_THEME_MUTED_COLOR = "#8fffb6";
 
 export function TelegramWidget({
   config,
@@ -57,6 +59,7 @@ export function TelegramWidget({
 
   const textColor = config.appearance?.textColor || palette.text;
   const mutedTextColor = config.appearance?.mutedTextColor || palette.textMuted;
+  const isAlarmTheme = config.colorTheme === "alarm";
   const refreshMs = clampInt(config.refreshMs, 2500, 800);
   const maxEntries = clampIntMax(config.maxEntries, 200, 10, MAX_HISTORY_ENTRIES_HARD_LIMIT);
   const composerEnabled = config.composerEnabled !== false;
@@ -460,6 +463,7 @@ export function TelegramWidget({
         onPressButton={pressButtonChip}
         onOpenUrl={openButtonLink}
         pendingCallbackData={pendingCallbackData}
+        isAlarmTheme={isAlarmTheme}
       />
     );
   });
@@ -562,7 +566,11 @@ export function TelegramWidget({
           <Pressable
             disabled={sending || !composerText.trim()}
             onPress={handleSend}
-            style={[styles.sendButton, !composerText.trim() || sending ? styles.sendButtonDisabled : null]}
+            style={[
+              styles.sendButton,
+              isAlarmTheme ? styles.sendButtonAlarm : null,
+              !composerText.trim() || sending ? styles.sendButtonDisabled : null,
+            ]}
           >
             <MaterialCommunityIcons color="#08111f" name="send" size={17} />
           </Pressable>
@@ -599,6 +607,7 @@ type TelegramMessageRowProps = {
   onPressButton: (entryId: string, callbackData: string) => void;
   pendingCallbackData: string | null;
   onOpenUrl: (url: string) => void;
+  isAlarmTheme: boolean;
 };
 
 const TelegramMessageRow = memo(function TelegramMessageRow({
@@ -610,6 +619,7 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
   onPressButton,
   pendingCallbackData,
   onOpenUrl,
+  isAlarmTheme,
 }: TelegramMessageRowProps) {
   const isOutgoing = entry.direction === "out";
   const thumbUrl =
@@ -633,12 +643,20 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
 
   return (
     <View style={[styles.row, isOutgoing ? styles.rowOutgoing : styles.rowIncoming]}>
-      <View style={[styles.bubble, isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming]}>
+      <View
+        style={[
+          styles.bubble,
+          isOutgoing ? styles.bubbleOutgoing : styles.bubbleIncoming,
+          isAlarmTheme ? (isOutgoing ? styles.bubbleOutgoingAlarm : styles.bubbleIncomingAlarm) : null,
+        ]}
+      >
         <View style={styles.bubbleHeaderRow}>
-          <Text numberOfLines={1} style={[styles.sender, { color: mutedTextColor }]}>
+          <Text numberOfLines={1} style={[styles.sender, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
             {entry.sender || (isOutgoing ? "Ich" : "Unbekannt")}
           </Text>
-          <Text style={[styles.timestamp, { color: mutedTextColor }]}>{formatTimestamp(entry.ts)}</Text>
+          <Text style={[styles.timestamp, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
+            {formatTimestamp(entry.ts)}
+          </Text>
         </View>
         {thumbUrl ? (
           <Pressable
@@ -650,11 +668,16 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
             <Image resizeMode="cover" source={{ uri: thumbUrl }} style={[styles.thumb, thumbSize]} />
           </Pressable>
         ) : null}
-        {entry.text ? <Text style={[styles.message, { color: textColor }]}>{entry.text}</Text> : null}
+        {entry.text ? (
+          <Text style={[styles.message, { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor }]}>{entry.text}</Text>
+        ) : null}
         {entry.kind === "photo" && entry.cameraKey ? (
-          <Pressable onPress={() => onOpenCamera(entry.cameraKey)} style={styles.cameraButton}>
-            <MaterialCommunityIcons color="#08111f" name="camera-outline" size={16} />
-            <Text style={styles.cameraButtonLabel}>Kamera öffnen</Text>
+          <Pressable
+            onPress={() => onOpenCamera(entry.cameraKey)}
+            style={[styles.cameraButton, isAlarmTheme ? styles.cameraButtonAlarm : null]}
+          >
+            <MaterialCommunityIcons color={isAlarmTheme ? "#08150d" : "#08111f"} name="camera-outline" size={16} />
+            <Text style={[styles.cameraButtonLabel, isAlarmTheme ? styles.cameraButtonLabelAlarm : null]}>Kamera öffnen</Text>
           </Pressable>
         ) : null}
         {entry.buttons && entry.buttons.length > 0 ? (
@@ -676,9 +699,15 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
                     else if (isLinkButton) onOpenUrl(button.url as string);
                     else onPressButton(entry.id, button.callback_data);
                   }}
-                  style={[styles.buttonChip, isPending ? styles.buttonChipPending : null]}
+                  style={[
+                    styles.buttonChip,
+                    isAlarmTheme ? styles.buttonChipAlarm : null,
+                    isPending ? styles.buttonChipPending : null,
+                  ]}
                 >
-                  <Text style={styles.buttonChipLabel}>{button.text}</Text>
+                  <Text style={[styles.buttonChipLabel, isAlarmTheme ? styles.buttonChipLabelAlarm : null]}>
+                    {button.text}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -838,6 +867,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(44, 108, 240, 0.22)",
     borderColor: "rgba(93, 168, 255, 0.32)",
   },
+  bubbleIncomingAlarm: {
+    backgroundColor: "rgba(20, 62, 38, 0.55)",
+    borderColor: "rgba(47, 138, 69, 0.45)",
+  },
+  bubbleOutgoingAlarm: {
+    backgroundColor: "rgba(29, 140, 80, 0.4)",
+    borderColor: "rgba(45, 191, 109, 0.55)",
+  },
   bubbleHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -877,6 +914,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#08111f",
   },
+  cameraButtonAlarm: {
+    backgroundColor: "#2dbf6d",
+  },
+  cameraButtonLabelAlarm: {
+    color: "#08150d",
+  },
   buttonChipRow: {
     flexDirection: "column",
     gap: 8,
@@ -895,11 +938,18 @@ const styles = StyleSheet.create({
   buttonChipPending: {
     opacity: 0.5,
   },
+  buttonChipAlarm: {
+    borderColor: "#2dbf6d",
+    backgroundColor: "#1a6b3e",
+  },
   buttonChipLabel: {
     fontSize: 15,
     fontWeight: "600",
     color: "rgba(255,255,255,0.85)",
     textAlign: "center",
+  },
+  buttonChipLabelAlarm: {
+    color: "#eafff1",
   },
   composerRow: {
     flexDirection: "row",
@@ -930,6 +980,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#5c9dff",
+  },
+  sendButtonAlarm: {
+    backgroundColor: "#2dbf6d",
   },
   sendButtonDisabled: {
     opacity: 0.4,

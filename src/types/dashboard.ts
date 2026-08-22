@@ -211,6 +211,7 @@ export type TelegramWidgetConfig = WidgetBase & {
   composerEnabled?: boolean;
   backgroundImage?: string;
   backgroundImageBlur?: number;
+  colorTheme?: "standard" | "alarm";
 };
 
 export type ScriptWidgetConfig = WidgetBase & {

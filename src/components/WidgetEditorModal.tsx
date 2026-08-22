@@ -323,6 +323,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         composerEnabled: widget.composerEnabled === false ? "false" : "true",
         backgroundImage: widget.backgroundImage || "",
         backgroundImageBlur: String(widget.backgroundImageBlur ?? 8),
+        colorTheme: widget.colorTheme === "alarm" ? "alarm" : "standard",
         ...appearanceDraft,
       });
       return;
@@ -1095,6 +1096,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         composerEnabled: draft.composerEnabled !== "false",
         backgroundImage: draft.backgroundImage?.trim() || undefined,
         backgroundImageBlur: clampInt(draft.backgroundImageBlur, widget.backgroundImageBlur ?? 8, 0),
+        colorTheme: draft.colorTheme === "alarm" ? "alarm" : "standard",
         interactionSounds: buildStoredInteractionSounds(
           widget.type,
           soundDraft,
@@ -2678,6 +2680,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     label="Nachricht senden erlauben"
                     value={draft.composerEnabled || "true"}
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
+                  />
+                </Field>
+                <Field label="Farbthema">
+                  <ChoiceRow
+                    options={["standard", "alarm"]}
+                    value={draft.colorTheme || "standard"}
+                    onSelect={(value) => setDraft((current) => ({ ...current, colorTheme: value }))}
                   />
                 </Field>
                 <Field label="Widget-Hintergrundbild (optional)">
