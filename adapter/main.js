@@ -10,7 +10,7 @@ const http = require("http");
 const https = require("https");
 const crypto = require("crypto");
 const { resolveWebRoot } = require("./lib/static");
-const { buildWaterSummary } = require("./lib/waterSummary");
+const { buildWaterMonthlyValues, buildWaterSummary } = require("./lib/waterSummary");
 let WebSocketClient = null;
 try {
   WebSocketClient = require("ws");
@@ -45,6 +45,8 @@ const roomSensorHistoryCache = new Map();
 const ROOM_SENSOR_HISTORY_CACHE_TTL_MS = 45 * 1000;
 const waterSummaryCache = new Map();
 const WATER_SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
+const waterMonthlyCache = new Map();
+const WATER_MONTHLY_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const API_JSON_LIMIT = "15mb";
 const CONFIG_STATE_ID = "dashboardConfig";
 const SAVED_DASHBOARDS_STATE_ID = "savedDashboards";
@@ -3462,9 +3464,10 @@ async function queryInfluxSeries(influxConfig, stateId, hours, bucket) {
   }));
 }
 
-async function queryInfluxWaterSeries(influxConfig, stateId, rangeDays) {
+async function queryInfluxWaterSeries(influxConfig, stateId, rangeDays, bucket = "10m") {
   const escapedId = stateId.replace(/"/g, '\\"');
-  const query = `SELECT last("value") FROM "${escapedId}" WHERE time > now() - ${rangeDays}d GROUP BY time(10m) fill(previous)`;
+  const safeBucket = bucket === "1h" ? "1h" : "10m";
+  const query = `SELECT last("value") FROM "${escapedId}" WHERE time > now() - ${rangeDays}d GROUP BY time(${safeBucket}) fill(previous)`;
   const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
     influxConfig.dbname
   )}&q=${encodeURIComponent(query)}`;
@@ -3492,6 +3495,25 @@ function pruneWaterSummaryCache() {
       waterSummaryCache.delete(key);
     }
   }
+  for (const [key, entry] of waterMonthlyCache) {
+    if (now - entry.timestamp > WATER_MONTHLY_CACHE_TTL_MS) {
+      waterMonthlyCache.delete(key);
+    }
+  }
+}
+
+function monthCachePartition(timezone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}`;
+  } catch {
+    return new Date().toISOString().slice(0, 7);
+  }
 }
 
 async function readWaterSummary(adapter, options) {
@@ -3507,18 +3529,62 @@ async function readWaterSummary(adapter, options) {
     options.multiplier,
     options.maxFlowLitersPerMinute,
     options.timezone,
+    monthCachePartition(options.timezone),
   ].join("|");
   const cached = waterSummaryCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < WATER_SUMMARY_CACHE_TTL_MS) {
     return cached.data;
   }
 
-  const points = await queryInfluxWaterSeries(influxConfig, options.stateId, options.days * 2 + 2);
+  const monthlyCacheKey = [
+    options.stateId,
+    options.multiplier,
+    options.maxFlowLitersPerMinute,
+    options.timezone,
+    monthCachePartition(options.timezone),
+  ].join("|");
+  const cachedMonthly = waterMonthlyCache.get(monthlyCacheKey);
+  const [points, monthlyPoints] = await Promise.all([
+    queryInfluxWaterSeries(influxConfig, options.stateId, options.days * 2 + 2),
+    cachedMonthly && Date.now() - cachedMonthly.timestamp < WATER_MONTHLY_CACHE_TTL_MS
+      ? Promise.resolve(null)
+      : queryInfluxWaterSeries(influxConfig, options.stateId, 400, "1h"),
+  ]);
+  const baseMonthlyValues = monthlyPoints
+    ? buildWaterMonthlyValues(monthlyPoints, {
+        multiplier: options.multiplier,
+        maxFlowLitersPerMinute: options.maxFlowLitersPerMinute,
+        timezone: options.timezone,
+      })
+    : cachedMonthly.data;
+  const monthlyValues = baseMonthlyValues.map((entry) => ({ ...entry }));
+  if (
+    !monthlyPoints &&
+    Number.isFinite(cachedMonthly.latestMeterValue) &&
+    points.length > 0 &&
+    monthlyValues.length > 0
+  ) {
+    const latestRecentValue = points[points.length - 1]?.v;
+    const deltaLiters = (latestRecentValue - cachedMonthly.latestMeterValue) * options.multiplier;
+    const elapsedMinutes = Math.max(1, (Date.now() - cachedMonthly.timestamp) / 60_000);
+    const maxPlausibleDelta = options.maxFlowLitersPerMinute * elapsedMinutes * 1.25;
+    if (Number.isFinite(deltaLiters) && deltaLiters > 0 && deltaLiters <= maxPlausibleDelta) {
+      monthlyValues[monthlyValues.length - 1].liters += deltaLiters;
+    }
+  }
+  if (monthlyPoints) {
+    waterMonthlyCache.set(monthlyCacheKey, {
+      timestamp: Date.now(),
+      data: monthlyValues,
+      latestMeterValue: monthlyPoints[monthlyPoints.length - 1]?.v ?? null,
+    });
+  }
   const summary = buildWaterSummary(points, {
     displayDays: options.days,
     multiplier: options.multiplier,
     maxFlowLitersPerMinute: options.maxFlowLitersPerMinute,
     timezone: options.timezone,
+    monthlyValues,
   });
   waterSummaryCache.set(cacheKey, { timestamp: Date.now(), data: summary });
   return summary;

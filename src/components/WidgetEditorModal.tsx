@@ -458,6 +458,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         meterValueStateId: widget.meterValueStateId,
         flowRateStateId: widget.flowRateStateId || "",
         errorStateId: widget.errorStateId || "",
+        connectionStateId: widget.connectionStateId || "mqtt.1.watermeter.connection",
         meterValueMultiplier: String(widget.meterValueMultiplier ?? 1000),
         flowRateMultiplier: String(widget.flowRateMultiplier ?? 1000),
         maxFlowLitersPerMinute: String(widget.maxFlowLitersPerMinute ?? 80),
@@ -1408,6 +1409,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         meterValueStateId: draft.meterValueStateId || widget.meterValueStateId,
         flowRateStateId: draft.flowRateStateId || undefined,
         errorStateId: draft.errorStateId || undefined,
+        connectionStateId: draft.connectionStateId?.trim() || "mqtt.1.watermeter.connection",
         meterValueMultiplier: clampFloatRange(
           draft.meterValueMultiplier,
           widget.meterValueMultiplier ?? 1000,
@@ -3143,6 +3145,15 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "waterMeter" ? (
               <>
+                <Text style={styles.sectionTitle}>Verbindungsstatus</Text>
+                <Field label="Verbindungs-Datenpunkt">
+                  <StateFieldInput
+                    browseLabel="Objekt"
+                    onBrowse={() => setPickerField("connectionStateId")}
+                    onChangeText={(value) => setDraft((current) => ({ ...current, connectionStateId: value }))}
+                    value={draft.connectionStateId || "mqtt.1.watermeter.connection"}
+                  />
+                </Field>
                 <Text style={styles.sectionTitle}>Wasserpreise</Text>
                 <View style={styles.splitRow}>
                   <Field label="Trinkwasser (€/m³)">

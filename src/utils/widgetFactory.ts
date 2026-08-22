@@ -450,6 +450,7 @@ export function buildWidgetTemplate(
       meterValueStateId: "mqtt.1.watermeter.main.raw",
       flowRateStateId: "mqtt.1.watermeter.main.rate_per_time_unit",
       errorStateId: "",
+      connectionStateId: "mqtt.1.watermeter.connection",
       meterValueMultiplier: 1000,
       flowRateMultiplier: 1000,
       maxFlowLitersPerMinute: 80,

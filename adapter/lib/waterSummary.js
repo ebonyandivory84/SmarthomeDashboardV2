@@ -61,6 +61,11 @@ function startOfWeekDateKey(dateKey) {
   return shiftDateKey(dateKey, weekday === 0 ? -6 : 1 - weekday);
 }
 
+function shiftMonthKey(monthKey, offsetMonths) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + offsetMonths, 1)).toISOString().slice(0, 7);
+}
+
 function average(values) {
   const finite = values.filter((value) => Number.isFinite(value));
   if (finite.length === 0) {
@@ -82,6 +87,36 @@ function percentDifference(value, reference) {
     return null;
   }
   return round(((value - reference) / reference) * 100, 1);
+}
+
+function buildWaterMonthlyValues(points, options = {}) {
+  const now = Number.isFinite(options.now) ? options.now : Date.now();
+  const timezone = options.timezone || DEFAULT_TIMEZONE;
+  const multiplier = Math.max(0.001, Math.min(1_000_000, Number(options.multiplier) || 1000));
+  const maxFlowLitersPerMinute = Math.max(1, Math.min(1000, Number(options.maxFlowLitersPerMinute) || 80));
+  const currentMonth = localDateParts(now, timezone).date.slice(0, 7);
+  const monthKeys = Array.from({ length: 12 }, (_, index) => shiftMonthKey(currentMonth, index - 11));
+  const monthLiters = new Map(monthKeys.map((key) => [key, 0]));
+  const samples = (Array.isArray(points) ? points : [])
+    .filter((point) => Number.isFinite(point?.t) && Number.isFinite(point?.v))
+    .map((point) => ({ t: Number(point.t), v: Number(point.v) }))
+    .sort((left, right) => left.t - right.t);
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    const elapsedMinutes = Math.max(1, Math.min(120, (current.t - previous.t) / 60_000));
+    const deltaLiters = (current.v - previous.v) * multiplier;
+    const maxPlausibleDelta = maxFlowLitersPerMinute * elapsedMinutes * 1.25;
+    const month = localDateParts(current.t, timezone).date.slice(0, 7);
+
+    if (!monthLiters.has(month) || deltaLiters < 0 || deltaLiters > maxPlausibleDelta) {
+      continue;
+    }
+    monthLiters.set(month, (monthLiters.get(month) || 0) + deltaLiters);
+  }
+
+  return monthKeys.map((month) => ({ month, liters: round(monthLiters.get(month) || 0) }));
 }
 
 function buildWaterSummary(points, options = {}) {
@@ -178,11 +213,15 @@ function buildWaterSummary(points, options = {}) {
       ...(date === nowLocal.date ? { isToday: true } : null),
     })),
     intraday: intraday.map((entry) => ({ t: entry.t, liters: round(entry.liters) })),
+    monthly: Array.isArray(options.monthlyValues)
+      ? options.monthlyValues
+      : buildWaterMonthlyValues(samples, options),
     recentLitersPerHour: round(recentLiters * 2),
     currentWeekLiters: round(weekKeys.reduce((sum, date) => sum + (dailyLiters.get(date) || 0), 0)),
   };
 }
 
 module.exports = {
+  buildWaterMonthlyValues,
   buildWaterSummary,
 };

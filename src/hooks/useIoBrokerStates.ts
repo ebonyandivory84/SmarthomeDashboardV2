@@ -184,6 +184,7 @@ export const collectWidgetStateIds = (widget: WidgetConfig) => {
   if (widget.type === "waterMeter") {
     return [
       ...collectExplicitStateIds(widget),
+      ...(widget.connectionStateId ? [] : ["mqtt.1.watermeter.connection"]),
       ...(widget.meterValueStateId === "mqtt.1.watermeter.main.value"
         ? ["mqtt.1.watermeter.main.raw"]
         : []),

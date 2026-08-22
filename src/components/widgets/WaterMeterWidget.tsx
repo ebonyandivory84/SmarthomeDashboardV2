@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { createElement, useEffect, useState } from "react";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -30,12 +31,14 @@ const EMPTY_SUMMARY: WaterMeterSummary = {
   trendPercent: null,
   daily: [],
   intraday: [],
+  monthly: [],
   recentLitersPerHour: 0,
   currentWeekLiters: 0,
 };
 
 const LEGACY_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.value";
 const CURRENT_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.raw";
+const DEFAULT_CONNECTION_STATE_ID = "mqtt.1.watermeter.connection";
 
 export function WaterMeterWidget({
   config,
@@ -55,6 +58,7 @@ export function WaterMeterWidget({
   const maxFlowLitersPerMinute = clampNumber(config.maxFlowLitersPerMinute, 80, 1, 1000);
   const drinkingWaterPrice = clampNumber(config.drinkingWaterPricePerCubicMeter, 2.01, 0, 1000);
   const wastewaterPrice = clampNumber(config.wastewaterPricePerCubicMeter, 3.57, 0, 1000);
+  const connectionStateId = config.connectionStateId?.trim() || DEFAULT_CONNECTION_STATE_ID;
   const timezone = config.timezone?.trim() || "Europe/Berlin";
   const meterValueStateId =
     config.meterValueStateId.trim() === LEGACY_METER_VALUE_STATE_ID
@@ -114,6 +118,10 @@ export function WaterMeterWidget({
 
   const liveMeterValue = finiteNumber(states[meterValueStateId]);
   const liveFlow = config.flowRateStateId ? finiteNumber(states[config.flowRateStateId]) : null;
+  const connectionValue = states[connectionStateId];
+  const connectionKnown = connectionValue !== null && connectionValue !== undefined && String(connectionValue).trim() !== "";
+  const connectionDisconnected =
+    connectionKnown && String(connectionValue).trim().toLowerCase() !== "connected";
   const flowLitersPerMinute = liveFlow === null ? null : Math.max(0, liveFlow * flowRateMultiplier);
   const data = applyLiveMeterDelta(
     summary || EMPTY_SUMMARY,
@@ -137,6 +145,7 @@ export function WaterMeterWidget({
     meterValue: liveMeterValue,
     meterValueMultiplier,
     flowLitersPerMinute,
+    connectionDisconnected,
     totalPricePerCubicMeter: drinkingWaterPrice + wastewaterPrice,
     error,
     timezone,
@@ -151,6 +160,7 @@ type WaterMeterWebProps = {
   meterValue: number | null;
   meterValueMultiplier: number;
   flowLitersPerMinute: number | null;
+  connectionDisconnected: boolean;
   totalPricePerCubicMeter: number;
   error: string | null;
   timezone: string;
@@ -164,6 +174,7 @@ function WaterMeterWeb({
   meterValue,
   meterValueMultiplier,
   flowLitersPerMinute,
+  connectionDisconnected,
   totalPricePerCubicMeter,
   error,
   timezone,
@@ -171,20 +182,19 @@ function WaterMeterWeb({
   textColor,
   mutedTextColor,
 }: WaterMeterWebProps) {
+  const [chartView, setChartView] = useState<"week" | "month">("week");
   const averageReference = Math.max(summary.averageUntilNowLiters, 1);
   const gaugeRatio = Math.max(0, Math.min(1.25, summary.todayLiters / averageReference));
   const gaugeDegrees = (gaugeRatio / 1.25) * 280;
   const barMaximum = Math.max(1, summary.averageDayLiters, ...summary.daily.map((entry) => entry.liters)) * 1.12;
   const comparison = formatPercent(summary.comparisonPercent);
   const trend = formatPercent(summary.trendPercent);
-  const hasFlow = flowLitersPerMinute !== null && flowLitersPerMinute >= 0.05;
-  const currentUsage = usageLevel(summary.recentLitersPerHour);
-  const statusColor = error ? palette.danger : hasFlow ? "#6ddcff" : currentUsage.color;
-  const statusText = error
-    ? "Verlauf nicht verfügbar"
-    : hasFlow
-      ? `${formatDecimal(flowLitersPerMinute, 1)} L/min`
-      : `letzte 30 Min · ${formatNumber(summary.recentLitersPerHour, 0)} L/h · ${currentUsage.label}`;
+  const monthlyCosts = (summary.monthly || []).map((entry) => ({
+    ...entry,
+    cost: (entry.liters / 1000) * totalPricePerCubicMeter,
+  }));
+  const monthlyBarMaximum = Math.max(0.01, ...monthlyCosts.map((entry) => entry.cost)) * 1.08;
+  const trailingTwelveMonthCost = monthlyCosts.reduce((sum, entry) => sum + entry.cost, 0);
   const meterCubicMeters = meterValue === null ? null : (meterValue * meterValueMultiplier) / 1000;
   const counterDigits = buildCounterDigits(meterCubicMeters);
   const todayCost = formatEuro((summary.todayLiters / 1000) * totalPricePerCubicMeter);
@@ -197,12 +207,16 @@ function WaterMeterWeb({
 
   return createElement(
     "div",
-    { style: { ...webRootStyle, color: textColor } },
+    { style: { ...webRootStyle, color: textColor }, title: error || undefined },
     createElement(
       "div",
       { style: webStatusRowStyle },
-      createElement("span", { style: { ...webStatusDotStyle, backgroundColor: statusColor } }),
-      createElement("span", { style: { color: error ? palette.danger : mutedTextColor } }, statusText)
+      connectionDisconnected
+        ? createElement(MaterialCommunityIcons, { color: palette.danger, name: "wifi-off", size: 13 })
+        : null,
+      connectionDisconnected
+        ? createElement("span", { style: { color: palette.danger } }, "keine Verbindung")
+        : null
     ),
     createElement(
       "div",
@@ -226,7 +240,7 @@ function WaterMeterWeb({
                 backgroundColor: comparison.background,
               },
             },
-            `${comparison.arrow} ${comparison.text} vs. Ø bis jetzt`
+            `${comparison.arrow} ${comparison.text} vs. Ø gleiche Uhrzeit`
           )
         ),
         createElement(
@@ -245,12 +259,38 @@ function WaterMeterWeb({
         createElement(
           "div",
           { style: webChartHeaderStyle },
-          createElement("strong", null, "Tagesverbrauch"),
-          createElement("span", { style: { color: mutedTextColor } }, `Ø ${formatLiters(summary.averageDayLiters)}`)
+          createElement("strong", null, chartView === "month" ? "Monatskosten" : "Tagesverbrauch"),
+          createElement(
+            "div",
+            { style: webChartToolbarStyle },
+            chartView === "week"
+              ? createElement("span", { style: { color: mutedTextColor } }, `Ø ${formatLiters(summary.averageDayLiters)}`)
+              : null,
+            createElement(
+              "button",
+              {
+                type: "button",
+                title: chartView === "week" ? "Monatsansicht" : "Wochenansicht",
+                "aria-label": chartView === "week" ? "Monatsansicht anzeigen" : "Wochenansicht anzeigen",
+                "aria-pressed": chartView === "month",
+                onClick: () => setChartView((current) => (current === "week" ? "month" : "week")),
+                style: {
+                  ...webChartToggleStyle,
+                  color: chartView === "month" ? "#6ddcff" : mutedTextColor,
+                  backgroundColor: chartView === "month" ? "rgba(109,220,255,.12)" : "rgba(157,173,214,.08)",
+                },
+              },
+              createElement(MaterialCommunityIcons, {
+                color: chartView === "month" ? "#6ddcff" : mutedTextColor,
+                name: chartView === "month" ? "calendar-week" : "calendar-month-outline",
+                size: 13,
+              })
+            )
+          )
         ),
         createElement(
           "div",
-          { style: webBarsStyle },
+          { style: { ...webBarsStyle, display: chartView === "week" ? "grid" : "none" } },
           summary.daily.map((entry) => {
             const height = Math.max(3, (entry.liters / barMaximum) * 76);
             return createElement(
@@ -275,14 +315,55 @@ function WaterMeterWeb({
         ),
         createElement(
           "div",
+          { style: { ...webMonthBarsStyle, display: chartView === "month" ? "grid" : "none" } },
+          monthlyCosts.map((entry, index) => {
+            const height = Math.max(44, (entry.cost / monthlyBarMaximum) * 84);
+            const isCurrentMonth = index === monthlyCosts.length - 1;
+            return createElement(
+              "div",
+              { key: entry.month, style: webMonthBarColumnStyle },
+              createElement(
+                "span",
+                {
+                  style: {
+                    ...webMonthBarStyle,
+                    height,
+                    background: isCurrentMonth
+                      ? "linear-gradient(180deg, #6ddcff, #5c7cff)"
+                      : "rgba(109,220,255,.30)",
+                  },
+                },
+                createElement("span", { style: webMonthCostTextStyle }, formatEuro(entry.cost))
+              ),
+              createElement(
+                "span",
+                { style: { ...webBarLabelStyle, color: isCurrentMonth ? "#aebcff" : mutedTextColor } },
+                monthLabel(entry.month, timezone)
+              )
+            );
+          })
+        ),
+        createElement(
+          "div",
           { style: webWeekCostStyle },
-          createElement("span", { style: { ...webEyebrowStyle, color: mutedTextColor } }, "KOSTEN SEIT MONTAG"),
-          createElement("strong", null, currentWeekCost)
+          createElement(
+            "span",
+            { style: { ...webEyebrowStyle, color: mutedTextColor } },
+            chartView === "month" ? "KOSTEN LETZTE 12 MONATE" : "KOSTEN SEIT MONTAG"
+          ),
+          createElement("strong", null, chartView === "month" ? formatEuro(trailingTwelveMonthCost) : currentWeekCost)
         )
         )
       )
     ),
-    renderIntradayPanel(summary.intraday, summary.recentLitersPerHour, timezone, mutedTextColor, lowPowerMode),
+    renderIntradayPanel(
+      summary.intraday,
+      summary.recentLitersPerHour,
+      flowLitersPerMinute,
+      timezone,
+      mutedTextColor,
+      lowPowerMode
+    ),
     createElement(
       "div",
       { style: webFooterStyle },
@@ -324,6 +405,7 @@ function footerMetric(label: string, value: string, mutedColor: string, valueCol
 function renderIntradayPanel(
   intraday: WaterMeterIntradayValue[],
   recentLitersPerHour: number,
+  flowLitersPerMinute: number | null,
   timezone: string,
   mutedTextColor: string,
   lowPowerMode: boolean
@@ -345,7 +427,8 @@ function renderIntradayPanel(
   const peak = coordinates.reduce((highest, point) =>
     point.litersPerHour > highest.litersPerHour ? point : highest
   );
-  const level = usageLevel(recentLitersPerHour);
+  const hasLiveFlow = flowLitersPerMinute !== null && flowLitersPerMinute >= 0.05;
+  const level = usageLevel(hasLiveFlow ? flowLitersPerMinute * 60 : recentLitersPerHour);
   const timeTicks = [0, 0.25, 0.5, 0.75, 1].map(
     (ratio) => points[Math.round((points.length - 1) * ratio)]
   );
@@ -371,7 +454,7 @@ function renderIntradayPanel(
             backgroundColor: level.background,
           },
         },
-        `jetzt ${level.label}`
+        hasLiveFlow ? `${formatDecimal(flowLitersPerMinute, 1)} L/min` : `jetzt ${level.label}`
       )
     ),
     createElement(
@@ -523,6 +606,16 @@ function weekdayLabel(date: string, timezone: string) {
   }
 }
 
+function monthLabel(month: string, timezone: string) {
+  try {
+    return new Intl.DateTimeFormat("de-DE", { month: "short", timeZone: timezone })
+      .format(new Date(`${month}-15T12:00:00Z`))
+      .replace(".", "");
+  } catch {
+    return month.slice(5);
+  }
+}
+
 function buildCounterDigits(value: number | null) {
   if (value === null || !Number.isFinite(value)) {
     return ["–", "–", "–", "–", "–", "–", "–", "–"];
@@ -608,6 +701,9 @@ function applyLiveMeterDelta(
     ),
     recentLitersPerHour: summary.recentLitersPerHour + deltaLiters * 2,
     currentWeekLiters: (summary.currentWeekLiters || 0) + deltaLiters,
+    monthly: (summary.monthly || []).map((entry, index, entries) =>
+      index === entries.length - 1 ? { ...entry, liters: entry.liters + deltaLiters } : entry
+    ),
     daily: summary.daily.map((entry) =>
       entry.isToday
         ? {
@@ -633,13 +729,12 @@ const webRootStyle: CSSProperties = {
 const webStatusRowStyle: CSSProperties = {
   minHeight: 16,
   display: "flex",
-  justifyContent: "flex-end",
+  justifyContent: "center",
   alignItems: "center",
   gap: 6,
   fontSize: 10,
+  fontWeight: 750,
 };
-
-const webStatusDotStyle: CSSProperties = { width: 6, height: 6, borderRadius: "50%" };
 
 const webMainStyle: CSSProperties = {
   flex: 1,
@@ -690,11 +785,17 @@ const webTodayCostStyle: CSSProperties = { position: "absolute", top: 142, left:
 const webChartAreaStyle: CSSProperties = { minWidth: 0, alignSelf: "stretch", paddingLeft: 12, borderLeft: `1px solid ${palette.border}` };
 const webChartContentStyle: CSSProperties = { position: "relative", top: 6, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" };
 const webChartHeaderStyle: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 10 };
+const webChartToolbarStyle: CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
+const webChartToggleStyle: CSSProperties = { width: 24, height: 22, display: "grid", placeItems: "center", padding: 0, border: `1px solid ${palette.border}`, borderRadius: 6, cursor: "pointer", lineHeight: 1 };
 const webBarsStyle: CSSProperties = { height: 112, display: "grid", gridAutoFlow: "column", gridAutoColumns: "minmax(16px, 1fr)", alignItems: "end", gap: 5, borderBottom: `1px solid ${palette.border}` };
 const webBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: 3 };
 const webBarValueStyle: CSSProperties = { fontSize: 7, whiteSpace: "nowrap" };
 const webBarStyle: CSSProperties = { width: "60%", minWidth: 8, maxWidth: 22, borderRadius: "5px 5px 1px 1px" };
 const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight: 700, whiteSpace: "nowrap" };
+const webMonthBarsStyle: CSSProperties = { height: 112, display: "grid", gridTemplateColumns: "repeat(12, minmax(0, 1fr))", alignItems: "end", gap: 2, borderBottom: `1px solid ${palette.border}` };
+const webMonthBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: 3 };
+const webMonthBarStyle: CSSProperties = { position: "relative", width: "76%", minWidth: 10, maxWidth: 18, borderRadius: "4px 4px 1px 1px" };
+const webMonthCostTextStyle: CSSProperties = { position: "absolute", left: "50%", bottom: 4, color: "#eafcff", transform: "translateX(-50%) rotate(-90deg)", transformOrigin: "center", fontSize: 6, fontWeight: 850, lineHeight: 1, whiteSpace: "nowrap" };
 const webWeekCostStyle: CSSProperties = { minHeight: 22, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, paddingTop: 5, fontSize: 10, lineHeight: "12px" };
 
 const webIntradayPanelStyle: CSSProperties = {

@@ -296,6 +296,11 @@ export type WaterMeterIntradayValue = {
   liters: number;
 };
 
+export type WaterMeterMonthlyValue = {
+  month: string;
+  liters: number;
+};
+
 export type WaterMeterSummary = {
   generatedAt: number;
   latestMeterValue: number | null;
@@ -307,6 +312,7 @@ export type WaterMeterSummary = {
   trendPercent: number | null;
   daily: WaterMeterDailyValue[];
   intraday: WaterMeterIntradayValue[];
+  monthly: WaterMeterMonthlyValue[];
   recentLitersPerHour: number;
   currentWeekLiters: number;
 };
@@ -317,6 +323,7 @@ export type WaterMeterWidgetConfig = WidgetBase & {
   meterValueStateId: string;
   flowRateStateId?: string;
   errorStateId?: string;
+  connectionStateId?: string;
   meterValueMultiplier?: number;
   flowRateMultiplier?: number;
   maxFlowLitersPerMinute?: number;
