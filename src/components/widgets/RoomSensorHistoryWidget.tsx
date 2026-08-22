@@ -24,8 +24,8 @@ const AXIS_TOP_PADDING = 4;
 const AXIS_BOTTOM_HEIGHT = 14;
 const CHART_WIDTH = AXIS_LEFT_WIDTH + PLOT_WIDTH + AXIS_RIGHT_WIDTH;
 const CHART_HEIGHT = AXIS_TOP_PADDING + PLOT_HEIGHT + AXIS_BOTTOM_HEIGHT;
-const HOUR_STEP_CANDIDATES = [1, 2, 3, 4, 6, 12, 24];
-const MAX_HOUR_TICKS = 8;
+const LABEL_STEP_CANDIDATES = [2, 3, 4, 6, 12, 24];
+const MAX_LABEL_TICKS = 8;
 const TEMP_AXIS_MIN = 15;
 const TEMP_AXIS_MAX = 35;
 
@@ -293,9 +293,11 @@ function renderChart({
         strokeWidth: 1,
       })
     );
-    labels.push(
-      axisLabel(`xlabel-${tick.t}`, tick.label, x + AXIS_LEFT_WIDTH, PLOT_HEIGHT + 11 + AXIS_TOP_PADDING, "center", mutedTextColor)
-    );
+    if (tick.label !== null) {
+      labels.push(
+        axisLabel(`xlabel-${tick.t}`, tick.label, x + AXIS_LEFT_WIDTH, PLOT_HEIGHT + 11 + AXIS_TOP_PADDING, "center", mutedTextColor)
+      );
+    }
   });
 
   if (tempRange) {
@@ -548,28 +550,34 @@ function buildSeriesPath(points: SensorPoint[], range: ValueRange, domain: TimeD
 
 function buildHourTicks(domain: TimeDomain) {
   const spanHours = (domain.maxT - domain.minT) / 3_600_000;
-  let stepHours = HOUR_STEP_CANDIDATES[HOUR_STEP_CANDIDATES.length - 1];
-  for (const candidate of HOUR_STEP_CANDIDATES) {
-    if (spanHours / candidate <= MAX_HOUR_TICKS) {
-      stepHours = candidate;
+  let labelStepHours = LABEL_STEP_CANDIDATES[LABEL_STEP_CANDIDATES.length - 1];
+  for (const candidate of LABEL_STEP_CANDIDATES) {
+    if (spanHours / candidate <= MAX_LABEL_TICKS) {
+      labelStepHours = candidate;
       break;
     }
   }
 
-  const stepMs = stepHours * 3_600_000;
-  const firstTickT = Math.ceil(domain.minT / stepMs) * stepMs;
-  const ticks: { t: number; label: string }[] = [];
-  for (let t = firstTickT; t <= domain.maxT; t += stepMs) {
-    ticks.push({ t, label: formatHourLabel(t) });
+  const firstTickT = startOfNextHour(domain.minT);
+  const ticks: { t: number; label: string | null }[] = [];
+  for (let t = firstTickT; t <= domain.maxT; t += 3_600_000) {
+    const hour = new Date(t).getHours();
+    ticks.push({ t, label: hour % labelStepHours === 0 ? formatHourLabel(t) : null });
   }
   return ticks;
 }
 
-function formatHourLabel(t: number) {
+function startOfNextHour(t: number) {
   const date = new Date(t);
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+  date.setMinutes(0, 0, 0);
+  if (date.getTime() < t) {
+    date.setHours(date.getHours() + 1);
+  }
+  return date.getTime();
+}
+
+function formatHourLabel(t: number) {
+  return `${new Date(t).getHours()}h`;
 }
 
 function latestValue(points: SensorPoint[]) {
