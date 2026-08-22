@@ -28,18 +28,9 @@ const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
 const ALARM_THEME_TEXT_COLOR = "#8fffb6";
 const ALARM_THEME_MUTED_COLOR = "#8fffb6";
-const ALARM_THEME_TEXT_GLOW = {
-  textShadowColor: "rgba(143,255,182,0.75)",
-  textShadowRadius: 6,
-  textShadowOffset: { width: 0, height: 0 },
-};
-const ALARM_THEME_BUTTON_TEXT_GLOW = {
-  textShadowColor: "rgba(255,255,255,0.55)",
-  textShadowRadius: 4,
-  textShadowOffset: { width: 0, height: 0 },
-};
 
 const ALARM_BUBBLE_GRADIENT = {
+  backgroundColor: "transparent",
   backgroundImage: "linear-gradient(180deg, rgba(30,120,56,0.28), rgba(9,22,14,0.85))",
 } as unknown as ViewStyle;
 
@@ -669,21 +660,11 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
         <View style={styles.bubbleHeaderRow}>
           <Text
             numberOfLines={1}
-            style={[
-              styles.sender,
-              { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor },
-              isAlarmTheme ? ALARM_THEME_TEXT_GLOW : null,
-            ]}
+            style={[styles.sender, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}
           >
             {entry.sender || (isOutgoing ? "Ich" : "Unbekannt")}
           </Text>
-          <Text
-            style={[
-              styles.timestamp,
-              { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor },
-              isAlarmTheme ? ALARM_THEME_TEXT_GLOW : null,
-            ]}
-          >
+          <Text style={[styles.timestamp, { color: isAlarmTheme ? ALARM_THEME_MUTED_COLOR : mutedTextColor }]}>
             {formatTimestamp(entry.ts)}
           </Text>
         </View>
@@ -698,13 +679,7 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
           </Pressable>
         ) : null}
         {entry.text ? (
-          <Text
-            style={[
-              styles.message,
-              { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor },
-              isAlarmTheme ? [ALARM_THEME_TEXT_GLOW, styles.messageAlarm] : null,
-            ]}
-          >
+          <Text style={[styles.message, { color: isAlarmTheme ? ALARM_THEME_TEXT_COLOR : textColor }]}>
             {entry.text}
           </Text>
         ) : null}
@@ -742,13 +717,7 @@ const TelegramMessageRow = memo(function TelegramMessageRow({
                     isPending ? styles.buttonChipPending : null,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.buttonChipLabel,
-                      isAlarmTheme ? styles.buttonChipLabelAlarm : null,
-                      isAlarmTheme ? ALARM_THEME_BUTTON_TEXT_GLOW : null,
-                    ]}
-                  >
+                  <Text style={[styles.buttonChipLabel, isAlarmTheme ? styles.buttonChipLabelAlarm : null]}>
                     {button.text}
                   </Text>
                 </Pressable>
@@ -935,9 +904,6 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  messageAlarm: {
-    fontWeight: "800",
   },
   thumb: {
     borderRadius: 8,
