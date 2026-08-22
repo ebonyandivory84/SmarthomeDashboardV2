@@ -33,7 +33,7 @@ export function AlarmFloorplanWidget({ config, isActivePage = true, lowPowerMode
     );
   }
 
-  if (!isActivePage || lowPowerMode) {
+  if (!isActivePage) {
     return (
       <View style={styles.fallback}>
         <Text style={styles.title}>{config.title || "AlarmSystem"}</Text>
