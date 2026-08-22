@@ -26,8 +26,8 @@ const WS_STALE_TIMEOUT_MS = 45000;
 const THUMB_MAX_WIDTH = 220;
 const THUMB_MIN_HEIGHT = 90;
 const THUMB_MAX_HEIGHT = 220;
-const ALARM_THEME_TEXT_COLOR = "#8fffb6";
-const ALARM_THEME_MUTED_COLOR = "#8fffb6";
+const ALARM_THEME_TEXT_COLOR = "#39ff88";
+const ALARM_THEME_MUTED_COLOR = "#39ff88";
 
 const ALARM_BUBBLE_GRADIENT_INCOMING = {
   backgroundImage: "linear-gradient(180deg, rgba(30,120,56,0.28), rgba(9,22,14,0.85))",
