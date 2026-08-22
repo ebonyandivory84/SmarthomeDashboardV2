@@ -95,6 +95,15 @@ function buildWaterSummary(points, options = {}) {
   const dailyLiters = new Map([...relevantKeys].map((key) => [key, 0]));
   const untilNowLiters = new Map([...recentKeys].map((key) => [key, 0]));
   const coveredDays = new Set();
+  const intradayBucketMs = 30 * 60 * 1000;
+  const intradayBucketCount = 24;
+  const intradayStart =
+    Math.floor(now / intradayBucketMs) * intradayBucketMs - (intradayBucketCount - 1) * intradayBucketMs;
+  const intraday = Array.from({ length: intradayBucketCount }, (_, index) => ({
+    t: intradayStart + index * intradayBucketMs,
+    liters: 0,
+  }));
+  let recentLiters = 0;
 
   const samples = (Array.isArray(points) ? points : [])
     .filter((point) => Number.isFinite(point?.t) && Number.isFinite(point?.v))
@@ -121,6 +130,18 @@ function buildWaterSummary(points, options = {}) {
     if (untilNowLiters.has(local.date) && local.minuteOfDay <= nowLocal.minuteOfDay) {
       untilNowLiters.set(local.date, (untilNowLiters.get(local.date) || 0) + deltaLiters);
     }
+    if (current.t >= intradayStart && current.t <= now) {
+      const bucketIndex = Math.min(
+        intradayBucketCount - 1,
+        Math.floor((current.t - intradayStart) / intradayBucketMs)
+      );
+      if (bucketIndex >= 0) {
+        intraday[bucketIndex].liters += deltaLiters;
+      }
+    }
+    if (current.t >= now - intradayBucketMs && current.t <= now) {
+      recentLiters += deltaLiters;
+    }
   }
 
   const recentDailyValues = recentKeys.filter((key) => coveredDays.has(key)).map((key) => dailyLiters.get(key) || 0);
@@ -145,6 +166,8 @@ function buildWaterSummary(points, options = {}) {
       liters: round(dailyLiters.get(date) || 0),
       ...(date === nowLocal.date ? { isToday: true } : null),
     })),
+    intraday: intraday.map((entry) => ({ t: entry.t, liters: round(entry.liters) })),
+    recentLitersPerHour: round(recentLiters * 2),
   };
 }
 

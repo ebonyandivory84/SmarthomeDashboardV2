@@ -291,6 +291,11 @@ export type WaterMeterDailyValue = {
   isToday?: boolean;
 };
 
+export type WaterMeterIntradayValue = {
+  t: number;
+  liters: number;
+};
+
 export type WaterMeterSummary = {
   generatedAt: number;
   latestMeterValue: number | null;
@@ -301,6 +306,8 @@ export type WaterMeterSummary = {
   comparisonPercent: number | null;
   trendPercent: number | null;
   daily: WaterMeterDailyValue[];
+  intraday: WaterMeterIntradayValue[];
+  recentLitersPerHour: number;
 };
 
 export type WaterMeterWidgetConfig = WidgetBase & {

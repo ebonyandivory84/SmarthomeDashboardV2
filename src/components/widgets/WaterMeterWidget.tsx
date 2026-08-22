@@ -3,7 +3,12 @@ import { createElement, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
-import { StateSnapshot, WaterMeterSummary, WaterMeterWidgetConfig } from "../../types/dashboard";
+import {
+  StateSnapshot,
+  WaterMeterIntradayValue,
+  WaterMeterSummary,
+  WaterMeterWidgetConfig,
+} from "../../types/dashboard";
 import { palette } from "../../utils/theme";
 
 type WaterMeterWidgetProps = {
@@ -24,6 +29,8 @@ const EMPTY_SUMMARY: WaterMeterSummary = {
   comparisonPercent: null,
   trendPercent: null,
   daily: [],
+  intraday: [],
+  recentLitersPerHour: 0,
 };
 
 const LEGACY_METER_VALUE_STATE_ID = "mqtt.1.watermeter.main.value";
@@ -165,14 +172,13 @@ function WaterMeterWeb({
   const comparison = formatPercent(summary.comparisonPercent);
   const trend = formatPercent(summary.trendPercent);
   const hasFlow = flowLitersPerMinute !== null && flowLitersPerMinute >= 0.05;
-  const statusColor = error ? palette.danger : hasFlow ? "#6ddcff" : palette.success;
+  const currentUsage = usageLevel(summary.recentLitersPerHour);
+  const statusColor = error ? palette.danger : hasFlow ? "#6ddcff" : currentUsage.color;
   const statusText = error
     ? "Verlauf nicht verfügbar"
-    : flowLitersPerMinute === null
-      ? "Durchfluss nicht konfiguriert"
-      : hasFlow
-        ? `${formatDecimal(flowLitersPerMinute, 1)} L/min`
-        : "kein Durchfluss";
+    : hasFlow
+      ? `${formatDecimal(flowLitersPerMinute, 1)} L/min`
+      : `letzte 30 Min · ${formatNumber(summary.recentLitersPerHour, 0)} L/h · ${currentUsage.label}`;
   const meterCubicMeters = meterValue === null ? null : (meterValue * meterValueMultiplier) / 1000;
   const counterDigits = buildCounterDigits(meterCubicMeters);
   const ringStyle: CSSProperties = {
@@ -252,6 +258,7 @@ function WaterMeterWeb({
         )
       )
     ),
+    renderIntradayPanel(summary.intraday, summary.recentLitersPerHour, timezone, mutedTextColor, lowPowerMode),
     createElement(
       "div",
       { style: webFooterStyle },
@@ -287,6 +294,108 @@ function footerMetric(label: string, value: string, mutedColor: string, valueCol
     { style: webMetricStyle },
     createElement("span", { style: { ...webEyebrowStyle, color: mutedColor } }, label),
     createElement("strong", { style: { color: valueColor } }, value)
+  );
+}
+
+function renderIntradayPanel(
+  intraday: WaterMeterIntradayValue[],
+  recentLitersPerHour: number,
+  timezone: string,
+  mutedTextColor: string,
+  lowPowerMode: boolean
+) {
+  const points = intraday.length >= 2 ? intraday : buildEmptyIntradayPoints();
+  const maximum = Math.max(1, ...points.map((entry) => entry.liters));
+  const baseline = 48;
+  const plotHeight = 40;
+  const coordinates = points.map((entry, index) => ({
+    ...entry,
+    x: (index / Math.max(1, points.length - 1)) * 300,
+    y: baseline - (entry.liters / maximum) * plotHeight,
+  }));
+  const linePath = coordinates
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(" ");
+  const areaPath = `M0 ${baseline} ${linePath.replace(/^M/, "L")} L300 ${baseline} Z`;
+  const peak = coordinates.reduce((highest, point) => (point.liters > highest.liters ? point : highest));
+  const level = usageLevel(recentLitersPerHour);
+  const start = points[0];
+  const end = points[points.length - 1];
+
+  return createElement(
+    "div",
+    { style: webIntradayPanelStyle },
+    createElement(
+      "div",
+      { style: webIntradayHeaderStyle },
+      createElement("strong", null, "Verbrauch · letzte 12 Stunden"),
+      createElement(
+        "span",
+        {
+          style: {
+            ...webUsageBadgeStyle,
+            color: level.color,
+            backgroundColor: level.background,
+          },
+        },
+        `jetzt ${level.label}`
+      )
+    ),
+    createElement(
+      "svg",
+      {
+        viewBox: "0 0 300 54",
+        preserveAspectRatio: "none",
+        role: "img",
+        "aria-label": "Wasserverbrauch der letzten zwölf Stunden",
+        style: webIntradaySvgStyle,
+      },
+      createElement(
+        "defs",
+        null,
+        createElement(
+          "linearGradient",
+          { id: "water-intraday-fill", x1: "0", y1: "0", x2: "0", y2: "1" },
+          createElement("stop", { offset: "0%", stopColor: "#6ddcff", stopOpacity: lowPowerMode ? 0.18 : 0.32 }),
+          createElement("stop", { offset: "100%", stopColor: "#5c7cff", stopOpacity: 0.02 })
+        )
+      ),
+      createElement("path", { d: "M0 8 H300 M0 28 H300 M0 48 H300", fill: "none", stroke: "rgba(157,173,214,.10)", strokeWidth: 1 }),
+      createElement("path", { d: areaPath, fill: "url(#water-intraday-fill)" }),
+      createElement("path", {
+        d: linePath,
+        fill: "none",
+        stroke: "#6ddcff",
+        strokeWidth: 2,
+        vectorEffect: "non-scaling-stroke",
+        strokeLinejoin: "round",
+        strokeLinecap: "round",
+      }),
+      peak.liters > 0
+        ? createElement("circle", {
+            cx: peak.x,
+            cy: peak.y,
+            r: 2.7,
+            fill: "#0d1424",
+            stroke: "#aebcff",
+            strokeWidth: 1.5,
+            vectorEffect: "non-scaling-stroke",
+          })
+        : null
+    ),
+    createElement(
+      "div",
+      { style: { ...webIntradayLabelsStyle, color: mutedTextColor } },
+      createElement("span", null, timeLabel(start.t, timezone)),
+      createElement(
+        "span",
+        null,
+        peak.liters > 0
+          ? `Spitze ${timeLabel(peak.t, timezone)} · ${formatLiters(peak.liters)}/30 min`
+          : "kein Verbrauch im Zeitraum"
+      ),
+      createElement("span", null, timeLabel(end.t, timezone))
+    )
   );
 }
 
@@ -356,6 +465,37 @@ function buildCounterDigits(value: number | null) {
   return fixed.padStart(8, "0").slice(-8).split("");
 }
 
+function buildEmptyIntradayPoints(): WaterMeterIntradayValue[] {
+  const bucketMs = 30 * 60 * 1000;
+  const end = Math.floor(Date.now() / bucketMs) * bucketMs;
+  return Array.from({ length: 24 }, (_, index) => ({
+    t: end - (23 - index) * bucketMs,
+    liters: 0,
+  }));
+}
+
+function usageLevel(litersPerHour: number) {
+  if (litersPerHour >= 120) {
+    return { label: "hoch", color: "#ffb46c", background: "rgba(255,180,108,.12)" };
+  }
+  if (litersPerHour >= 20) {
+    return { label: "normal", color: "#6ddcff", background: "rgba(109,220,255,.10)" };
+  }
+  return { label: "ruhig", color: palette.success, background: "rgba(108,255,143,.10)" };
+}
+
+function timeLabel(timestamp: number, timezone: string) {
+  try {
+    return new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: timezone,
+    }).format(new Date(timestamp));
+  } catch {
+    return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(new Date(timestamp));
+  }
+}
+
 function applyLiveMeterDelta(
   summary: WaterMeterSummary,
   liveMeterValue: number | null,
@@ -383,6 +523,10 @@ function applyLiveMeterDelta(
     latestMeterValue: liveMeterValue,
     todayLiters,
     comparisonPercent,
+    intraday: (summary.intraday.length > 0 ? summary.intraday : buildEmptyIntradayPoints()).map((entry, index, entries) =>
+      index === entries.length - 1 ? { ...entry, liters: entry.liters + deltaLiters } : entry
+    ),
+    recentLitersPerHour: summary.recentLitersPerHour + deltaLiters * 2,
     daily: summary.daily.map((entry) =>
       entry.isToday
         ? {
@@ -467,6 +611,18 @@ const webBarColumnStyle: CSSProperties = { height: "100%", minWidth: 0, display:
 const webBarValueStyle: CSSProperties = { fontSize: 7, whiteSpace: "nowrap" };
 const webBarStyle: CSSProperties = { width: "60%", minWidth: 8, maxWidth: 22, borderRadius: "5px 5px 1px 1px" };
 const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight: 700, whiteSpace: "nowrap" };
+
+const webIntradayPanelStyle: CSSProperties = {
+  minHeight: 82,
+  padding: "7px 9px 5px",
+  borderRadius: 9,
+  border: `1px solid ${palette.border}`,
+  background: "rgba(8,14,27,.52)",
+};
+const webIntradayHeaderStyle: CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 9 };
+const webUsageBadgeStyle: CSSProperties = { padding: "2px 6px", borderRadius: 999, fontSize: 8, fontWeight: 800, whiteSpace: "nowrap" };
+const webIntradaySvgStyle: CSSProperties = { display: "block", width: "100%", height: 54, marginTop: 2, overflow: "visible" };
+const webIntradayLabelsStyle: CSSProperties = { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginTop: -2, fontSize: 7 };
 
 const webFooterStyle: CSSProperties = { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, paddingTop: 8, borderTop: `1px solid ${palette.border}` };
 const webCounterStyle: CSSProperties = { display: "flex", gap: 2, marginTop: 4 };
