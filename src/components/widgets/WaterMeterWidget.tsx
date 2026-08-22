@@ -305,22 +305,26 @@ function renderIntradayPanel(
   lowPowerMode: boolean
 ) {
   const points = intraday.length >= 2 ? intraday : buildEmptyIntradayPoints();
-  const maximum = Math.max(1, ...points.map((entry) => entry.liters));
+  const axisMaximum = niceAxisMaximum(Math.max(0, ...points.map((entry) => entry.liters * 2)));
   const baseline = 48;
   const plotHeight = 40;
   const coordinates = points.map((entry, index) => ({
     ...entry,
+    litersPerHour: entry.liters * 2,
     x: (index / Math.max(1, points.length - 1)) * 300,
-    y: baseline - (entry.liters / maximum) * plotHeight,
+    y: baseline - ((entry.liters * 2) / axisMaximum) * plotHeight,
   }));
   const linePath = coordinates
     .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
     .join(" ");
   const areaPath = `M0 ${baseline} ${linePath.replace(/^M/, "L")} L300 ${baseline} Z`;
-  const peak = coordinates.reduce((highest, point) => (point.liters > highest.liters ? point : highest));
+  const peak = coordinates.reduce((highest, point) =>
+    point.litersPerHour > highest.litersPerHour ? point : highest
+  );
   const level = usageLevel(recentLitersPerHour);
-  const start = points[0];
-  const end = points[points.length - 1];
+  const timeTicks = [0, 0.25, 0.5, 0.75, 1].map(
+    (ratio) => points[Math.round((points.length - 1) * ratio)]
+  );
 
   return createElement(
     "div",
@@ -342,59 +346,84 @@ function renderIntradayPanel(
       )
     ),
     createElement(
-      "svg",
-      {
-        viewBox: "0 0 300 54",
-        preserveAspectRatio: "none",
-        role: "img",
-        "aria-label": "Wasserverbrauch der letzten zwölf Stunden",
-        style: webIntradaySvgStyle,
-      },
+      "div",
+      { style: webIntradayChartStyle },
       createElement(
-        "defs",
-        null,
-        createElement(
-          "linearGradient",
-          { id: "water-intraday-fill", x1: "0", y1: "0", x2: "0", y2: "1" },
-          createElement("stop", { offset: "0%", stopColor: "#6ddcff", stopOpacity: lowPowerMode ? 0.18 : 0.32 }),
-          createElement("stop", { offset: "100%", stopColor: "#5c7cff", stopOpacity: 0.02 })
-        )
+        "div",
+        { style: { ...webYAxisStyle, color: mutedTextColor } },
+        createElement("span", { style: webYAxisUnitStyle }, "L/h"),
+        createElement("span", { style: { ...webYAxisTickStyle, top: 0 } }, formatAxisRate(axisMaximum)),
+        createElement("span", { style: { ...webYAxisTickStyle, top: 20 } }, formatAxisRate(axisMaximum / 2)),
+        createElement("span", { style: { ...webYAxisTickStyle, top: 40 } }, "0")
       ),
-      createElement("path", { d: "M0 8 H300 M0 28 H300 M0 48 H300", fill: "none", stroke: "rgba(157,173,214,.10)", strokeWidth: 1 }),
-      createElement("path", { d: areaPath, fill: "url(#water-intraday-fill)" }),
-      createElement("path", {
-        d: linePath,
-        fill: "none",
-        stroke: "#6ddcff",
-        strokeWidth: 2,
-        vectorEffect: "non-scaling-stroke",
-        strokeLinejoin: "round",
-        strokeLinecap: "round",
-      }),
-      peak.liters > 0
-        ? createElement("circle", {
-            cx: peak.x,
-            cy: peak.y,
-            r: 2.7,
-            fill: "#0d1424",
-            stroke: "#aebcff",
-            strokeWidth: 1.5,
-            vectorEffect: "non-scaling-stroke",
-          })
-        : null
+      createElement(
+        "svg",
+        {
+          viewBox: "0 0 300 54",
+          preserveAspectRatio: "none",
+          role: "img",
+          "aria-label": "Durchschnittliche Wasserflussrate der letzten zwölf Stunden",
+          style: webIntradaySvgStyle,
+        },
+        createElement("path", { d: "M0 8 H300 M0 28 H300 M0 48 H300", fill: "none", stroke: "rgba(157,173,214,.13)", strokeWidth: 1 }),
+        createElement("path", {
+          d: "M0 8 V48 H300",
+          fill: "none",
+          stroke: "rgba(157,173,214,.22)",
+          strokeWidth: 1,
+          vectorEffect: "non-scaling-stroke",
+        }),
+        createElement("path", {
+          d: areaPath,
+          fill: lowPowerMode ? "rgba(109,220,255,.12)" : "rgba(109,220,255,.22)",
+        }),
+        createElement("path", {
+          d: linePath,
+          fill: "none",
+          stroke: "#6ddcff",
+          strokeWidth: 2,
+          vectorEffect: "non-scaling-stroke",
+          strokeLinejoin: "round",
+          strokeLinecap: "round",
+        }),
+        peak.litersPerHour > 0
+          ? createElement("circle", {
+              cx: peak.x,
+              cy: peak.y,
+              r: 2.7,
+              fill: "#0d1424",
+              stroke: "#aebcff",
+              strokeWidth: 1.5,
+              vectorEffect: "non-scaling-stroke",
+            })
+          : null
+      )
     ),
     createElement(
       "div",
-      { style: { ...webIntradayLabelsStyle, color: mutedTextColor } },
-      createElement("span", null, timeLabel(start.t, timezone)),
+      { style: { ...webXAxisStyle, color: mutedTextColor } },
+      createElement("span", null),
       createElement(
-        "span",
-        null,
-        peak.liters > 0
-          ? `Spitze ${timeLabel(peak.t, timezone)} · ${formatLiters(peak.liters)}/30 min`
-          : "kein Verbrauch im Zeitraum"
-      ),
-      createElement("span", null, timeLabel(end.t, timezone))
+        "div",
+        { style: webXAxisTicksStyle },
+        timeTicks.map((entry, index) =>
+          createElement(
+            "span",
+            {
+              key: `${entry.t}-${index}`,
+              style: index === 0 ? webXAxisFirstTickStyle : index === timeTicks.length - 1 ? webXAxisLastTickStyle : undefined,
+            },
+            timeLabel(entry.t, timezone)
+          )
+        )
+      )
+    ),
+    createElement(
+      "div",
+      { style: { ...webIntradayPeakStyle, color: mutedTextColor } },
+      peak.litersPerHour > 0
+        ? `Spitze ${timeLabel(peak.t, timezone)} · ${formatAxisRate(peak.litersPerHour)} L/h`
+        : "kein Verbrauch im Zeitraum"
     )
   );
 }
@@ -494,6 +523,20 @@ function timeLabel(timestamp: number, timezone: string) {
   } catch {
     return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(new Date(timestamp));
   }
+}
+
+function niceAxisMaximum(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return 10;
+  }
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const rounded = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return rounded * magnitude;
+}
+
+function formatAxisRate(value: number) {
+  return formatNumber(value, value > 0 && value < 10 ? 1 : 0);
 }
 
 function applyLiveMeterDelta(
@@ -613,7 +656,7 @@ const webBarStyle: CSSProperties = { width: "60%", minWidth: 8, maxWidth: 22, bo
 const webBarLabelStyle: CSSProperties = { minHeight: 13, fontSize: 7, fontWeight: 700, whiteSpace: "nowrap" };
 
 const webIntradayPanelStyle: CSSProperties = {
-  minHeight: 82,
+  minHeight: 100,
   padding: "7px 9px 5px",
   borderRadius: 9,
   border: `1px solid ${palette.border}`,
@@ -621,8 +664,16 @@ const webIntradayPanelStyle: CSSProperties = {
 };
 const webIntradayHeaderStyle: CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 9 };
 const webUsageBadgeStyle: CSSProperties = { padding: "2px 6px", borderRadius: 999, fontSize: 8, fontWeight: 800, whiteSpace: "nowrap" };
-const webIntradaySvgStyle: CSSProperties = { display: "block", width: "100%", height: 54, marginTop: 2, overflow: "visible" };
-const webIntradayLabelsStyle: CSSProperties = { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginTop: -2, fontSize: 7 };
+const webIntradayChartStyle: CSSProperties = { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr)", gap: 4, marginTop: 3 };
+const webYAxisStyle: CSSProperties = { position: "relative", height: 54, fontSize: 7, textAlign: "right" };
+const webYAxisUnitStyle: CSSProperties = { position: "absolute", right: 0, top: -10, fontSize: 6, fontWeight: 800, letterSpacing: ".04em" };
+const webYAxisTickStyle: CSSProperties = { position: "absolute", right: 0, lineHeight: "8px", transform: "translateY(-50%)", whiteSpace: "nowrap" };
+const webIntradaySvgStyle: CSSProperties = { display: "block", width: "100%", height: 54, overflow: "visible" };
+const webXAxisStyle: CSSProperties = { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr)", gap: 4, fontSize: 7 };
+const webXAxisTicksStyle: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", textAlign: "center" };
+const webXAxisFirstTickStyle: CSSProperties = { textAlign: "left" };
+const webXAxisLastTickStyle: CSSProperties = { textAlign: "right" };
+const webIntradayPeakStyle: CSSProperties = { marginTop: 1, textAlign: "center", fontSize: 7 };
 
 const webFooterStyle: CSSProperties = { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, paddingTop: 8, borderTop: `1px solid ${palette.border}` };
 const webCounterStyle: CSSProperties = { display: "flex", gap: 2, marginTop: 4 };
