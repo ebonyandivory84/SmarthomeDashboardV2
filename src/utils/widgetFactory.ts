@@ -46,6 +46,8 @@ export function buildWidgetTemplate(
                       ? 4
                       : type === "waterMeter"
                         ? getPrimarySectionWidth(grid.columns)
+                        : type === "pdfSlideshow"
+                          ? 4
                         : type === "coco"
                       ? 6
                     : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -88,6 +90,8 @@ export function buildWidgetTemplate(
                         ? 3
                         : type === "waterMeter"
                           ? 3
+                          : type === "pdfSlideshow"
+                            ? 5
                           : type === "coco"
                         ? 3
                       : type === "wallbox" || type === "goe" || type === "wallboxV2"
@@ -463,6 +467,20 @@ export function buildWidgetTemplate(
         ...basePosition,
         w: Math.min(getPrimarySectionWidth(grid.columns), grid.columns),
       },
+    };
+  }
+
+  if (type === "pdfSlideshow") {
+    return {
+      id: `pdf-slideshow-${suffix}`,
+      type: "pdfSlideshow",
+      title: "PDF-Slideshow",
+      webdavBaseUrl: "",
+      webdavUsername: "",
+      webdavPassword: "",
+      folderPath: "Aktenschrank/erledigen",
+      slideIntervalSeconds: 5,
+      position: { ...basePosition },
     };
   }
 

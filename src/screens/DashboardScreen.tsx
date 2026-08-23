@@ -436,6 +436,7 @@ export function DashboardScreen() {
       currentWidget.type === "script" ||
       currentWidget.type === "host" ||
       currentWidget.type === "raspberryPiStats" ||
+      currentWidget.type === "pdfSlideshow" ||
       currentWidget.type === "wallbox" ||
       currentWidget.type === "goe" ||
       currentWidget.type === "wallboxV2" ||
@@ -485,6 +486,7 @@ export function DashboardScreen() {
                 currentWidget.type === "script" ||
                 currentWidget.type === "host" ||
                 currentWidget.type === "raspberryPiStats" ||
+                currentWidget.type === "pdfSlideshow" ||
                 currentWidget.type === "wallbox" ||
                 currentWidget.type === "goe" ||
                 currentWidget.type === "wallboxV2" ||

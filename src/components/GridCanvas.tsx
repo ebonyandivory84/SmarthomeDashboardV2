@@ -225,6 +225,7 @@ export function GridCanvas({
                   widget.type === "roomSensorHistory" ||
                   widget.type === "historyChart" ||
                   widget.type === "waterMeter" ||
+                  widget.type === "pdfSlideshow" ||
                   widget.type === "coco" ||
                   widget.type === "wallbox" ||
                   widget.type === "goe" ||
@@ -701,6 +702,7 @@ function getAutoLayoutSpec(
         return { w: 1, h: roundGridUnit(6) };
       case "historyChart":
       case "waterMeter":
+      case "pdfSlideshow":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
@@ -794,6 +796,7 @@ function getAutoLayoutSpec(
       return { w: mainColumnWidth, h: roundGridUnit(6) };
     case "historyChart":
     case "waterMeter":
+    case "pdfSlideshow":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
@@ -1013,6 +1016,7 @@ function WebGridCanvas({
             widget.type === "roomSensorHistory" ||
             widget.type === "historyChart" ||
             widget.type === "waterMeter" ||
+            widget.type === "pdfSlideshow" ||
             widget.type === "coco" ||
             widget.type === "wallbox" ||
             widget.type === "goe" ||
@@ -1225,6 +1229,7 @@ function WebWidgetShell({
           widget.type === "host" ||
           widget.type === "raspberryPiStats" ||
           widget.type === "waterMeter" ||
+          widget.type === "pdfSlideshow" ||
           widget.type === "coco" ||
           widget.type === "wallbox" ||
           widget.type === "goe" ||
@@ -1244,7 +1249,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1280,6 +1285,7 @@ function WebWidgetShell({
           widget.type === "host" ||
           widget.type === "raspberryPiStats" ||
           widget.type === "waterMeter" ||
+          widget.type === "pdfSlideshow" ||
           widget.type === "coco" ||
           widget.type === "wallbox" ||
           widget.type === "goe" ||
@@ -1897,6 +1903,7 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "roomSensorHistory" ||
     type === "historyChart" ||
     type === "waterMeter" ||
+    type === "pdfSlideshow" ||
     type === "coco" ||
     type === "wallbox" ||
     type === "goe" ||

@@ -24,7 +24,8 @@ export type WidgetType =
   | "telegram"
   | "roomSensorHistory"
   | "historyChart"
-  | "waterMeter";
+  | "waterMeter"
+  | "pdfSlideshow";
 
 export type IconPair = {
   active: string;
@@ -340,6 +341,16 @@ export type WaterMeterWidgetConfig = WidgetBase & {
   timezone?: string;
 };
 
+export type PdfSlideshowWidgetConfig = WidgetBase & {
+  type: "pdfSlideshow";
+  manualHeightOverride?: boolean;
+  webdavBaseUrl?: string;
+  webdavUsername?: string;
+  webdavPassword?: string;
+  folderPath?: string;
+  slideIntervalSeconds?: number;
+};
+
 export type CocoLockValueType = "number" | "string";
 
 export type CocoWidgetConfig = WidgetBase & {
@@ -622,7 +633,8 @@ export type WidgetConfig =
   | TelegramWidgetConfig
   | RoomSensorHistoryWidgetConfig
   | HistoryChartWidgetConfig
-  | WaterMeterWidgetConfig;
+  | WaterMeterWidgetConfig
+  | PdfSlideshowWidgetConfig;
 
 export type BackgroundMode = "gradient" | "mesh" | "solid";
 

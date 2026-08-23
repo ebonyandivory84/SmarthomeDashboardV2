@@ -138,6 +138,12 @@ const OPTIONS: Array<{
     icon: "water-outline",
   },
   {
+    type: "pdfSlideshow",
+    title: "PDF-Slideshow",
+    description: "Zeigt PDFs aus einem NAS-Ordner (WebDAV) als automatisch wechselnde Slideshow.",
+    icon: "file-pdf-box",
+  },
+  {
     type: "coco",
     title: "Coco",
     description: "SureFlap-Status, Lock-Modus und Snapshot der Katzenklappe in einem Widget.",

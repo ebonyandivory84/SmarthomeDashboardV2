@@ -82,6 +82,7 @@ export function WidgetFrame({
     widget.type === "roomSensorHistory" ||
     widget.type === "historyChart" ||
     widget.type === "waterMeter" ||
+    widget.type === "pdfSlideshow" ||
     widget.type === "coco" ||
     widget.type === "wallbox" ||
     widget.type === "goe" ||

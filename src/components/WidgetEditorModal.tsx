@@ -478,6 +478,23 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    if (widget.type === "pdfSlideshow") {
+      setSoundDraft({});
+      setWeatherSuggestions([]);
+      setWeatherSearchBusy(false);
+      setDraft({
+        title: widget.title,
+        showTitle: widget.showTitle === false ? "false" : "true",
+        webdavBaseUrl: widget.webdavBaseUrl || "",
+        webdavUsername: widget.webdavUsername || "",
+        webdavPassword: widget.webdavPassword || "",
+        folderPath: widget.folderPath || "Aktenschrank/erledigen",
+        slideIntervalSeconds: String(widget.slideIntervalSeconds ?? 5),
+        ...appearanceDraft,
+      });
+      return;
+    }
+
     if (widget.type === "coco") {
       setSoundDraft({
         press: resolveDraftSoundValue(
@@ -1455,6 +1472,17 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         historyDays: clampIntMax(draft.historyDays, widget.historyDays ?? 7, 3, 14),
         refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 300000, 60000),
         timezone: draft.timezone?.trim() || "Europe/Berlin",
+        appearance,
+      });
+    } else if (widget.type === "pdfSlideshow") {
+      onSave(widget.id, {
+        title: draft.title,
+        showTitle: draft.showTitle !== "false",
+        webdavBaseUrl: normalizeOptionalInput(draft.webdavBaseUrl),
+        webdavUsername: normalizeOptionalInput(draft.webdavUsername),
+        webdavPassword: normalizeOptionalInput(draft.webdavPassword),
+        folderPath: draft.folderPath?.trim() || "Aktenschrank/erledigen",
+        slideIntervalSeconds: clampInt(draft.slideIntervalSeconds, widget.slideIntervalSeconds ?? 5, 1),
         appearance,
       });
     } else {
@@ -3238,6 +3266,59 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Text style={styles.mappingHint}>
                   Verbrauchskosten pro Kubikmeter. Grundpreise und fixe Gebühren sind nicht enthalten.
                 </Text>
+              </>
+            ) : null}
+            {widget.type === "pdfSlideshow" ? (
+              <>
+                <Text style={styles.sectionTitle}>WebDAV-Zugang</Text>
+                <Field label="WebDAV Basis-URL">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, webdavBaseUrl: value }))}
+                    placeholder="https://192.168.44.xx"
+                    placeholderTextColor={palette.textMuted}
+                    style={styles.input}
+                    value={draft.webdavBaseUrl || ""}
+                  />
+                </Field>
+                <Field label="WebDAV Benutzer">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, webdavUsername: value }))}
+                    placeholderTextColor={palette.textMuted}
+                    style={styles.input}
+                    value={draft.webdavUsername || ""}
+                  />
+                </Field>
+                <Field label="WebDAV Passwort">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, webdavPassword: value }))}
+                    placeholderTextColor={palette.textMuted}
+                    secureTextEntry
+                    style={styles.input}
+                    value={draft.webdavPassword || ""}
+                  />
+                </Field>
+                <Text style={styles.sectionTitle}>Ordner</Text>
+                <Field label="Ordnerpfad">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, folderPath: value }))}
+                    placeholder="Aktenschrank/erledigen"
+                    placeholderTextColor={palette.textMuted}
+                    style={styles.input}
+                    value={draft.folderPath || "Aktenschrank/erledigen"}
+                  />
+                </Field>
+                <Field label="Intervall (Sekunden)">
+                  <TextInput
+                    keyboardType="numeric"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, slideIntervalSeconds: value }))}
+                    style={styles.input}
+                    value={draft.slideIntervalSeconds || "5"}
+                  />
+                </Field>
               </>
             ) : null}
             {widget.type === "coco" ? (
