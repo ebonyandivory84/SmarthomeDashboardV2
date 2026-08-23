@@ -224,4 +224,6 @@ function buildWaterSummary(points, options = {}) {
 module.exports = {
   buildWaterMonthlyValues,
   buildWaterSummary,
+  localDateParts,
+  shiftMonthKey,
 };

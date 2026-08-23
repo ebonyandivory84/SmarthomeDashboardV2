@@ -11,6 +11,7 @@ const https = require("https");
 const crypto = require("crypto");
 const { resolveWebRoot } = require("./lib/static");
 const { buildWaterMonthlyValues, buildWaterSummary } = require("./lib/waterSummary");
+const { buildMonthlyAverages } = require("./lib/monthlyAverage");
 let WebSocketClient = null;
 try {
   WebSocketClient = require("ws");
@@ -43,6 +44,8 @@ const INFLUX_CONFIG_OBJECT_ID = "system.adapter.influxdb.0";
 const INFLUX_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const roomSensorHistoryCache = new Map();
 const ROOM_SENSOR_HISTORY_CACHE_TTL_MS = 45 * 1000;
+const roomSensorYearlyCache = new Map();
+const ROOM_SENSOR_YEARLY_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const waterSummaryCache = new Map();
 const WATER_SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const waterMonthlyCache = new Map();
@@ -449,6 +452,12 @@ async function main(adapter) {
         : [];
       if (ids.length === 0) {
         res.json({});
+        return;
+      }
+
+      if (normalizeFilter(req.query?.period) === "year") {
+        const history = await readRoomSensorHistoryYearly(adapter, ids);
+        res.json(history);
         return;
       }
 
@@ -3711,6 +3720,52 @@ async function readRoomSensorHistoryRange(adapter, ids, fromMs, toMs) {
 
   const result = Object.fromEntries(entries);
   roomSensorHistoryCache.set(cacheKey, { timestamp: Date.now(), data: result });
+  return result;
+}
+
+function pruneRoomSensorYearlyCache() {
+  const now = Date.now();
+  for (const [key, entry] of roomSensorYearlyCache) {
+    if (now - entry.timestamp > ROOM_SENSOR_YEARLY_CACHE_TTL_MS) {
+      roomSensorYearlyCache.delete(key);
+    }
+  }
+}
+
+const YEARLY_LOOKBACK_MS = 380 * 24 * 60 * 60 * 1000;
+
+// Monthly averages barely change within a few hours, so this is cached far
+// longer than the live views and is only ever computed on demand (detail
+// modal opened + "Jahr" selected) to keep InfluxDB/CPU load on the device low.
+async function readRoomSensorHistoryYearly(adapter, ids) {
+  const influxConfig = await getInfluxConfig(adapter);
+  if (!influxConfig) {
+    throw new Error("InfluxDB-Instanz (system.adapter.influxdb.0) wurde nicht gefunden");
+  }
+
+  pruneRoomSensorYearlyCache();
+  const cacheKey = ids.slice().sort().join(",");
+  const cached = roomSensorYearlyCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < ROOM_SENSOR_YEARLY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const toMs = Date.now();
+  const fromMs = toMs - YEARLY_LOOKBACK_MS;
+
+  const entries = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const dailySeries = await queryInfluxSeriesRange(influxConfig, id, fromMs, toMs, "1d");
+        return [id, buildMonthlyAverages(dailySeries, { now: toMs })];
+      } catch {
+        return [id, []];
+      }
+    })
+  );
+
+  const result = Object.fromEntries(entries);
+  roomSensorYearlyCache.set(cacheKey, { timestamp: Date.now(), data: result });
   return result;
 }
 

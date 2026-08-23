@@ -41,6 +41,27 @@ export function flattenRoomSensorIds(rooms: RoomSensorEntry[]) {
   return Array.from(ids);
 }
 
+export function flattenSeriesIds(entries: Array<{ stateId?: string }>) {
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (entry.stateId) {
+      ids.add(entry.stateId);
+    }
+  }
+  return Array.from(ids);
+}
+
+export const DEFAULT_SERIES_COLORS = [
+  "#ff9152",
+  "#4dd0e1",
+  "#6ce8b4",
+  "#c77dff",
+  "#ffd166",
+  "#f26d9b",
+  "#7fb3ff",
+  "#a3e635",
+];
+
 export function seriesForId(history: SensorHistory | null, id?: string): SensorPoint[] {
   if (!id || !history) {
     return [];
@@ -268,6 +289,14 @@ function formatDayLabel(t: number) {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.`;
 }
 
+const MONTH_LABELS_DE = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+export function buildMonthTicks(points: SensorPoint[]): TimeTick[] {
+  return points
+    .filter((point) => Number.isFinite(point.t))
+    .map((point) => ({ t: point.t, label: MONTH_LABELS_DE[new Date(point.t).getMonth()] }));
+}
+
 export function latestValue(points: SensorPoint[]) {
   for (let i = points.length - 1; i >= 0; i -= 1) {
     if (points[i].v !== null && Number.isFinite(points[i].v)) {
@@ -337,38 +366,41 @@ export function axisLabel(
   );
 }
 
+export type ChartSeriesSpec = {
+  key: string;
+  path: string;
+  color: string;
+  dashed?: boolean;
+};
+
 export type BuildChartElementsParams = {
-  tempPath: string;
-  humidityPath: string;
-  co2Path: string;
-  vocPath: string;
-  tempColor: string;
-  humidityColor: string;
-  co2Color: string;
-  vocColor: string;
+  series: ChartSeriesSpec[];
   mutedTextColor: string;
-  tempRange: ValueRange | null;
-  secondaryRange: ValueRange | null;
+  leftRange: ValueRange | null;
+  rightRange: ValueRange | null;
+  leftLabelColor?: string;
+  rightLabelColor?: string;
+  leftLabelFormat?: (value: number) => string;
+  rightLabelFormat?: (value: number) => string;
   domain: TimeDomain;
   layout: ChartLayout;
+  timeTicks?: TimeTick[];
 };
 
 export function buildChartElements({
-  tempPath,
-  humidityPath,
-  co2Path,
-  vocPath,
-  tempColor,
-  humidityColor,
-  co2Color,
-  vocColor,
+  series,
   mutedTextColor,
-  tempRange,
-  secondaryRange,
+  leftRange,
+  rightRange,
+  leftLabelColor,
+  rightLabelColor,
+  leftLabelFormat,
+  rightLabelFormat,
   domain,
   layout,
+  timeTicks: timeTicksOverride,
 }: BuildChartElementsParams): { children: ReactNode[]; labels: ReactNode[] } {
-  const timeTicks = buildTimeTicks(domain);
+  const timeTicks = timeTicksOverride ?? buildTimeTicks(domain);
   const children: ReactNode[] = [];
   const labels: ReactNode[] = [];
 
@@ -425,51 +457,57 @@ export function buildChartElements({
     }
   });
 
-  if (tempRange) {
-    labels.push(axisLabel("t-top", tempRange.max.toFixed(1), layout.axisLeftWidth - 4, 5 + layout.axisTopPadding, "right", tempColor, layout));
+  const formatLeft = leftLabelFormat ?? ((value: number) => value.toFixed(1));
+  const formatRight = rightLabelFormat ?? ((value: number) => value.toFixed(1));
+  const leftColor = leftLabelColor ?? mutedTextColor;
+  const rightColor = rightLabelColor ?? mutedTextColor;
+
+  if (leftRange) {
+    labels.push(axisLabel("l-top", formatLeft(leftRange.max), layout.axisLeftWidth - 4, 5 + layout.axisTopPadding, "right", leftColor, layout));
     labels.push(
-      axisLabel("t-bottom", tempRange.min.toFixed(1), layout.axisLeftWidth - 4, layout.plotHeight + layout.axisTopPadding, "right", tempColor, layout)
+      axisLabel("l-bottom", formatLeft(leftRange.min), layout.axisLeftWidth - 4, layout.plotHeight + layout.axisTopPadding, "right", leftColor, layout)
     );
   }
-  if (secondaryRange) {
+  if (rightRange) {
     labels.push(
       axisLabel(
-        "s-top",
-        `${Math.round(secondaryRange.max)}`,
+        "r-top",
+        formatRight(rightRange.max),
         layout.axisLeftWidth + layout.plotWidth + 4,
         5 + layout.axisTopPadding,
         "left",
-        mutedTextColor,
+        rightColor,
         layout
       )
     );
     labels.push(
       axisLabel(
-        "s-bottom",
-        `${Math.round(secondaryRange.min)}`,
+        "r-bottom",
+        formatRight(rightRange.min),
         layout.axisLeftWidth + layout.plotWidth + 4,
         layout.plotHeight + layout.axisTopPadding,
         "left",
-        mutedTextColor,
+        rightColor,
         layout
       )
     );
   }
 
-  if (tempPath) {
-    children.push(createElement("path", { key: "temp", d: tempPath, fill: "none", stroke: tempColor, strokeWidth: 2 }));
-  }
-  if (humidityPath) {
+  series.forEach((item) => {
+    if (!item.path) {
+      return;
+    }
     children.push(
-      createElement("path", { key: "humidity", d: humidityPath, fill: "none", stroke: humidityColor, strokeWidth: 1.5, strokeDasharray: "3,2" })
+      createElement("path", {
+        key: item.key,
+        d: item.path,
+        fill: "none",
+        stroke: item.color,
+        strokeWidth: item.dashed ? 1.5 : 2,
+        ...(item.dashed ? { strokeDasharray: "3,2" } : null),
+      })
     );
-  }
-  if (co2Path) {
-    children.push(createElement("path", { key: "co2", d: co2Path, fill: "none", stroke: co2Color, strokeWidth: 1.5, strokeDasharray: "3,2" }));
-  }
-  if (vocPath) {
-    children.push(createElement("path", { key: "voc", d: vocPath, fill: "none", stroke: vocColor, strokeWidth: 1.5, strokeDasharray: "3,2" }));
-  }
+  });
 
   return { children, labels };
 }
@@ -530,10 +568,16 @@ export const webStatBadgeStyle = {
   fontSize: "11px",
 };
 
-export function statBadge(label: string, valueText: string, color: string, align: "left" | "right") {
+export function statBadge(
+  label: string,
+  valueText: string,
+  color: string,
+  align: "left" | "right",
+  key: string | number = label
+) {
   return createElement(
     "span",
-    { style: { ...webStatBadgeStyle, justifySelf: align, textAlign: align }, key: label },
+    { style: { ...webStatBadgeStyle, justifySelf: align, textAlign: align }, key },
     createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${valueText}`)
   );
 }

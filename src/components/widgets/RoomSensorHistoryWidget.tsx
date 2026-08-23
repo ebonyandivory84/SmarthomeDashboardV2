@@ -235,17 +235,17 @@ function RoomSensorPanel({
     !hasAnyData || !domain
       ? createElement("div", { style: { ...webEmptyStateStyle, color: mutedTextColor } }, "Keine Daten")
       : renderChartCard({
-          tempPath,
-          humidityPath,
-          co2Path,
-          vocPath,
-          tempColor,
-          humidityColor,
-          co2Color,
-          vocColor,
+          series: [
+            { key: "temp", path: tempPath, color: tempColor },
+            { key: "humidity", path: humidityPath, color: humidityColor, dashed: true },
+            { key: "co2", path: co2Path, color: co2Color, dashed: true },
+            { key: "voc", path: vocPath, color: vocColor, dashed: true },
+          ],
           mutedTextColor,
-          tempRange,
-          secondaryRange,
+          leftRange: tempRange,
+          rightRange: secondaryRange,
+          leftLabelColor: tempColor,
+          rightLabelFormat: (value) => `${Math.round(value)}`,
           domain,
           layout: CARD_CHART_LAYOUT,
         })

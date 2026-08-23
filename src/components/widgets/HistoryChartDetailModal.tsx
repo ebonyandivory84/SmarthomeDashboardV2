@@ -1,25 +1,24 @@
 import { createElement, MouseEvent as ReactMouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { IoBrokerClient } from "../../services/iobroker";
-import { RoomSensorEntry } from "../../types/dashboard";
+import { HistoryChartSeriesEntry } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
 import {
   ChartLayout,
+  DEFAULT_SERIES_COLORS,
   SensorHistory,
   TimeDomain,
-  ValueRange,
   axisRange,
   buildChartElements,
   buildMonthTicks,
   buildSeriesPath,
   chartHeight,
   chartWidth,
-  flattenRoomSensorIds,
+  flattenSeriesIds,
   interpolateSeries,
   latestValue,
   seriesForId,
   statBadge,
-  temperatureAxisRange,
   valueAtTime,
   valueToY,
   webAxisLabelLayerStyle,
@@ -28,13 +27,9 @@ import {
   webStatsRowStyle,
 } from "./roomSensorChart";
 
-type RoomSensorDetailModalProps = {
-  room: RoomSensorEntry;
+type HistoryChartDetailModalProps = {
+  series: HistoryChartSeriesEntry[];
   client: IoBrokerClient;
-  tempColor: string;
-  humidityColor: string;
-  co2Color: string;
-  vocColor: string;
   textColor: string;
   mutedTextColor: string;
   onClose: () => void;
@@ -67,17 +62,7 @@ const MODAL_CHART_LAYOUT: ChartLayout = {
 
 const REFRESH_MS = 60_000;
 
-export function RoomSensorDetailModal({
-  room,
-  client,
-  tempColor,
-  humidityColor,
-  co2Color,
-  vocColor,
-  textColor,
-  mutedTextColor,
-  onClose,
-}: RoomSensorDetailModalProps) {
+export function HistoryChartDetailModal({ series, client, textColor, mutedTextColor, onClose }: HistoryChartDetailModalProps) {
   const [period, setPeriod] = useState<Period>("24h");
   const [pageOffset, setPageOffset] = useState(0);
   const [history, setHistory] = useState<SensorHistory | null>(null);
@@ -86,10 +71,8 @@ export function RoomSensorDetailModal({
   const [hoverRatio, setHoverRatio] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
 
-  const ids = useMemo(
-    () => flattenRoomSensorIds([room]),
-    [room.temperatureStateId, room.humidityStateId, room.co2StateId, room.vocStateId]
-  );
+  const seriesKey = useMemo(() => flattenSeriesIds(series).sort().join(","), [series]);
+  const ids = useMemo(() => flattenSeriesIds(series), [seriesKey]);
 
   const selectPeriod = (next: Period) => {
     setPeriod(next);
@@ -126,7 +109,7 @@ export function RoomSensorDetailModal({
       const payload = await client.readRoomSensorHistoryYear(ids);
       if (active) {
         setHistory(payload);
-        const points = Object.values(payload).find((series) => series.length > 0);
+        const points = Object.values(payload).find((entrySeries) => entrySeries.length > 0);
         if (points && points.length > 0) {
           setRange({ from: points[0].t, to: points[points.length - 1].t });
         }
@@ -172,96 +155,69 @@ export function RoomSensorDetailModal({
   );
 
   const chartData = useMemo(() => {
-    const tempPoints = interpolateSeries(seriesForId(history, room.temperatureStateId));
-    const humidityPoints = interpolateSeries(seriesForId(history, room.humidityStateId));
-    const co2Points = interpolateSeries(seriesForId(history, room.co2StateId));
-    const vocPoints = interpolateSeries(seriesForId(history, room.vocStateId));
+    const seriesData = series.map((entry, index) => ({
+      entry,
+      color: entry.color || DEFAULT_SERIES_COLORS[index % DEFAULT_SERIES_COLORS.length],
+      points: interpolateSeries(seriesForId(history, entry.stateId)),
+    }));
 
-    const hasAnyData = tempPoints.length > 0 || humidityPoints.length > 0 || co2Points.length > 0 || vocPoints.length > 0;
+    const hasAnyData = seriesData.some((item) => item.points.length > 0);
 
-    const tempRange = temperatureAxisRange(tempPoints, room.temperatureMin, room.temperatureMax);
-    const secondaryRange = axisRange([
-      { points: humidityPoints, overrideMin: room.humidityMin, overrideMax: room.humidityMax },
-      { points: co2Points, overrideMin: room.co2Min, overrideMax: room.co2Max },
-      { points: vocPoints, overrideMin: room.vocMin, overrideMax: room.vocMax },
-    ]);
+    const leftSeries = seriesData.filter((item) => item.entry.axis === "left");
+    const rightSeries = seriesData.filter((item) => item.entry.axis === "right");
+    const leftRange = axisRange(
+      leftSeries.map((item) => ({ points: item.points, overrideMin: item.entry.axisMin, overrideMax: item.entry.axisMax }))
+    );
+    const rightRange = axisRange(
+      rightSeries.map((item) => ({ points: item.points, overrideMin: item.entry.axisMin, overrideMax: item.entry.axisMax }))
+    );
 
-    const tempPath = domain && tempRange ? buildSeriesPath(tempPoints, tempRange, domain, MODAL_CHART_LAYOUT) : "";
-    const humidityPath = domain && secondaryRange ? buildSeriesPath(humidityPoints, secondaryRange, domain, MODAL_CHART_LAYOUT) : "";
-    const co2Path = domain && secondaryRange ? buildSeriesPath(co2Points, secondaryRange, domain, MODAL_CHART_LAYOUT) : "";
-    const vocPath = domain && secondaryRange ? buildSeriesPath(vocPoints, secondaryRange, domain, MODAL_CHART_LAYOUT) : "";
+    const chartSeries = seriesData.map((item) => {
+      const seriesRange = item.entry.axis === "left" ? leftRange : rightRange;
+      return {
+        key: item.entry.stateId || item.entry.label,
+        path: domain && seriesRange ? buildSeriesPath(item.points, seriesRange, domain, MODAL_CHART_LAYOUT) : "",
+        color: item.color,
+        dashed: item.entry.axis === "right",
+      };
+    });
 
-    const latestTemp = latestValue(tempPoints);
-    const latestHumidity = latestValue(humidityPoints);
-    const latestCo2 = latestValue(co2Points);
-    const latestVoc = latestValue(vocPoints);
-    const hasAnyLatest = latestTemp !== null || latestHumidity !== null || latestCo2 !== null || latestVoc !== null;
+    const hasAnyLatest = seriesData.some((item) => latestValue(item.points) !== null);
 
     const monthTicks =
-      period === "year"
-        ? buildMonthTicks(
-            tempPoints.length > 0 ? tempPoints : humidityPoints.length > 0 ? humidityPoints : co2Points.length > 0 ? co2Points : vocPoints
-          )
-        : undefined;
+      period === "year" ? buildMonthTicks(seriesData.find((item) => item.points.length > 0)?.points || []) : undefined;
 
     const chartElements =
-      domain && (tempRange || secondaryRange)
+      domain && (leftRange || rightRange)
         ? buildChartElements({
-            series: [
-              { key: "temp", path: tempPath, color: tempColor },
-              { key: "humidity", path: humidityPath, color: humidityColor, dashed: true },
-              { key: "co2", path: co2Path, color: co2Color, dashed: true },
-              { key: "voc", path: vocPath, color: vocColor, dashed: true },
-            ],
+            series: chartSeries,
             mutedTextColor,
-            leftRange: tempRange,
-            rightRange: secondaryRange,
-            leftLabelColor: tempColor,
-            rightLabelFormat: (value) => `${Math.round(value)}`,
+            leftRange,
+            rightRange,
             domain,
             layout: MODAL_CHART_LAYOUT,
             timeTicks: monthTicks,
           })
         : null;
 
-    return {
-      tempPoints,
-      humidityPoints,
-      co2Points,
-      vocPoints,
-      hasAnyData,
-      tempRange,
-      secondaryRange,
-      latestTemp,
-      latestHumidity,
-      latestCo2,
-      latestVoc,
-      hasAnyLatest,
-      chartElements,
-    };
-  }, [history, room, domain, tempColor, humidityColor, co2Color, vocColor, mutedTextColor, period]);
+    return { seriesData, hasAnyData, leftRange, rightRange, hasAnyLatest, chartElements };
+  }, [history, series, domain, mutedTextColor, period]);
 
-  const {
-    tempPoints,
-    humidityPoints,
-    co2Points,
-    vocPoints,
-    hasAnyData,
-    tempRange,
-    secondaryRange,
-    latestTemp,
-    latestHumidity,
-    latestCo2,
-    latestVoc,
-    hasAnyLatest,
-    chartElements,
-  } = chartData;
+  const { seriesData, hasAnyData, leftRange, rightRange, hasAnyLatest, chartElements } = chartData;
 
   const hoverT = hoverRatio !== null && domain ? domain.minT + hoverRatio * (domain.maxT - domain.minT) : null;
-  const hoverTemp = hoverT !== null ? valueAtTime(tempPoints, hoverT) : null;
-  const hoverHumidity = hoverT !== null ? valueAtTime(humidityPoints, hoverT) : null;
-  const hoverCo2 = hoverT !== null ? valueAtTime(co2Points, hoverT) : null;
-  const hoverVoc = hoverT !== null ? valueAtTime(vocPoints, hoverT) : null;
+  const hoverValues = useMemo(
+    () =>
+      hoverT !== null
+        ? seriesData.map((item) => ({
+            entry: item.entry,
+            color: item.color,
+            axis: item.entry.axis,
+            value: valueAtTime(item.points, hoverT),
+          }))
+        : [],
+    [hoverT, seriesData]
+  );
 
   const overlayChildren: ReactNode[] = [];
   if (hoverT !== null && hoverRatio !== null) {
@@ -283,22 +239,19 @@ export function RoomSensorDetailModal({
       })
     );
 
-    const dotSpecs: Array<{ value: number | null; color: string; range: ValueRange | null; key: string }> = [
-      { value: hoverTemp, color: tempColor, range: tempRange, key: "dot-temp" },
-      { value: hoverHumidity, color: humidityColor, range: secondaryRange, key: "dot-humidity" },
-      { value: hoverCo2, color: co2Color, range: secondaryRange, key: "dot-co2" },
-      { value: hoverVoc, color: vocColor, range: secondaryRange, key: "dot-voc" },
-    ];
-
-    for (const spec of dotSpecs) {
-      if (spec.value === null || !spec.range) {
+    for (const item of hoverValues) {
+      if (item.value === null) {
         continue;
       }
-      const yPlot = valueToY(spec.value, spec.range, MODAL_CHART_LAYOUT);
+      const seriesRange = item.axis === "left" ? leftRange : rightRange;
+      if (!seriesRange) {
+        continue;
+      }
+      const yPlot = valueToY(item.value, seriesRange, MODAL_CHART_LAYOUT);
       const topDotPct = ((yPlot + MODAL_CHART_LAYOUT.axisTopPadding) / chartHeight(MODAL_CHART_LAYOUT)) * 100;
       overlayChildren.push(
         createElement("div", {
-          key: spec.key,
+          key: `dot-${item.entry.stateId || item.entry.label}`,
           style: {
             position: "absolute",
             left: `${leftPct}%`,
@@ -306,7 +259,7 @@ export function RoomSensorDetailModal({
             width: "8px",
             height: "8px",
             borderRadius: "999px",
-            backgroundColor: spec.color,
+            backgroundColor: item.color,
             border: "2px solid rgba(4,8,17,0.9)",
             transform: "translate(-50%, -50%)",
           },
@@ -314,11 +267,13 @@ export function RoomSensorDetailModal({
       );
     }
 
-    const tooltipLines: Array<{ text: string; color: string }> = [];
-    if (hoverTemp !== null) tooltipLines.push({ text: `Temp ${hoverTemp.toFixed(1)}°C`, color: tempColor });
-    if (hoverHumidity !== null) tooltipLines.push({ text: `Feuchte ${Math.round(hoverHumidity)}%`, color: humidityColor });
-    if (hoverCo2 !== null) tooltipLines.push({ text: `CO2 ${Math.round(hoverCo2)}`, color: co2Color });
-    if (hoverVoc !== null) tooltipLines.push({ text: `VOC ${Math.round(hoverVoc)}`, color: vocColor });
+    const tooltipLines = hoverValues
+      .filter((item) => item.value !== null)
+      .map((item) => {
+        const decimals = item.entry.decimals ?? 1;
+        const unit = item.entry.unit || "";
+        return { text: `${item.entry.label} ${(item.value as number).toFixed(decimals)}${unit}`, color: item.color };
+      });
 
     const alignRight = hoverRatio > 0.6;
     overlayChildren.push(
@@ -403,7 +358,7 @@ export function RoomSensorDetailModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: textColor }]}>{room.label}</Text>
+            <Text style={[styles.title, { color: textColor }]}>Verlauf</Text>
             <Pressable onPress={onClose}>
               <Text style={[styles.close, { color: mutedTextColor }]}>Schliessen</Text>
             </Pressable>
@@ -413,10 +368,16 @@ export function RoomSensorDetailModal({
             ? createElement(
                 "div",
                 { style: webStatsRowStyle },
-                latestTemp !== null ? statBadge("Temp", `${latestTemp.toFixed(1)}°C`, tempColor, "left") : null,
-                latestHumidity !== null ? statBadge("Feuchte", `${Math.round(latestHumidity)}%`, humidityColor, "right") : null,
-                latestCo2 !== null ? statBadge("CO2", `${Math.round(latestCo2)}`, co2Color, "left") : null,
-                latestVoc !== null ? statBadge("VOC", `${Math.round(latestVoc)}`, vocColor, "right") : null
+                seriesData.map((item, index) => {
+                  const value = latestValue(item.points);
+                  if (value === null) {
+                    return null;
+                  }
+                  const decimals = item.entry.decimals ?? 1;
+                  const valueText = `${value.toFixed(decimals)}${item.entry.unit ? item.entry.unit : ""}`;
+                  const key = item.entry.stateId || item.entry.label;
+                  return statBadge(item.entry.label, valueText, item.color, index % 2 === 0 ? "left" : "right", key);
+                })
               )
             : null}
 
