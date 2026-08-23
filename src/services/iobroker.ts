@@ -337,6 +337,31 @@ export class IoBrokerClient {
     return (await response.json()) as Record<string, Array<{ t: number; v: number | null }>>;
   }
 
+  async readRoomSensorHistoryRange(
+    ids: string[],
+    fromMs: number,
+    toMs: number
+  ): Promise<Record<string, Array<{ t: number; v: number | null }>>> {
+    const params = new URLSearchParams({
+      ids: ids.join(","),
+      from: String(Math.round(fromMs)),
+      to: String(Math.round(toMs)),
+    });
+
+    const response = await fetch(this.endpoint(`/room-sensor-history?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Room sensor history read failed (${response.status})`);
+    }
+
+    return (await response.json()) as Record<string, Array<{ t: number; v: number | null }>>;
+  }
+
   async readWaterSummary(options: {
     stateId: string;
     days: number;

@@ -451,6 +451,23 @@ async function main(adapter) {
         res.json({});
         return;
       }
+
+      const fromParam = normalizeFilter(req.query?.from);
+      const toParam = normalizeFilter(req.query?.to);
+      if (fromParam && toParam) {
+        const fromMs = Number.parseInt(fromParam, 10);
+        const toMs = Number.parseInt(toParam, 10);
+        if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+          res.status(400).json({ error: "Invalid from/to range" });
+          return;
+        }
+        const maxRangeMs = 31 * 24 * 60 * 60 * 1000;
+        const clampedFromMs = Math.max(fromMs, toMs - maxRangeMs);
+        const history = await readRoomSensorHistoryRange(adapter, ids, clampedFromMs, toMs);
+        res.json(history);
+        return;
+      }
+
       const hours = clampInt(req.query?.hours, 6, 1, 48);
       const history = await readRoomSensorHistory(adapter, ids, hours);
       res.json(history);
@@ -3426,10 +3443,9 @@ async function refreshInfluxConfig(adapter) {
 // InfluxDB GROUP BY time() bins align to fixed Unix-epoch boundaries, so picking
 // a "nice" bucket size keeps series from separate per-id queries in the same
 // request aligned on identical timestamps without needing to merge them client-side.
-const ROOM_SENSOR_BUCKET_STEPS_SECONDS = [30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+const ROOM_SENSOR_BUCKET_STEPS_SECONDS = [30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600];
 
-function bucketSizeForHours(hours) {
-  const totalSeconds = Math.max(1, hours) * 3600;
+function bucketSizeForRangeSeconds(totalSeconds) {
   const targetPoints = 120;
   const rawBucketSeconds = Math.max(30, Math.round(totalSeconds / targetPoints));
   const bucketSeconds =
@@ -3438,11 +3454,39 @@ function bucketSizeForHours(hours) {
   return `${bucketSeconds}s`;
 }
 
+function bucketSizeForHours(hours) {
+  return bucketSizeForRangeSeconds(Math.max(1, hours) * 3600);
+}
+
 async function queryInfluxSeries(influxConfig, stateId, hours, bucket) {
   // Measurement name equals the raw ioBroker state id verbatim (dbversion 1.x,
   // usetags: false -> one measurement per state, no tag filtering needed).
   const escapedId = stateId.replace(/"/g, '\\"');
   const query = `SELECT mean("value") FROM "${escapedId}" WHERE time > now() - ${hours}h GROUP BY time(${bucket}) fill(null)`;
+  const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
+    influxConfig.dbname
+  )}&q=${encodeURIComponent(query)}`;
+
+  const response = await fetch(url, { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`InfluxDB query failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const series = payload?.results?.[0]?.series?.[0];
+  if (!series || !Array.isArray(series.values)) {
+    return [];
+  }
+
+  return series.values.map((row) => ({
+    t: new Date(row[0]).getTime(),
+    v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
+  }));
+}
+
+async function queryInfluxSeriesRange(influxConfig, stateId, fromMs, toMs, bucket) {
+  const escapedId = stateId.replace(/"/g, '\\"');
+  const query = `SELECT mean("value") FROM "${escapedId}" WHERE time >= ${fromMs}ms AND time <= ${toMs}ms GROUP BY time(${bucket}) fill(null)`;
   const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
     influxConfig.dbname
   )}&q=${encodeURIComponent(query)}`;
@@ -3620,6 +3664,44 @@ async function readRoomSensorHistory(adapter, ids, hours) {
     ids.map(async (id) => {
       try {
         const series = await queryInfluxSeries(influxConfig, id, hours, bucket);
+        return [id, series];
+      } catch {
+        return [id, []];
+      }
+    })
+  );
+
+  const result = Object.fromEntries(entries);
+  roomSensorHistoryCache.set(cacheKey, { timestamp: Date.now(), data: result });
+  return result;
+}
+
+async function readRoomSensorHistoryRange(adapter, ids, fromMs, toMs) {
+  const influxConfig = await getInfluxConfig(adapter);
+  if (!influxConfig) {
+    throw new Error("InfluxDB-Instanz (system.adapter.influxdb.0) wurde nicht gefunden");
+  }
+
+  const bucket = bucketSizeForRangeSeconds((toMs - fromMs) / 1000);
+  pruneRoomSensorHistoryCache();
+
+  // Floor the range bounds to the bucket grid for the cache key only (the actual
+  // Influx query keeps the exact fromMs/toMs). The live view recomputes toMs as
+  // Date.now() on every poll, so an unfloored key would never repeat and the
+  // cache would only ever help static (paginated) ranges.
+  const bucketMs = (parseInt(bucket, 10) || 30) * 1000;
+  const cacheFrom = Math.floor(fromMs / bucketMs) * bucketMs;
+  const cacheTo = Math.floor(toMs / bucketMs) * bucketMs;
+  const cacheKey = `range:${ids.slice().sort().join(",")}|${cacheFrom}|${cacheTo}|${bucket}`;
+  const cached = roomSensorHistoryCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < ROOM_SENSOR_HISTORY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const entries = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const series = await queryInfluxSeriesRange(influxConfig, id, fromMs, toMs, bucket);
         return [id, series];
       } catch {
         return [id, []];
