@@ -30,11 +30,19 @@ try {
 } catch {
   Sharp = null;
 }
+let createWebdavClient = null;
+try {
+  ({ createClient: createWebdavClient } = require("webdav"));
+} catch {
+  createWebdavClient = null;
+}
 
 let objectEntriesCache = [];
 let objectEntriesCacheTimestamp = 0;
 let objectEntriesPromise = null;
 let insecureHttpsDispatcher = null;
+let insecureWebdavHttpsAgent = null;
+const webdavShareLinks = new Map();
 let runningAdapter = null;
 const OBJECT_CACHE_TTL_MS = 5 * 60 * 1000;
 let influxConfigCache = null;
@@ -559,6 +567,118 @@ async function main(adapter) {
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Image upload failed" });
     }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/webdav/list", async (req, res) => {
+    const baseUrl = typeof req.query.baseUrl === "string" ? req.query.baseUrl : "";
+    const username = typeof req.query.username === "string" ? req.query.username : "";
+    const password = typeof req.query.password === "string" ? req.query.password : "";
+    const folderPath = typeof req.query.path === "string" ? req.query.path : "/";
+
+    if (!baseUrl) {
+      res.status(400).json({ error: "baseUrl is required" });
+      return;
+    }
+
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      const contents = await client.getDirectoryContents(folderPath);
+      const files = contents
+        .filter((entry) => entry.type === "file" && /\.pdf$/i.test(entry.basename))
+        .map((entry) => ({
+          name: entry.basename,
+          path: entry.filename,
+          size: entry.size,
+          lastModified: entry.lastmod,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+      res.json(files);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV list failed" });
+    }
+  });
+
+  app.delete("/smarthome-dashboard-v2/api/webdav/file", async (req, res) => {
+    const baseUrl = typeof req.query.baseUrl === "string" ? req.query.baseUrl : "";
+    const username = typeof req.query.username === "string" ? req.query.username : "";
+    const password = typeof req.query.password === "string" ? req.query.password : "";
+    const filePath = typeof req.query.path === "string" ? req.query.path : "";
+
+    if (!baseUrl || !filePath) {
+      res.status(400).json({ error: "baseUrl and path are required" });
+      return;
+    }
+
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      await client.deleteFile(filePath);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV delete failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/webdav/file", async (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+
+    let baseUrl = typeof req.query.baseUrl === "string" ? req.query.baseUrl : "";
+    let username = typeof req.query.username === "string" ? req.query.username : "";
+    let password = typeof req.query.password === "string" ? req.query.password : "";
+    let filePath = typeof req.query.path === "string" ? req.query.path : "";
+
+    if (token) {
+      const entry = webdavShareLinks.get(token);
+      if (!entry || entry.expiresAt < Date.now()) {
+        webdavShareLinks.delete(token);
+        res.status(404).json({ error: "Link ungueltig oder abgelaufen" });
+        return;
+      }
+      ({ baseUrl, username, password, path: filePath } = entry);
+    }
+
+    if (!baseUrl || !filePath) {
+      res.status(400).json({ error: "baseUrl and path are required" });
+      return;
+    }
+
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      const stream = client.createReadStream(filePath);
+      res.setHeader("Content-Type", "application/pdf");
+      stream.on("error", (error) => {
+        res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV stream failed" });
+      });
+      stream.pipe(res);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV file read failed" });
+    }
+  });
+
+  app.post("/smarthome-dashboard-v2/api/webdav/share-link", async (req, res) => {
+    const baseUrl = typeof req.body?.baseUrl === "string" ? req.body.baseUrl : "";
+    const username = typeof req.body?.username === "string" ? req.body.username : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const filePath = typeof req.body?.path === "string" ? req.body.path : "";
+
+    if (!baseUrl || !filePath) {
+      res.status(400).json({ error: "baseUrl and path are required" });
+      return;
+    }
+
+    const token = crypto.randomUUID();
+    webdavShareLinks.set(token, {
+      baseUrl,
+      username,
+      password,
+      path: filePath,
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      token,
+      url: `/smarthome-dashboard-v2/api/webdav/file?token=${encodeURIComponent(token)}`,
+    });
   });
 
   app.get("/smarthome-dashboard-v2/api/telegram/history", async (_req, res) => {
@@ -2792,6 +2912,30 @@ function getInsecureHttpsDispatcher() {
     },
   });
   return insecureHttpsDispatcher;
+}
+
+function getInsecureWebdavHttpsAgent() {
+  if (insecureWebdavHttpsAgent) {
+    return insecureWebdavHttpsAgent;
+  }
+  insecureWebdavHttpsAgent = new https.Agent({ rejectUnauthorized: false });
+  return insecureWebdavHttpsAgent;
+}
+
+function buildWebdavClient(baseUrl, username, password) {
+  if (!createWebdavClient) {
+    throw new Error("webdav client not available");
+  }
+  const options = { username, password };
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.protocol === "https:" && isLikelyLocalHost(parsed.hostname)) {
+      options.httpsAgent = getInsecureWebdavHttpsAgent();
+    }
+  } catch {
+    // invalid URL — let createWebdavClient throw its own error
+  }
+  return createWebdavClient(baseUrl, options);
 }
 
 function isLikelyLocalHost(hostname) {

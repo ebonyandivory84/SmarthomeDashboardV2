@@ -16,6 +16,7 @@
     "@iobroker/adapter-core": "^3.2.3",
     "compression": "^1.8.1",
     "express": "^4.21.2",
+    "webdav": "^4.11.4",
     "ws": "^8.18.3"
   },
   "optionalDependencies": {

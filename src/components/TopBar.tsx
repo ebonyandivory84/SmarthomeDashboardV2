@@ -5,7 +5,7 @@ import { palette } from "../utils/theme";
 
 type TopBarProps = {
   homeLabel: string;
-  pageTitles: Array<{ id: string; title: string }>;
+  pageTitles: Array<{ id: string; title: string; badgeCount?: number }>;
   activePageId: string;
   isOnline: boolean;
   isLayoutMode: boolean;
@@ -71,6 +71,11 @@ export function TopBar({
           <Text numberOfLines={1} style={[styles.pageTabLabel, activePage ? styles.pageTabLabelActive : null]}>
             {page.title}
           </Text>
+          {page.badgeCount ? (
+            <View style={styles.pageTabBadge}>
+              <Text style={styles.pageTabBadgeText}>{page.badgeCount > 99 ? "99+" : page.badgeCount}</Text>
+            </View>
+          ) : null}
         </Pressable>
         {isLayoutMode ? (
           <Pressable
@@ -230,6 +235,24 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  pageTabBadge: {
+    position: "absolute",
+    top: -6,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.danger,
+  },
+  pageTabBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
   },
   pageTabActive: {
     backgroundColor: palette.accent,

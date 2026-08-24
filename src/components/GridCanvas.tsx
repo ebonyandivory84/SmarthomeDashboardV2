@@ -26,6 +26,7 @@ import { resolveStateNextValue, StateWidget } from "./widgets/StateWidget";
 import { TelegramWidget } from "./widgets/TelegramWidget";
 import { WeatherWidget } from "./widgets/WeatherWidget";
 import { WaterMeterWidget } from "./widgets/WaterMeterWidget";
+import { PdfSlideshowWidget } from "./widgets/PdfSlideshowWidget";
 
 const LazyCameraWidget = lazy(() => import("./widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
 const LazyCameraTalkWidget = lazy(() =>
@@ -1812,6 +1813,12 @@ function renderWidget(
         lowPowerMode={lowPowerMode}
         states={states}
       />
+    );
+  }
+
+  if (effectiveWidget.type === "pdfSlideshow") {
+    return (
+      <PdfSlideshowWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} />
     );
   }
 

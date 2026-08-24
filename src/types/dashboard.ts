@@ -738,6 +738,13 @@ export type WidgetSoundEntry = {
   url: string;
 };
 
+export type WebdavPdfFile = {
+  name: string;
+  path: string;
+  size: number;
+  lastModified: string;
+};
+
 export type IoBrokerLogEntry = {
   id: number;
   from: string;

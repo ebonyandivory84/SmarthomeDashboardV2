@@ -4,12 +4,16 @@ import {
   IoBrokerLogEntry,
   IoBrokerObjectEntry,
   IoBrokerScriptEntry,
+  PdfSlideshowWidgetConfig,
   StateSnapshot,
   TelegramWidgetHistoryEntry,
   WaterMeterSummary,
+  WebdavPdfFile,
   WidgetImageEntry,
   WidgetSoundEntry,
 } from "../types/dashboard";
+
+type WebdavConfigLike = Pick<PdfSlideshowWidgetConfig, "webdavBaseUrl" | "webdavUsername" | "webdavPassword" | "folderPath">;
 
 type ObjectCacheEntry = {
   items: IoBrokerObjectEntry[];
@@ -180,6 +184,79 @@ export class IoBrokerClient {
 
   async uploadWidgetSound(name: string, dataUrl: string): Promise<WidgetSoundEntry> {
     return this.uploadWidgetFile<WidgetSoundEntry>("/sounds/upload", name, dataUrl);
+  }
+
+  async listWebdavPdfFiles(config: WebdavConfigLike): Promise<WebdavPdfFile[]> {
+    const params = new URLSearchParams({
+      baseUrl: config.webdavBaseUrl || "",
+      username: config.webdavUsername || "",
+      password: config.webdavPassword || "",
+      path: config.folderPath || "",
+    });
+    const response = await fetch(this.endpoint(`/webdav/list?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`WebDAV list failed (${response.status})`);
+    }
+
+    return (await response.json()) as WebdavPdfFile[];
+  }
+
+  async deleteWebdavFile(config: WebdavConfigLike, filePath: string): Promise<void> {
+    const params = new URLSearchParams({
+      baseUrl: config.webdavBaseUrl || "",
+      username: config.webdavUsername || "",
+      password: config.webdavPassword || "",
+      path: filePath,
+    });
+    const response = await fetch(this.endpoint(`/webdav/file?${params.toString()}`), {
+      method: "DELETE",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`WebDAV delete failed (${response.status})`);
+    }
+  }
+
+  async createWebdavShareLink(config: WebdavConfigLike, filePath: string): Promise<{ url: string }> {
+    const response = await fetch(this.endpoint("/webdav/share-link"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeader(this.settings),
+      },
+      body: JSON.stringify({
+        baseUrl: config.webdavBaseUrl || "",
+        username: config.webdavUsername || "",
+        password: config.webdavPassword || "",
+        path: filePath,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`WebDAV share link failed (${response.status})`);
+    }
+
+    const data = (await response.json()) as { token: string; url: string };
+    return { url: this.resolveBaseUrl() + data.url };
+  }
+
+  buildWebdavFileProxyUrl(config: WebdavConfigLike, filePath: string): string {
+    const params = new URLSearchParams({
+      baseUrl: config.webdavBaseUrl || "",
+      username: config.webdavUsername || "",
+      password: config.webdavPassword || "",
+      path: filePath,
+    });
+    return this.endpoint(`/webdav/file?${params.toString()}`);
   }
 
   async readLogs(options?: {

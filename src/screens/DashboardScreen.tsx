@@ -24,6 +24,7 @@ import { BackgroundMode, DashboardPageMode, WidgetConfig, WidgetType } from "../
 import { constrainToPrimarySections, normalizeWidgetLayout, resolveWidgetPosition } from "../utils/gridLayout";
 import { buildMobileOverrideFromWidget, resolveMobileWidget } from "../utils/mobileWidget";
 import { configureUiSounds, playConfiguredUiSound, primeConfiguredSounds } from "../utils/uiSounds";
+import { usePdfSlideshowBadgeCounts } from "../utils/usePdfSlideshowBadgeCounts";
 import { buildWidgetTemplate } from "../utils/widgetFactory";
 import { palette } from "../utils/theme";
 
@@ -99,6 +100,7 @@ export function DashboardScreen() {
   const [deletePageId, setDeletePageId] = useState<string | null>(null);
   const lastContentScrollAt = useRef(0);
   const activePageIndex = Math.max(0, dashboardPages.findIndex((page) => page.id === activePageId));
+  const pdfSlideshowBadgeCounts = usePdfSlideshowBadgeCounts(dashboardPages, client);
 
   const pageConfigs = useMemo(
     () =>
@@ -862,7 +864,11 @@ export function DashboardScreen() {
         layoutToggleSounds={config.uiSounds?.pageSounds?.layoutToggle}
         addWidgetSounds={config.uiSounds?.pageSounds?.addWidget}
         openSettingsSounds={config.uiSounds?.pageSounds?.openSettings}
-        pageTitles={dashboardPages.map((page) => ({ id: page.id, title: page.title }))}
+        pageTitles={dashboardPages.map((page) => ({
+          id: page.id,
+          title: page.title,
+          badgeCount: pdfSlideshowBadgeCounts[page.id],
+        }))}
         onAddWidget={() => setLibraryOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onSelectPage={(pageId) => {
