@@ -8,6 +8,8 @@ import { palette } from "../../utils/theme";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { PdfFileBrowserModal } from "../PdfFileBrowserModal";
 
+const PDF_FETCH_TIMEOUT_MS = 30000;
+
 type PdfSlideshowWidgetProps = {
   client: IoBrokerClient;
   config: PdfSlideshowWidgetConfig;
@@ -51,46 +53,76 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
     };
   }, []);
 
-  useEffect(() => {
-    if (!runtimeActive || files.length < 2) {
-      return;
-    }
-    const intervalMs = Math.max(1, config.slideIntervalSeconds ?? 5) * 1000;
-    const timer = setInterval(() => {
-      setCurrentIndex((previous) => (previous + 1) % files.length);
-    }, intervalMs);
-    return () => clearInterval(timer);
-  }, [config.slideIntervalSeconds, files.length, runtimeActive]);
-
   const currentFile = files[currentIndex];
 
   useEffect(() => {
     setViewerUrl(null);
-    if (!currentFile || Platform.OS !== "web" || !runtimeActive) {
+    setPdfError(null);
+    if (!currentFile || !runtimeActive) {
       return;
     }
+
     const controller = new AbortController();
     let objectUrl: string | null = null;
     let cancelled = false;
-    (async () => {
-      try {
-        const blob = await client.fetchWebdavFile(config, currentFile.path, controller.signal);
-        if (cancelled) {
-          return;
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setViewerUrl(objectUrl);
-        setPdfError(null);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        setPdfError(err instanceof Error ? err.message : "PDF konnte nicht geladen werden.");
+    let advanceTimer: ReturnType<typeof setTimeout> | null = null;
+    let fetchTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+    const filePath = currentFile.path;
+    const webdavConfig = {
+      webdavBaseUrl: config.webdavBaseUrl,
+      webdavUsername: config.webdavUsername,
+      webdavPassword: config.webdavPassword,
+      folderPath: config.folderPath,
+    };
+
+    const scheduleAdvance = () => {
+      if (files.length < 2) {
+        return;
       }
-    })();
+      const intervalMs = Math.max(1, config.slideIntervalSeconds ?? 5) * 1000;
+      advanceTimer = setTimeout(() => {
+        setCurrentIndex((previous) => (previous + 1) % files.length);
+      }, intervalMs);
+    };
+
+    if (Platform.OS !== "web") {
+      scheduleAdvance();
+    } else {
+      fetchTimeoutTimer = setTimeout(() => controller.abort(), PDF_FETCH_TIMEOUT_MS);
+      (async () => {
+        try {
+          const blob = await client.fetchWebdavFile(webdavConfig, filePath, controller.signal);
+          if (cancelled) {
+            return;
+          }
+          objectUrl = URL.createObjectURL(blob);
+          setViewerUrl(objectUrl);
+          setPdfError(null);
+        } catch (err) {
+          if (cancelled) {
+            return;
+          }
+          setPdfError(err instanceof Error ? err.message : "PDF konnte nicht geladen werden.");
+        } finally {
+          if (fetchTimeoutTimer) {
+            clearTimeout(fetchTimeoutTimer);
+          }
+          if (!cancelled) {
+            scheduleAdvance();
+          }
+        }
+      })();
+    }
+
     return () => {
       cancelled = true;
       controller.abort();
+      if (advanceTimer) {
+        clearTimeout(advanceTimer);
+      }
+      if (fetchTimeoutTimer) {
+        clearTimeout(fetchTimeoutTimer);
+      }
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
@@ -100,8 +132,9 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
     config.webdavBaseUrl,
     config.webdavUsername,
     config.webdavPassword,
-    config.folderPath,
+    config.slideIntervalSeconds,
     currentFile?.path,
+    files.length,
     runtimeActive,
   ]);
 
