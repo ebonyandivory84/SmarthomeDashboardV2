@@ -100,8 +100,8 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         await nav.clipboard.writeText(url);
         setShareFeedback("Link kopiert");
       }
-    } catch {
-      setError("Teilen-Link konnte nicht erstellt werden.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Teilen-Link konnte nicht erstellt werden.");
     } finally {
       if (shareFeedbackTimer.current) {
         clearTimeout(shareFeedbackTimer.current);

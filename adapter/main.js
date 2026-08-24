@@ -595,6 +595,7 @@ async function main(adapter) {
 
       res.json(files);
     } catch (error) {
+      adapter.log.error(`WebDAV list failed: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV list failed" });
     }
   });
@@ -615,6 +616,7 @@ async function main(adapter) {
       await client.deleteFile(filePath);
       res.json({ success: true });
     } catch (error) {
+      adapter.log.error(`WebDAV delete failed: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV delete failed" });
     }
   });
@@ -647,10 +649,12 @@ async function main(adapter) {
       const stream = client.createReadStream(filePath);
       res.setHeader("Content-Type", "application/pdf");
       stream.on("error", (error) => {
+        adapter.log.error(`WebDAV file stream failed: ${error instanceof Error ? error.message : String(error)}`);
         res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV stream failed" });
       });
       stream.pipe(res);
     } catch (error) {
+      adapter.log.error(`WebDAV file read failed: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV file read failed" });
     }
   });

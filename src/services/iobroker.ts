@@ -201,7 +201,8 @@ export class IoBrokerClient {
     });
 
     if (!response.ok) {
-      throw new Error(`WebDAV list failed (${response.status})`);
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `WebDAV-Liste konnte nicht geladen werden (${response.status})`);
     }
 
     return (await response.json()) as WebdavPdfFile[];
@@ -222,7 +223,8 @@ export class IoBrokerClient {
     });
 
     if (!response.ok) {
-      throw new Error(`WebDAV delete failed (${response.status})`);
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `Datei konnte nicht gelöscht werden (${response.status})`);
     }
   }
 
@@ -242,7 +244,8 @@ export class IoBrokerClient {
     });
 
     if (!response.ok) {
-      throw new Error(`WebDAV share link failed (${response.status})`);
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `Teilen-Link konnte nicht erstellt werden (${response.status})`);
     }
 
     const data = (await response.json()) as { token: string; url: string };
