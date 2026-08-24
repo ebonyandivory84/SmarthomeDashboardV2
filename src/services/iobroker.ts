@@ -252,14 +252,28 @@ export class IoBrokerClient {
     return { url: this.resolveBaseUrl() + data.url };
   }
 
-  buildWebdavFileProxyUrl(config: WebdavConfigLike, filePath: string): string {
-    const params = new URLSearchParams({
-      baseUrl: config.webdavBaseUrl || "",
-      username: config.webdavUsername || "",
-      password: config.webdavPassword || "",
-      path: filePath,
+  async fetchWebdavFile(config: WebdavConfigLike, filePath: string, signal?: AbortSignal): Promise<Blob> {
+    const response = await fetch(this.endpoint("/webdav/file"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeader(this.settings),
+      },
+      body: JSON.stringify({
+        baseUrl: config.webdavBaseUrl || "",
+        username: config.webdavUsername || "",
+        password: config.webdavPassword || "",
+        path: filePath,
+      }),
+      signal,
     });
-    return this.endpoint(`/webdav/file?${params.toString()}`);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `PDF konnte nicht geladen werden (${response.status})`);
+    }
+
+    return await response.blob();
   }
 
   async readLogs(options?: {

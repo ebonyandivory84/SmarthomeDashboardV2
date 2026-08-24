@@ -22,8 +22,10 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
   const [files, setFiles] = useState<WebdavPdfFile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [browserVisible, setBrowserVisible] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const shareFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadFiles = useCallback(async () => {
@@ -61,6 +63,47 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
   }, [config.slideIntervalSeconds, files.length, runtimeActive]);
 
   const currentFile = files[currentIndex];
+
+  useEffect(() => {
+    setViewerUrl(null);
+    if (!currentFile || Platform.OS !== "web" || !runtimeActive) {
+      return;
+    }
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const blob = await client.fetchWebdavFile(config, currentFile.path, controller.signal);
+        if (cancelled) {
+          return;
+        }
+        objectUrl = URL.createObjectURL(blob);
+        setViewerUrl(objectUrl);
+        setPdfError(null);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        setPdfError(err instanceof Error ? err.message : "PDF konnte nicht geladen werden.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [
+    client,
+    config.webdavBaseUrl,
+    config.webdavUsername,
+    config.webdavPassword,
+    config.folderPath,
+    currentFile?.path,
+    runtimeActive,
+  ]);
 
   const handleOpenBrowser = useCallback(() => {
     playConfiguredUiSound(config.interactionSounds?.press, "panel", `${config.id}:browser`);
@@ -113,9 +156,6 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
   const textColor = config.appearance?.textColor ?? palette.text;
   const mutedColor = config.appearance?.mutedTextColor ?? palette.textMuted;
 
-  const viewerUrl =
-    currentFile && client.buildWebdavFileProxyUrl(config, currentFile.path);
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -140,8 +180,8 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
       </View>
 
       <View style={styles.body}>
-        {error ? (
-          <Text style={[styles.message, { color: mutedColor }]}>{error}</Text>
+        {error || pdfError ? (
+          <Text style={[styles.message, { color: mutedColor }]}>{error ?? pdfError}</Text>
         ) : !currentFile ? (
           <Text style={[styles.message, { color: mutedColor }]}>Keine PDF-Dateien gefunden.</Text>
         ) : Platform.OS === "web" ? (

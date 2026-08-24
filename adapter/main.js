@@ -621,42 +621,74 @@ async function main(adapter) {
     }
   });
 
+  const streamWebdavFile = async (baseUrl, username, password, filePath, req, res) => {
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      const stream = client.createReadStream(filePath);
+
+      let closed = false;
+      const closeStream = () => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+        try {
+          stream.destroy();
+        } catch {
+          /* ignore */
+        }
+      };
+      req.on("aborted", closeStream);
+      req.on("close", closeStream);
+      res.on("close", closeStream);
+
+      res.setHeader("Content-Type", "application/pdf");
+      stream.on("error", (error) => {
+        adapter.log.error(`WebDAV file stream failed: ${error instanceof Error ? error.message : String(error)}`);
+        if (!res.headersSent) {
+          res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV stream failed" });
+          return;
+        }
+        res.end();
+      });
+      stream.pipe(res);
+    } catch (error) {
+      adapter.log.error(`WebDAV file read failed: ${error instanceof Error ? error.message : String(error)}`);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV file read failed" });
+      }
+    }
+  };
+
   app.get("/smarthome-dashboard-v2/api/webdav/file", async (req, res) => {
     const token = typeof req.query.token === "string" ? req.query.token : "";
-
-    let baseUrl = typeof req.query.baseUrl === "string" ? req.query.baseUrl : "";
-    let username = typeof req.query.username === "string" ? req.query.username : "";
-    let password = typeof req.query.password === "string" ? req.query.password : "";
-    let filePath = typeof req.query.path === "string" ? req.query.path : "";
-
-    if (token) {
-      const entry = webdavShareLinks.get(token);
-      if (!entry || entry.expiresAt < Date.now()) {
-        webdavShareLinks.delete(token);
-        res.status(404).json({ error: "Link ungueltig oder abgelaufen" });
-        return;
-      }
-      ({ baseUrl, username, password, path: filePath } = entry);
+    if (!token) {
+      res.status(400).json({ error: "token is required" });
+      return;
     }
+
+    const entry = webdavShareLinks.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      webdavShareLinks.delete(token);
+      res.status(404).json({ error: "Link ungueltig oder abgelaufen" });
+      return;
+    }
+
+    await streamWebdavFile(entry.baseUrl, entry.username, entry.password, entry.path, req, res);
+  });
+
+  app.post("/smarthome-dashboard-v2/api/webdav/file", async (req, res) => {
+    const baseUrl = typeof req.body?.baseUrl === "string" ? req.body.baseUrl : "";
+    const username = typeof req.body?.username === "string" ? req.body.username : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const filePath = typeof req.body?.path === "string" ? req.body.path : "";
 
     if (!baseUrl || !filePath) {
       res.status(400).json({ error: "baseUrl and path are required" });
       return;
     }
 
-    try {
-      const client = buildWebdavClient(baseUrl, username, password);
-      const stream = client.createReadStream(filePath);
-      res.setHeader("Content-Type", "application/pdf");
-      stream.on("error", (error) => {
-        adapter.log.error(`WebDAV file stream failed: ${error instanceof Error ? error.message : String(error)}`);
-        res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV stream failed" });
-      });
-      stream.pipe(res);
-    } catch (error) {
-      adapter.log.error(`WebDAV file read failed: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV file read failed" });
-    }
+    await streamWebdavFile(baseUrl, username, password, filePath, req, res);
   });
 
   app.post("/smarthome-dashboard-v2/api/webdav/share-link", async (req, res) => {
