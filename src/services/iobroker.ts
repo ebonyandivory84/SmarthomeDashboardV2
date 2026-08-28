@@ -124,7 +124,7 @@ export class IoBrokerClient {
         "Content-Type": "application/json",
         ...buildAuthHeader(this.settings),
       },
-      body: JSON.stringify({ query: "", forceRefresh: Boolean(options.forceRefresh) }),
+      body: JSON.stringify({ query: "" }),
     });
 
     if (!response.ok) {

@@ -37,8 +37,8 @@ try {
   createWebdavClient = null;
 }
 
-let objectEntriesCache = [];
-let objectEntriesCacheTimestamp = 0;
+const objectEntriesMap = new Map();
+let objectEntriesReady = false;
 let objectEntriesPromise = null;
 let insecureHttpsDispatcher = null;
 let insecureWebdavHttpsAgent = null;
@@ -135,6 +135,7 @@ function startAdapter(options) {
     name: "smarthome-dashboard-v2",
     ready: () => main(adapter),
     unload: (callback) => {
+      adapter.removeListener("objectChange", handleForeignObjectChange);
       const stopLogPromise = Promise.resolve(stopLogCapture(adapter)).catch((error) => {
         adapter.log.warn(`Log capture cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
       });
@@ -184,6 +185,9 @@ function startAdapter(options) {
 
 async function main(adapter) {
   runningAdapter = adapter;
+  initObjectEntriesCache(adapter).catch((error) => {
+    adapter.log.warn(`Object cache initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+  });
   const app = express();
   app.use(
     compression({
@@ -389,8 +393,7 @@ async function main(adapter) {
 
   app.post("/smarthome-dashboard-v2/api/objects", async (req, res) => {
     const query = typeof req.body?.query === "string" ? req.body.query.trim().toLowerCase() : "";
-    const forceRefresh = req.body?.forceRefresh === true;
-    const entries = await getCachedObjectEntries(adapter, { forceRefresh });
+    const entries = await getCachedObjectEntries(adapter);
     const filteredEntries = entries.filter((entry) => {
       if (!query) {
         return true;
@@ -3950,13 +3953,36 @@ async function readRoomSensorHistoryYearly(adapter, ids) {
   return result;
 }
 
-async function getCachedObjectEntries(adapter, { forceRefresh = false } = {}) {
-  const cacheIsFresh = objectEntriesCache.length > 0 && Date.now() - objectEntriesCacheTimestamp < OBJECT_CACHE_TTL_MS;
-  if (cacheIsFresh && !forceRefresh) {
-    return objectEntriesCache;
+function toObjectEntry(id, obj) {
+  const common = obj && obj.common;
+  return {
+    id,
+    name: common && typeof common.name === "string" ? common.name : undefined,
+    type: common && typeof common.type === "string" ? common.type : undefined,
+    role: common && typeof common.role === "string" ? common.role : undefined,
+  };
+}
+
+function handleForeignObjectChange(id, obj) {
+  if (!obj || obj.type !== "state") {
+    objectEntriesMap.delete(id);
+    return;
+  }
+  objectEntriesMap.set(id, toObjectEntry(id, obj));
+}
+
+async function initObjectEntriesCache(adapter) {
+  await refreshObjectEntries(adapter);
+  await adapter.subscribeForeignObjectsAsync("*");
+  adapter.on("objectChange", handleForeignObjectChange);
+}
+
+async function getCachedObjectEntries(adapter) {
+  if (!objectEntriesReady) {
+    return refreshObjectEntries(adapter);
   }
 
-  return refreshObjectEntries(adapter);
+  return Array.from(objectEntriesMap.values());
 }
 
 async function refreshObjectEntries(adapter) {
@@ -3970,29 +3996,12 @@ async function refreshObjectEntries(adapter) {
       endkey: "\u9999",
     })
     .then((view) => {
-      objectEntriesCache = (view?.rows || []).map((row) => ({
-        id: row.id,
-        name:
-          row.value &&
-          row.value.common &&
-          typeof row.value.common.name === "string"
-            ? row.value.common.name
-            : undefined,
-        type:
-          row.value &&
-          row.value.common &&
-          typeof row.value.common.type === "string"
-            ? row.value.common.type
-            : undefined,
-        role:
-          row.value &&
-          row.value.common &&
-          typeof row.value.common.role === "string"
-            ? row.value.common.role
-            : undefined,
-      }));
-      objectEntriesCacheTimestamp = Date.now();
-      return objectEntriesCache;
+      objectEntriesMap.clear();
+      for (const row of view?.rows || []) {
+        objectEntriesMap.set(row.id, toObjectEntry(row.id, row.value));
+      }
+      objectEntriesReady = true;
+      return Array.from(objectEntriesMap.values());
     })
     .finally(() => {
       objectEntriesPromise = null;
