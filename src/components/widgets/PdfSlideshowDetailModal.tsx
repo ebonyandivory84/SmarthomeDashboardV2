@@ -1,4 +1,4 @@
-import { createElement, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { IoBrokerClient } from "../../services/iobroker";
@@ -10,7 +10,7 @@ type PdfSlideshowDetailModalProps = {
   client: IoBrokerClient;
   config: PdfSlideshowWidgetConfig;
   currentFile: WebdavPdfFile;
-  viewerUrl: string | null;
+  pdfBlob: Blob | null;
   pdfError: string | null;
   textColor: string;
   mutedColor: string;
@@ -22,7 +22,7 @@ export function PdfSlideshowDetailModal({
   client,
   config,
   currentFile,
-  viewerUrl,
+  pdfBlob,
   pdfError,
   textColor,
   mutedColor,
@@ -30,6 +30,19 @@ export function PdfSlideshowDetailModal({
   onMoved,
 }: PdfSlideshowDetailModalProps) {
   const [folderBrowserVisible, setFolderBrowserVisible] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pdfBlob) {
+      setViewerUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(pdfBlob);
+    setViewerUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [pdfBlob]);
 
   return (
     <Modal animationType="fade" transparent visible>

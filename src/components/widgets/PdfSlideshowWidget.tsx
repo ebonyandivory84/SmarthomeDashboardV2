@@ -30,6 +30,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
   const [detailOpen, setDetailOpen] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const shareFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const detailOpenRef = useRef(detailOpen);
 
@@ -64,6 +65,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
 
   useEffect(() => {
     setViewerUrl(null);
+    setPdfBlob(null);
     setPdfError(null);
     if (!currentFile || !runtimeActive) {
       return;
@@ -109,6 +111,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
           }
           objectUrl = URL.createObjectURL(blob);
           setViewerUrl(objectUrl);
+          setPdfBlob(blob);
           setPdfError(null);
         } catch (err) {
           if (cancelled) {
@@ -230,7 +233,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         ) : !currentFile ? (
           <Text style={[styles.message, { color: mutedColor }]}>Keine PDF-Dateien gefunden.</Text>
         ) : Platform.OS === "web" ? (
-          viewerUrl && !detailOpen ? (
+          viewerUrl ? (
             createElement(
               "div",
               {
@@ -261,7 +264,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
                 ),
               ),
             )
-          ) : detailOpen ? null : (
+          ) : (
             <Text style={[styles.message, { color: mutedColor }]}>Lädt…</Text>
           )
         ) : (
@@ -297,9 +300,9 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
             setDetailOpen(false);
             await loadFiles();
           }}
+          pdfBlob={pdfBlob}
           pdfError={pdfError}
           textColor={textColor}
-          viewerUrl={viewerUrl}
         />
       ) : null}
     </View>
