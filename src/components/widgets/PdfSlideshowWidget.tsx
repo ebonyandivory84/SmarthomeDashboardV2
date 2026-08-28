@@ -230,7 +230,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         ) : !currentFile ? (
           <Text style={[styles.message, { color: mutedColor }]}>Keine PDF-Dateien gefunden.</Text>
         ) : Platform.OS === "web" ? (
-          viewerUrl ? (
+          viewerUrl && !detailOpen ? (
             createElement(
               "div",
               {
@@ -261,7 +261,7 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
                 ),
               ),
             )
-          ) : (
+          ) : detailOpen ? null : (
             <Text style={[styles.message, { color: mutedColor }]}>Lädt…</Text>
           )
         ) : (
