@@ -8,6 +8,7 @@ import {
   StateSnapshot,
   TelegramWidgetHistoryEntry,
   WaterMeterSummary,
+  WebdavFolder,
   WebdavPdfFile,
   WidgetImageEntry,
   WidgetSoundEntry,
@@ -274,6 +275,52 @@ export class IoBrokerClient {
     }
 
     return await response.blob();
+  }
+
+  async listWebdavFolders(config: WebdavConfigLike, folderPath: string): Promise<WebdavFolder[]> {
+    const params = new URLSearchParams({
+      baseUrl: config.webdavBaseUrl || "",
+      username: config.webdavUsername || "",
+      password: config.webdavPassword || "",
+      path: folderPath,
+    });
+    const response = await fetch(this.endpoint(`/webdav/folders?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `Ordner konnten nicht geladen werden (${response.status})`);
+    }
+
+    return (await response.json()) as WebdavFolder[];
+  }
+
+  async moveWebdavFile(config: WebdavConfigLike, fromPath: string, toFolderPath: string): Promise<{ path: string }> {
+    const response = await fetch(this.endpoint("/webdav/move"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeader(this.settings),
+      },
+      body: JSON.stringify({
+        baseUrl: config.webdavBaseUrl || "",
+        username: config.webdavUsername || "",
+        password: config.webdavPassword || "",
+        fromPath,
+        toFolderPath,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `Datei konnte nicht verschoben werden (${response.status})`);
+    }
+
+    return (await response.json()) as { path: string };
   }
 
   async readLogs(options?: {

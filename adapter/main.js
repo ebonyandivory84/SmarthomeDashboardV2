@@ -723,6 +723,59 @@ async function main(adapter) {
     });
   });
 
+  app.get("/smarthome-dashboard-v2/api/webdav/folders", async (req, res) => {
+    const baseUrl = typeof req.query.baseUrl === "string" ? req.query.baseUrl : "";
+    const username = typeof req.query.username === "string" ? req.query.username : "";
+    const password = typeof req.query.password === "string" ? req.query.password : "";
+    const folderPath = typeof req.query.path === "string" ? req.query.path : "/";
+
+    if (!baseUrl) {
+      res.status(400).json({ error: "baseUrl is required" });
+      return;
+    }
+
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      const contents = await client.getDirectoryContents(folderPath);
+      const folders = contents
+        .filter((entry) => entry.type === "directory")
+        .map((entry) => ({
+          name: entry.basename,
+          path: entry.filename,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+      res.json(folders);
+    } catch (error) {
+      adapter.log.error(`WebDAV folder list failed: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV folder list failed" });
+    }
+  });
+
+  app.post("/smarthome-dashboard-v2/api/webdav/move", async (req, res) => {
+    const baseUrl = typeof req.body?.baseUrl === "string" ? req.body.baseUrl : "";
+    const username = typeof req.body?.username === "string" ? req.body.username : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const fromPath = typeof req.body?.fromPath === "string" ? req.body.fromPath : "";
+    const toFolderPath = typeof req.body?.toFolderPath === "string" ? req.body.toFolderPath : "";
+
+    if (!baseUrl || !fromPath || !toFolderPath) {
+      res.status(400).json({ error: "baseUrl, fromPath and toFolderPath are required" });
+      return;
+    }
+
+    try {
+      const client = buildWebdavClient(baseUrl, username, password);
+      const fileName = path.posix.basename(fromPath);
+      const destination = path.posix.join(toFolderPath, fileName);
+      await client.moveFile(fromPath, destination);
+      res.json({ path: destination });
+    } catch (error) {
+      adapter.log.error(`WebDAV move failed: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ error: error instanceof Error ? error.message : "WebDAV move failed" });
+    }
+  });
+
   app.get("/smarthome-dashboard-v2/api/telegram/history", async (_req, res) => {
     try {
       const history = await readTelegramHistory(adapter);

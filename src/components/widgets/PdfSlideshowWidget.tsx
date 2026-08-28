@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useRef, useState } from "react";
+import { createElement, KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
@@ -7,6 +7,7 @@ import { PdfSlideshowWidgetConfig, WebdavPdfFile } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { PdfFileBrowserModal } from "../PdfFileBrowserModal";
+import { PdfSlideshowDetailModal } from "./PdfSlideshowDetailModal";
 
 const PDF_FETCH_TIMEOUT_MS = 30000;
 
@@ -26,9 +27,15 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [browserVisible, setBrowserVisible] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const shareFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detailOpenRef = useRef(detailOpen);
+
+  useEffect(() => {
+    detailOpenRef.current = detailOpen;
+  }, [detailOpen]);
 
   const loadFiles = useCallback(async () => {
     try {
@@ -80,9 +87,14 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         return;
       }
       const intervalMs = Math.max(1, config.slideIntervalSeconds ?? 5) * 1000;
-      advanceTimer = setTimeout(() => {
+      const tick = () => {
+        if (detailOpenRef.current) {
+          advanceTimer = setTimeout(tick, intervalMs);
+          return;
+        }
         setCurrentIndex((previous) => (previous + 1) % files.length);
-      }, intervalMs);
+      };
+      advanceTimer = setTimeout(tick, intervalMs);
     };
 
     if (Platform.OS !== "web") {
@@ -220,17 +232,33 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         ) : Platform.OS === "web" ? (
           viewerUrl ? (
             createElement(
-              "object",
+              "div",
               {
-                key: currentFile.path,
-                data: viewerUrl,
-                type: "application/pdf",
-                style: { width: "100%", height: "100%", border: "none" },
+                onClick: () => setDetailOpen(true),
+                onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setDetailOpen(true);
+                  }
+                },
+                role: "button",
+                tabIndex: 0,
+                "aria-label": "PDF-Vorschau maximieren",
+                style: webPreviewStyle,
               },
               createElement(
-                Text,
-                { style: [styles.message, { color: mutedColor }] },
-                "PDF kann in diesem Browser nicht angezeigt werden.",
+                "object",
+                {
+                  key: currentFile.path,
+                  data: viewerUrl,
+                  type: "application/pdf",
+                  style: { width: "100%", height: "100%", border: "none", pointerEvents: "none" },
+                },
+                createElement(
+                  Text,
+                  { style: [styles.message, { color: mutedColor }] },
+                  "PDF kann in diesem Browser nicht angezeigt werden.",
+                ),
               ),
             )
           ) : (
@@ -257,6 +285,23 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         onSelect={handleSelectFile}
         visible={browserVisible}
       />
+
+      {detailOpen && currentFile ? (
+        <PdfSlideshowDetailModal
+          client={client}
+          config={config}
+          currentFile={currentFile}
+          mutedColor={mutedColor}
+          onClose={() => setDetailOpen(false)}
+          onMoved={async () => {
+            setDetailOpen(false);
+            await loadFiles();
+          }}
+          pdfError={pdfError}
+          textColor={textColor}
+          viewerUrl={viewerUrl}
+        />
+      ) : null}
     </View>
   );
 }
@@ -317,3 +362,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+const webPreviewStyle = {
+  width: "100%",
+  height: "100%",
+  cursor: "pointer" as const,
+};

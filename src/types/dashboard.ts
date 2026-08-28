@@ -745,6 +745,11 @@ export type WebdavPdfFile = {
   lastModified: string;
 };
 
+export type WebdavFolder = {
+  name: string;
+  path: string;
+};
+
 export type IoBrokerLogEntry = {
   id: number;
   from: string;
