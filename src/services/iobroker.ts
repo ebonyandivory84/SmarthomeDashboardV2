@@ -108,13 +108,13 @@ export class IoBrokerClient {
     }
   }
 
-  async listObjects(query = ""): Promise<IoBrokerObjectEntry[]> {
+  async listObjects(query = "", options: { forceRefresh?: boolean } = {}): Promise<IoBrokerObjectEntry[]> {
     const normalizedQuery = query.trim().toLowerCase();
     const cacheKey = this.cacheKey();
     const cached = objectCache.get(cacheKey);
     const cacheIsFresh = cached && Date.now() - cached.timestamp < OBJECT_CACHE_TTL_MS;
 
-    if (cacheIsFresh) {
+    if (cacheIsFresh && !options.forceRefresh) {
       return filterObjects(cached.items, normalizedQuery);
     }
 
@@ -124,7 +124,7 @@ export class IoBrokerClient {
         "Content-Type": "application/json",
         ...buildAuthHeader(this.settings),
       },
-      body: JSON.stringify({ query: "" }),
+      body: JSON.stringify({ query: "", forceRefresh: Boolean(options.forceRefresh) }),
     });
 
     if (!response.ok) {

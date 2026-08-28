@@ -83,6 +83,24 @@ export function ObjectPickerModal({ client, visible, title, onClose, onSelect }:
     };
   }, [client, loaded, visible]);
 
+  const refresh = () => {
+    setLoading(true);
+    setError(null);
+
+    client
+      .listObjects("", { forceRefresh: true })
+      .then((nextEntries) => {
+        setEntries(nextEntries);
+        setLoaded(true);
+      })
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : "Objekte konnten nicht geladen werden");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
   const treeIndex = useMemo(() => buildTreeIndex(entries), [entries]);
   const rootNodes = treeIndex.get("") || [];
   const searchResults = useMemo(() => filterEntries(entries, debouncedQuery), [debouncedQuery, entries]);
@@ -146,7 +164,12 @@ export function ObjectPickerModal({ client, visible, title, onClose, onSelect }:
             <Text style={styles.metaText}>
               {debouncedQuery ? `${searchResults.length} Treffer` : `${entries.length} Objekte geladen`}
             </Text>
-            {loading ? <ActivityIndicator color={palette.accent} size="small" /> : null}
+            <View style={styles.metaActions}>
+              {loading ? <ActivityIndicator color={palette.accent} size="small" /> : null}
+              <Pressable disabled={loading} onPress={refresh}>
+                <Text style={[styles.refreshLabel, loading ? styles.refreshLabelDisabled : null]}>Aktualisieren</Text>
+              </Pressable>
+            </View>
           </View>
           <Text style={styles.helperText}>
             Ohne Suche werden nur Ordner geladen und bei Bedarf aufgeklappt. Mit Suche siehst du direkte Treffer.
@@ -347,6 +370,19 @@ const styles = StyleSheet.create({
   metaText: {
     color: palette.textMuted,
     fontSize: 12,
+  },
+  metaActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  refreshLabel: {
+    color: palette.accent,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  refreshLabelDisabled: {
+    color: palette.textMuted,
   },
   helperText: {
     color: palette.textMuted,

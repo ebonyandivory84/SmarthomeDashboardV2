@@ -389,7 +389,8 @@ async function main(adapter) {
 
   app.post("/smarthome-dashboard-v2/api/objects", async (req, res) => {
     const query = typeof req.body?.query === "string" ? req.body.query.trim().toLowerCase() : "";
-    const entries = await getCachedObjectEntries(adapter);
+    const forceRefresh = req.body?.forceRefresh === true;
+    const entries = await getCachedObjectEntries(adapter, { forceRefresh });
     const filteredEntries = entries.filter((entry) => {
       if (!query) {
         return true;
@@ -3949,9 +3950,9 @@ async function readRoomSensorHistoryYearly(adapter, ids) {
   return result;
 }
 
-async function getCachedObjectEntries(adapter) {
+async function getCachedObjectEntries(adapter, { forceRefresh = false } = {}) {
   const cacheIsFresh = objectEntriesCache.length > 0 && Date.now() - objectEntriesCacheTimestamp < OBJECT_CACHE_TTL_MS;
-  if (cacheIsFresh) {
+  if (cacheIsFresh && !forceRefresh) {
     return objectEntriesCache;
   }
 
