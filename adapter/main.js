@@ -640,8 +640,12 @@ async function main(adapter) {
           /* ignore */
         }
       };
+      // Nur "res close" signalisiert einen echten Verbindungsabbruch. "req close" feuert
+      // bei POST-Requests bereits, sobald der (von express.json() bereits vollstaendig
+      // gelesene) Request-Body konsumiert ist -- also praktisch sofort nach Start, lange
+      // bevor die Antwort fertig ist. Damit wurde der PDF-Stream bislang immer sofort
+      // wieder zerstoert, bevor auch nur ein Byte vom WebDAV-Server ankam.
       req.on("aborted", closeStream);
-      req.on("close", closeStream);
       res.on("close", closeStream);
 
       res.setHeader("Content-Type", "application/pdf");
