@@ -303,6 +303,12 @@ export type WaterMeterIntradayValue = {
   liters: number;
 };
 
+export type WaterMeterIntradayRangeValue = {
+  t: number;
+  liters: number;
+  litersPerHour: number;
+};
+
 export type WaterMeterMonthlyValue = {
   month: string;
   liters: number;

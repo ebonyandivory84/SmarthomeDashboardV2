@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { createElement, useEffect, useState } from "react";
+import { createElement, KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from "react";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
@@ -11,6 +11,7 @@ import {
   WaterMeterWidgetConfig,
 } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
+import { WaterIntradayDetailModal } from "./WaterIntradayDetailModal";
 
 type WaterMeterWidgetProps = {
   config: WaterMeterWidgetConfig;
@@ -152,6 +153,9 @@ export function WaterMeterWidget({
     lowPowerMode,
     textColor: config.appearance?.textColor || palette.text,
     mutedTextColor: config.appearance?.mutedTextColor || palette.textMuted,
+    client,
+    meterValueStateId,
+    maxFlowLitersPerMinute,
   });
 }
 
@@ -167,6 +171,9 @@ type WaterMeterWebProps = {
   lowPowerMode: boolean;
   textColor: string;
   mutedTextColor: string;
+  client: IoBrokerClient;
+  meterValueStateId: string;
+  maxFlowLitersPerMinute: number;
 };
 
 function WaterMeterWeb({
@@ -181,8 +188,12 @@ function WaterMeterWeb({
   lowPowerMode,
   textColor,
   mutedTextColor,
+  client,
+  meterValueStateId,
+  maxFlowLitersPerMinute,
 }: WaterMeterWebProps) {
   const [chartView, setChartView] = useState<"week" | "month">("week");
+  const [intradayDetailOpen, setIntradayDetailOpen] = useState(false);
   const averageReference = Math.max(summary.averageUntilNowLiters, 1);
   const gaugeRatio = Math.max(0, Math.min(1.25, summary.todayLiters / averageReference));
   const gaugeDegrees = (gaugeRatio / 1.25) * 280;
@@ -366,8 +377,22 @@ function WaterMeterWeb({
       flowLitersPerMinute,
       timezone,
       mutedTextColor,
-      lowPowerMode
+      lowPowerMode,
+      () => setIntradayDetailOpen(true)
     ),
+    intradayDetailOpen
+      ? createElement(WaterIntradayDetailModal, {
+          key: "intraday-detail",
+          stateId: meterValueStateId,
+          multiplier: meterValueMultiplier,
+          maxFlowLitersPerMinute,
+          timezone,
+          client,
+          textColor,
+          mutedTextColor,
+          onClose: () => setIntradayDetailOpen(false),
+        })
+      : null,
     createElement(
       "div",
       { style: webFooterStyle },
@@ -412,7 +437,8 @@ function renderIntradayPanel(
   flowLitersPerMinute: number | null,
   timezone: string,
   mutedTextColor: string,
-  lowPowerMode: boolean
+  lowPowerMode: boolean,
+  onOpen: () => void
 ) {
   const points = intraday.length >= 2 ? intraday : buildEmptyIntradayPoints();
   const axisMaximum = niceAxisMaximum(Math.max(0, ...points.map((entry) => entry.liters * 2)));
@@ -439,7 +465,19 @@ function renderIntradayPanel(
 
   return createElement(
     "div",
-    { style: webIntradayPanelStyle },
+    {
+      onClick: onOpen,
+      onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      },
+      role: "button",
+      tabIndex: 0,
+      "aria-label": "Wasserverbrauch Verlauf oeffnen",
+      style: { ...webIntradayPanelStyle, cursor: "pointer" },
+    },
     createElement(
       "div",
       { style: webIntradayHeaderStyle },

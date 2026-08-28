@@ -10,7 +10,7 @@ const http = require("http");
 const https = require("https");
 const crypto = require("crypto");
 const { resolveWebRoot } = require("./lib/static");
-const { buildWaterMonthlyValues, buildWaterSummary } = require("./lib/waterSummary");
+const { buildWaterIntradaySeries, buildWaterMonthlyValues, buildWaterSummary } = require("./lib/waterSummary");
 const { buildMonthlyAverages } = require("./lib/monthlyAverage");
 let WebSocketClient = null;
 try {
@@ -58,6 +58,8 @@ const waterSummaryCache = new Map();
 const WATER_SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
 const waterMonthlyCache = new Map();
 const WATER_MONTHLY_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const waterIntradayCache = new Map();
+const WATER_INTRADAY_CACHE_TTL_MS = 60 * 1000;
 const API_JSON_LIMIT = "15mb";
 const CONFIG_STATE_ID = "dashboardConfig";
 const SAVED_DASHBOARDS_STATE_ID = "savedDashboards";
@@ -523,6 +525,49 @@ async function main(adapter) {
       res.json(summary);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Water summary read failed" });
+    }
+  });
+
+  app.get("/smarthome-dashboard-v2/api/water-intraday", async (req, res) => {
+    try {
+      const stateId = normalizeFilter(req.query?.stateId);
+      if (!stateId) {
+        res.status(400).json({ error: "stateId is required" });
+        return;
+      }
+
+      const fromParam = normalizeFilter(req.query?.from);
+      const toParam = normalizeFilter(req.query?.to);
+      const fromMs = Number.parseInt(fromParam, 10);
+      const toMs = Number.parseInt(toParam, 10);
+      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+        res.status(400).json({ error: "Invalid from/to range" });
+        return;
+      }
+      const maxRangeMs = 31 * 24 * 60 * 60 * 1000;
+      const clampedFromMs = Math.max(fromMs, toMs - maxRangeMs);
+      const bucketMs = clampInt(req.query?.bucketMs, 30 * 60 * 1000, 60 * 1000, 24 * 60 * 60 * 1000);
+
+      const requestedMultiplier = Number(req.query?.multiplier);
+      const requestedMaxFlow = Number(req.query?.maxFlow);
+      const multiplier = Number.isFinite(requestedMultiplier)
+        ? clampNumber(requestedMultiplier, 0.001, 1_000_000)
+        : 1000;
+      const maxFlowLitersPerMinute = Number.isFinite(requestedMaxFlow)
+        ? clampNumber(requestedMaxFlow, 1, 1000)
+        : 80;
+
+      const series = await readWaterIntraday(adapter, {
+        stateId,
+        fromMs: clampedFromMs,
+        toMs,
+        bucketMs,
+        multiplier,
+        maxFlowLitersPerMinute,
+      });
+      res.json(series);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Water intraday read failed" });
     }
   });
 
@@ -3778,6 +3823,79 @@ async function queryInfluxWaterSeries(influxConfig, stateId, rangeDays, bucket =
     t: new Date(row[0]).getTime(),
     v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
   }));
+}
+
+async function queryInfluxWaterSeriesRange(influxConfig, stateId, fromMs, toMs, bucket = "10m") {
+  const escapedId = stateId.replace(/"/g, '\\"');
+  const safeBucket = bucket === "1h" ? "1h" : "10m";
+  const query = `SELECT last("value") FROM "${escapedId}" WHERE time >= ${fromMs}ms AND time <= ${toMs}ms GROUP BY time(${safeBucket}) fill(previous)`;
+  const url = `${influxConfig.protocol}://${influxConfig.host}:${influxConfig.port}/query?db=${encodeURIComponent(
+    influxConfig.dbname
+  )}&q=${encodeURIComponent(query)}`;
+  const response = await fetch(url, { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`InfluxDB water query failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const series = payload?.results?.[0]?.series?.[0];
+  if (!series || !Array.isArray(series.values)) {
+    return [];
+  }
+
+  return series.values.map((row) => ({
+    t: new Date(row[0]).getTime(),
+    v: typeof row[1] === "number" && Number.isFinite(row[1]) ? row[1] : null,
+  }));
+}
+
+function pruneWaterIntradayCache() {
+  const now = Date.now();
+  for (const [key, entry] of waterIntradayCache) {
+    if (now - entry.timestamp > WATER_INTRADAY_CACHE_TTL_MS) {
+      waterIntradayCache.delete(key);
+    }
+  }
+}
+
+async function readWaterIntraday(adapter, options) {
+  const influxConfig = await getInfluxConfig(adapter);
+  if (!influxConfig) {
+    throw new Error("InfluxDB-Instanz (system.adapter.influxdb.0) ist nicht konfiguriert");
+  }
+
+  pruneWaterIntradayCache();
+  const bucketMs = options.bucketMs;
+  // Floor the range bounds to the bucket grid for the cache key only, same
+  // rationale as readRoomSensorHistoryRange: the live view recomputes toMs as
+  // Date.now() on every poll, so an unfloored key would never repeat.
+  const cacheFrom = Math.floor(options.fromMs / bucketMs) * bucketMs;
+  const cacheTo = Math.floor(options.toMs / bucketMs) * bucketMs;
+  const cacheKey = [
+    options.stateId,
+    cacheFrom,
+    cacheTo,
+    bucketMs,
+    options.multiplier,
+    options.maxFlowLitersPerMinute,
+  ].join("|");
+  const cached = waterIntradayCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < WATER_INTRADAY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const sampleBucket = options.toMs - options.fromMs <= 3 * 24 * 60 * 60 * 1000 ? "10m" : "1h";
+  const points = await queryInfluxWaterSeriesRange(influxConfig, options.stateId, options.fromMs, options.toMs, sampleBucket);
+  const series = buildWaterIntradaySeries(points, {
+    fromMs: options.fromMs,
+    toMs: options.toMs,
+    bucketMs,
+    multiplier: options.multiplier,
+    maxFlowLitersPerMinute: options.maxFlowLitersPerMinute,
+  });
+
+  waterIntradayCache.set(cacheKey, { timestamp: Date.now(), data: series });
+  return series;
 }
 
 function pruneWaterSummaryCache() {

@@ -7,6 +7,7 @@ import {
   PdfSlideshowWidgetConfig,
   StateSnapshot,
   TelegramWidgetHistoryEntry,
+  WaterMeterIntradayRangeValue,
   WaterMeterSummary,
   WebdavFolder,
   WebdavPdfFile,
@@ -551,6 +552,36 @@ export class IoBrokerClient {
     }
 
     return (await response.json()) as WaterMeterSummary;
+  }
+
+  async readWaterIntradayRange(options: {
+    stateId: string;
+    fromMs: number;
+    toMs: number;
+    bucketMs: number;
+    multiplier: number;
+    maxFlowLitersPerMinute: number;
+  }): Promise<WaterMeterIntradayRangeValue[]> {
+    const params = new URLSearchParams({
+      stateId: options.stateId,
+      from: String(options.fromMs),
+      to: String(options.toMs),
+      bucketMs: String(options.bucketMs),
+      multiplier: String(options.multiplier),
+      maxFlow: String(options.maxFlowLitersPerMinute),
+    });
+    const response = await fetch(this.endpoint(`/water-intraday?${params.toString()}`), {
+      method: "GET",
+      headers: {
+        ...buildAuthHeader(this.settings),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Water intraday read failed (${response.status})`);
+    }
+
+    return (await response.json()) as WaterMeterIntradayRangeValue[];
   }
 
   private async uploadWidgetFile<T>(path: string, name: string, dataUrl: string): Promise<T> {

@@ -221,7 +221,54 @@ function buildWaterSummary(points, options = {}) {
   };
 }
 
+function buildWaterIntradaySeries(points, options = {}) {
+  const fromMs = Number(options.fromMs);
+  const toMs = Number(options.toMs);
+  const bucketMs = Math.max(60_000, Number(options.bucketMs) || 30 * 60 * 1000);
+  const multiplier = Math.max(0.001, Math.min(1_000_000, Number(options.multiplier) || 1000));
+  const maxFlowLitersPerMinute = Math.max(1, Math.min(1000, Number(options.maxFlowLitersPerMinute) || 80));
+  const bucketCount = Math.max(1, Math.round((toMs - fromMs) / bucketMs));
+  const buckets = Array.from({ length: bucketCount }, (_, index) => ({
+    t: fromMs + index * bucketMs,
+    liters: 0,
+  }));
+
+  const samples = (Array.isArray(points) ? points : [])
+    .filter((point) => Number.isFinite(point?.t) && Number.isFinite(point?.v))
+    .map((point) => ({ t: Number(point.t), v: Number(point.v) }))
+    .sort((left, right) => left.t - right.t);
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    if (current.t < fromMs || current.t > toMs) {
+      continue;
+    }
+
+    const elapsedMinutes = Math.max(1, Math.min(120, (current.t - previous.t) / 60_000));
+    const deltaLiters = (current.v - previous.v) * multiplier;
+    const maxPlausibleDelta = maxFlowLitersPerMinute * elapsedMinutes * 1.25;
+
+    if (deltaLiters < 0 || deltaLiters > maxPlausibleDelta) {
+      continue;
+    }
+
+    const bucketIndex = Math.min(bucketCount - 1, Math.floor((current.t - fromMs) / bucketMs));
+    if (bucketIndex >= 0) {
+      buckets[bucketIndex].liters += deltaLiters;
+    }
+  }
+
+  const bucketHours = bucketMs / 3_600_000;
+  return buckets.map((bucket) => ({
+    t: bucket.t,
+    liters: round(bucket.liters),
+    litersPerHour: round(bucket.liters / bucketHours),
+  }));
+}
+
 module.exports = {
+  buildWaterIntradaySeries,
   buildWaterMonthlyValues,
   buildWaterSummary,
   localDateParts,
