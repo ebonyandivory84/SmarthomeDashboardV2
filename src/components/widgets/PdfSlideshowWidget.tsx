@@ -218,13 +218,24 @@ export function PdfSlideshowWidget({ client, config, isActivePage = true, lowPow
         ) : !currentFile ? (
           <Text style={[styles.message, { color: mutedColor }]}>Keine PDF-Dateien gefunden.</Text>
         ) : Platform.OS === "web" ? (
-          createElement("iframe", {
-            key: currentFile.path,
-            src: viewerUrl,
-            style: { width: "100%", height: "100%", border: "none" },
-            sandbox: "allow-same-origin allow-scripts",
-            referrerPolicy: "no-referrer",
-          })
+          viewerUrl ? (
+            createElement(
+              "object",
+              {
+                key: currentFile.path,
+                data: viewerUrl,
+                type: "application/pdf",
+                style: { width: "100%", height: "100%", border: "none" },
+              },
+              createElement(
+                Text,
+                { style: [styles.message, { color: mutedColor }] },
+                "PDF kann in diesem Browser nicht angezeigt werden.",
+              ),
+            )
+          ) : (
+            <Text style={[styles.message, { color: mutedColor }]}>Lädt…</Text>
+          )
         ) : (
           <View style={styles.fallback}>
             <MaterialCommunityIcons color={mutedColor} name="file-pdf-box" size={32} />
