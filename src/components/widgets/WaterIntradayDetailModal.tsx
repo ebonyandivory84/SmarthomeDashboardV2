@@ -177,7 +177,7 @@ export function WaterIntradayDetailModal({
             mutedTextColor,
             leftRange: valueRange,
             rightRange: null,
-            leftLabelFormat: period === "year" ? formatLitersAxis : formatRate,
+            leftLabelFormat: period === "year" ? (value) => `${formatLitersAxis(value)} L` : (value) => `${formatRate(value)} L/h`,
             domain,
             layout: MODAL_CHART_LAYOUT,
             timeTicks: monthTicks,
