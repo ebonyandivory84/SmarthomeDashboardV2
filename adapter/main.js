@@ -406,9 +406,7 @@ async function main(adapter) {
       );
     });
 
-    const limitedEntries = filteredEntries.slice(0, 60000);
-
-    res.json(limitedEntries);
+    res.json(filteredEntries);
   });
 
   app.get("/smarthome-dashboard-v2/api/logs", async (req, res) => {
