@@ -50,12 +50,12 @@ const PERIOD_MS: Record<RangePeriod, number> = {
 };
 
 // Gröbere Bucket-Auflösung als im Rate-Modal: 24h -> Stunden, 7 Tage -> Tage,
-// 30 Tage -> Wochen. Die Jahresansicht nutzt ohnehin die Monatswerte aus
+// 30 Tage -> Tage. Die Jahresansicht nutzt ohnehin die Monatswerte aus
 // /water-summary.
 const PERIOD_BUCKET_MS: Record<RangePeriod, number> = {
   "24h": 3_600_000,
   "7d": 86_400_000,
-  "30d": 604_800_000,
+  "30d": 86_400_000,
 };
 
 const PERIOD_LABELS: Record<Period, string> = {

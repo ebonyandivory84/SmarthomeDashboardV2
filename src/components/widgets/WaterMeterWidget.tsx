@@ -209,10 +209,14 @@ function WaterMeterWeb({
     let active = true;
     const syncHourlyBars = async () => {
       try {
+        const nowMs = Date.now();
+        const currentHourStart = Math.floor(nowMs / 3_600_000) * 3_600_000;
+        const fromMs = currentHourStart - 12 * 3_600_000;
+        const toMs = currentHourStart;
         const payload = await client.readWaterIntradayRange({
           stateId: meterValueStateId,
-          fromMs: Date.now() - 12 * 3_600_000,
-          toMs: Date.now(),
+          fromMs,
+          toMs,
           bucketMs: 3_600_000,
           multiplier: meterValueMultiplier,
           maxFlowLitersPerMinute,
@@ -553,8 +557,10 @@ function renderIntradayPanel(
   );
   const hasLiveFlow = flowLitersPerMinute !== null && flowLitersPerMinute >= 0.05;
   const level = usageLevel(hasLiveFlow ? flowLitersPerMinute * 60 : recentLitersPerHour);
+  const hourAlignedPoints = points.filter((entry) => new Date(entry.t).getMinutes() === 0);
+  const tickCandidates = hourAlignedPoints.length >= 2 ? hourAlignedPoints : points;
   const timeTicks = [0, 0.25, 0.5, 0.75, 1].map(
-    (ratio) => points[Math.round((points.length - 1) * ratio)]
+    (ratio) => tickCandidates[Math.round((tickCandidates.length - 1) * ratio)]
   );
 
   return createElement(
