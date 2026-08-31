@@ -546,7 +546,7 @@ async function main(adapter) {
       }
       const maxRangeMs = 31 * 24 * 60 * 60 * 1000;
       const clampedFromMs = Math.max(fromMs, toMs - maxRangeMs);
-      const bucketMs = clampInt(req.query?.bucketMs, 30 * 60 * 1000, 60 * 1000, 24 * 60 * 60 * 1000);
+      const bucketMs = clampInt(req.query?.bucketMs, 30 * 60 * 1000, 60 * 1000, 7 * 24 * 60 * 60 * 1000);
 
       const requestedMultiplier = Number(req.query?.multiplier);
       const requestedMaxFlow = Number(req.query?.maxFlow);

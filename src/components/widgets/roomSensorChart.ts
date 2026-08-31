@@ -373,8 +373,12 @@ export type ChartSeriesSpec = {
   dashed?: boolean;
 };
 
+export type ChartBarSpec = { key: string; tStart: number; tEnd: number; v: number | null; color: string };
+
 export type BuildChartElementsParams = {
-  series: ChartSeriesSpec[];
+  series?: ChartSeriesSpec[];
+  bars?: ChartBarSpec[];
+  barBaseValue?: number;
   mutedTextColor: string;
   leftRange: ValueRange | null;
   rightRange: ValueRange | null;
@@ -388,7 +392,9 @@ export type BuildChartElementsParams = {
 };
 
 export function buildChartElements({
-  series,
+  series = [],
+  bars,
+  barBaseValue,
   mutedTextColor,
   leftRange,
   rightRange,
@@ -509,6 +515,35 @@ export function buildChartElements({
     );
   });
 
+  if (bars) {
+    const baseValue = barBaseValue ?? 0;
+    const yBase = leftRange ? valueToY(baseValue, leftRange, layout) : layout.plotHeight;
+    bars.forEach((bar) => {
+      if (bar.v === null || !Number.isFinite(bar.v) || !leftRange) {
+        return;
+      }
+      const x1 = xForT(bar.tStart, domain, layout);
+      const x2 = xForT(bar.tEnd, domain, layout);
+      const gap = Math.min(2, Math.max(0, (x2 - x1) * 0.08));
+      const barX = x1 + gap;
+      const barWidth = Math.max(1, x2 - x1 - gap * 2);
+      const y = valueToY(bar.v, leftRange, layout);
+      const top = Math.min(y, yBase);
+      const height = Math.max(1, Math.abs(yBase - y));
+      children.push(
+        createElement("rect", {
+          key: bar.key,
+          x: barX,
+          y: top,
+          width: barWidth,
+          height,
+          rx: 2,
+          fill: bar.color,
+        })
+      );
+    });
+  }
+
   return { children, labels };
 }
 
@@ -580,4 +615,13 @@ export function statBadge(
     { style: { ...webStatBadgeStyle, justifySelf: align, textAlign: align }, key },
     createElement("span", { style: { color, fontWeight: 800 } }, `${label} ${valueText}`)
   );
+}
+
+export function barValueAtTime(bars: ChartBarSpec[], t: number): number | null {
+  for (const bar of bars) {
+    if (t >= bar.tStart && t < bar.tEnd) {
+      return bar.v;
+    }
+  }
+  return null;
 }

@@ -6,11 +6,13 @@ import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import {
   StateSnapshot,
+  WaterMeterIntradayRangeValue,
   WaterMeterIntradayValue,
   WaterMeterSummary,
   WaterMeterWidgetConfig,
 } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
+import { WaterAbsoluteConsumptionDetailModal } from "./WaterAbsoluteConsumptionDetailModal";
 import { WaterIntradayDetailModal } from "./WaterIntradayDetailModal";
 
 type WaterMeterWidgetProps = {
@@ -156,6 +158,7 @@ export function WaterMeterWidget({
     client,
     meterValueStateId,
     maxFlowLitersPerMinute,
+    runtimeActive,
   });
 }
 
@@ -174,6 +177,7 @@ type WaterMeterWebProps = {
   client: IoBrokerClient;
   meterValueStateId: string;
   maxFlowLitersPerMinute: number;
+  runtimeActive: boolean;
 };
 
 function WaterMeterWeb({
@@ -191,9 +195,85 @@ function WaterMeterWeb({
   client,
   meterValueStateId,
   maxFlowLitersPerMinute,
+  runtimeActive,
 }: WaterMeterWebProps) {
   const [chartView, setChartView] = useState<"week" | "month">("week");
   const [intradayDetailOpen, setIntradayDetailOpen] = useState(false);
+  const [absoluteDetailOpen, setAbsoluteDetailOpen] = useState(false);
+  const [hourlyBars, setHourlyBars] = useState<WaterMeterIntradayRangeValue[]>([]);
+
+  useEffect(() => {
+    if (!runtimeActive) {
+      return;
+    }
+    let active = true;
+    const syncHourlyBars = async () => {
+      try {
+        const payload = await client.readWaterIntradayRange({
+          stateId: meterValueStateId,
+          fromMs: Date.now() - 12 * 3_600_000,
+          toMs: Date.now(),
+          bucketMs: 3_600_000,
+          multiplier: meterValueMultiplier,
+          maxFlowLitersPerMinute,
+        });
+        if (active) {
+          setHourlyBars(payload);
+        }
+      } catch {
+        // Fehleranzeige übernimmt bereits der Haupt-Fetch (readWaterSummary).
+      }
+    };
+    void syncHourlyBars();
+    const timer = setInterval(() => void syncHourlyBars(), 60_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [client, meterValueStateId, meterValueMultiplier, maxFlowLitersPerMinute, runtimeActive]);
+
+  const renderAbsolutePanel = () => {
+    const maxLiters = Math.max(1, ...hourlyBars.map((entry) => entry.liters));
+    const hourLabel = (t: number) =>
+      new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(new Date(t));
+
+    return createElement(
+      "div",
+      {
+        style: { ...webIntradayPanelStyle, cursor: "pointer" },
+        onClick: () => setAbsoluteDetailOpen(true),
+        onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setAbsoluteDetailOpen(true);
+          }
+        },
+        role: "button",
+        tabIndex: 0,
+        "aria-label": "Absoluter Wasserverbrauch pro Stunde oeffnen",
+      },
+      createElement(
+        "div",
+        { style: webIntradayHeaderStyle },
+        createElement("span", null, "Absoluter Verbrauch pro Stunde"),
+        createElement("span", { style: { ...webIntradayUnitStyle, color: mutedTextColor } }, "L")
+      ),
+      createElement(
+        "div",
+        { style: { ...webBarsStyle, display: "grid", gridTemplateColumns: `repeat(${Math.max(1, hourlyBars.length)}, 1fr)` } },
+        hourlyBars.map((entry) => {
+          const height = Math.max(3, (entry.liters / maxLiters) * 76);
+          return createElement(
+            "div",
+            { key: entry.t, style: webBarColumnStyle },
+            createElement("span", { style: { ...webBarValueStyle, color: mutedTextColor } }, formatCompactLiters(entry.liters)),
+            createElement("span", { style: { ...webBarStyle, height, background: "rgba(109,220,255,.34)" } }),
+            createElement("span", { style: { ...webBarLabelStyle, color: mutedTextColor } }, hourLabel(entry.t))
+          );
+        })
+      )
+    );
+  };
   const averageReference = Math.max(summary.averageUntilNowLiters, 1);
   const gaugeRatio = Math.max(0, Math.min(1.25, summary.todayLiters / averageReference));
   const gaugeDegrees = (gaugeRatio / 1.25) * 280;
@@ -380,6 +460,7 @@ function WaterMeterWeb({
       lowPowerMode,
       () => setIntradayDetailOpen(true)
     ),
+    renderAbsolutePanel(),
     intradayDetailOpen
       ? createElement(WaterIntradayDetailModal, {
           key: "intraday-detail",
@@ -391,6 +472,19 @@ function WaterMeterWeb({
           textColor,
           mutedTextColor,
           onClose: () => setIntradayDetailOpen(false),
+        })
+      : null,
+    absoluteDetailOpen
+      ? createElement(WaterAbsoluteConsumptionDetailModal, {
+          key: "absolute-detail",
+          stateId: meterValueStateId,
+          multiplier: meterValueMultiplier,
+          maxFlowLitersPerMinute,
+          timezone,
+          client,
+          textColor,
+          mutedTextColor,
+          onClose: () => setAbsoluteDetailOpen(false),
         })
       : null,
     createElement(

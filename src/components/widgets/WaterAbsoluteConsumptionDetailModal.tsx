@@ -4,27 +4,32 @@ import { IoBrokerClient } from "../../services/iobroker";
 import { WaterMeterIntradayRangeValue, WaterMeterMonthlyValue } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
 import {
+  ChartBarSpec,
   ChartLayout,
-  SensorPoint,
   TimeDomain,
   axisRange,
+  barValueAtTime,
   buildChartElements,
   buildMonthTicks,
-  buildSeriesPath,
   chartHeight,
   chartWidth,
-  latestValue,
   statBadge,
   timeDomain,
-  valueAtTime,
   valueToY,
   webAxisLabelLayerStyle,
   webChartSvgStyle,
   webChartWrapperStyle,
   webStatsRowStyle,
 } from "./roomSensorChart";
+import { formatDateTime, formatLiters, formatLitersAxis, formatMonthLabel, monthMidpoint, styles } from "./WaterIntradayDetailModal";
 
-type WaterIntradayDetailModalProps = {
+// monthMidpoint wird hier nicht direkt benötigt (Balken nutzen Monatsanfang/-ende
+// statt Mittelpunkt), bleibt aber Teil des Re-Exports für Konsistenz mit dem
+// Original-Modal und um ungenutzte-Import-Warnungen zu vermeiden, falls später
+// eine Mittelpunkt-Darstellung ergänzt wird.
+void monthMidpoint;
+
+type WaterAbsoluteConsumptionDetailModalProps = {
   stateId: string;
   multiplier: number;
   maxFlowLitersPerMinute: number;
@@ -44,10 +49,13 @@ const PERIOD_MS: Record<RangePeriod, number> = {
   "30d": 30 * 24 * 3_600_000,
 };
 
+// Gröbere Bucket-Auflösung als im Rate-Modal: 24h -> Stunden, 7 Tage -> Tage,
+// 30 Tage -> Wochen. Die Jahresansicht nutzt ohnehin die Monatswerte aus
+// /water-summary.
 const PERIOD_BUCKET_MS: Record<RangePeriod, number> = {
-  "24h": 30 * 60_000,
-  "7d": 2 * 3_600_000,
-  "30d": 6 * 3_600_000,
+  "24h": 3_600_000,
+  "7d": 86_400_000,
+  "30d": 604_800_000,
 };
 
 const PERIOD_LABELS: Record<Period, string> = {
@@ -57,7 +65,7 @@ const PERIOD_LABELS: Record<Period, string> = {
   year: "Jahr",
 };
 
-const SERIES_COLOR = "#6ddcff";
+const BAR_COLOR = "#6ddcff";
 
 const MODAL_CHART_LAYOUT: ChartLayout = {
   plotWidth: 720,
@@ -70,7 +78,21 @@ const MODAL_CHART_LAYOUT: ChartLayout = {
 
 const REFRESH_MS = 60_000;
 
-export function WaterIntradayDetailModal({
+const webEmptyStateStyle = {
+  fontSize: "13px",
+  fontWeight: 600,
+  textAlign: "center" as const,
+  padding: "32px 0",
+};
+
+function monthRangeMs(month: string): { start: number; end: number } {
+  const start = new Date(`${month}-01T00:00:00Z`).getTime();
+  const startDate = new Date(start);
+  const end = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1);
+  return { start, end };
+}
+
+export function WaterAbsoluteConsumptionDetailModal({
   stateId,
   multiplier,
   maxFlowLitersPerMinute,
@@ -79,7 +101,7 @@ export function WaterIntradayDetailModal({
   textColor,
   mutedTextColor,
   onClose,
-}: WaterIntradayDetailModalProps) {
+}: WaterAbsoluteConsumptionDetailModalProps) {
   const [period, setPeriod] = useState<Period>("24h");
   const [pageOffset, setPageOffset] = useState(0);
   const [series, setSeries] = useState<WaterMeterIntradayRangeValue[]>([]);
@@ -127,7 +149,9 @@ export function WaterIntradayDetailModal({
       if (active) {
         setMonthly(payload.monthly);
         if (payload.monthly.length > 0) {
-          setRange({ from: monthMidpoint(payload.monthly[0].month), to: monthMidpoint(payload.monthly[payload.monthly.length - 1].month) });
+          const first = monthRangeMs(payload.monthly[0].month);
+          const last = monthRangeMs(payload.monthly[payload.monthly.length - 1].month);
+          setRange({ from: first.start, to: last.end });
         }
         setError(null);
       }
@@ -154,47 +178,76 @@ export function WaterIntradayDetailModal({
     };
   }, [client, stateId, multiplier, maxFlowLitersPerMinute, timezone, period, pageOffset]);
 
-  const points: SensorPoint[] = useMemo(
-    () =>
-      period === "year"
-        ? monthly.map((entry) => ({ t: monthMidpoint(entry.month), v: entry.liters }))
-        : series.map((entry) => ({ t: entry.t, v: entry.litersPerHour })),
-    [period, series, monthly]
+  const bars: ChartBarSpec[] = useMemo(() => {
+    if (period === "year") {
+      return monthly.map((entry) => {
+        const { start, end } = monthRangeMs(entry.month);
+        return { key: entry.month, tStart: start, tEnd: end, v: entry.liters, color: BAR_COLOR };
+      });
+    }
+    return series.map((entry) => ({
+      key: String(entry.t),
+      tStart: entry.t,
+      tEnd: entry.t + PERIOD_BUCKET_MS[period as RangePeriod],
+      v: entry.liters,
+      color: BAR_COLOR,
+    }));
+  }, [period, series, monthly]);
+
+  const domain: TimeDomain | null = useMemo(() => {
+    if (bars.length === 0) {
+      return null;
+    }
+    const syntheticPoints = bars.flatMap((bar) => [
+      { t: bar.tStart, v: 0 },
+      { t: bar.tEnd, v: 0 },
+    ]);
+    return timeDomain(syntheticPoints);
+  }, [bars]);
+
+  const valueRange = useMemo(
+    () => axisRange([{ points: bars.map((bar) => ({ t: bar.tStart, v: bar.v })), overrideMin: 0 }]),
+    [bars]
   );
-  const domain: TimeDomain | null = useMemo(() => timeDomain(points), [points]);
-  const valueRange = useMemo(() => axisRange([{ points }]), [points]);
-  const path = useMemo(
-    () => (domain && valueRange ? buildSeriesPath(points, valueRange, domain, MODAL_CHART_LAYOUT) : ""),
-    [points, domain, valueRange]
+
+  const monthTicks = useMemo(
+    () => (period === "year" ? buildMonthTicks(bars.map((bar) => ({ t: bar.tStart, v: bar.v }))) : undefined),
+    [period, bars]
   );
-  const monthTicks = useMemo(() => (period === "year" ? buildMonthTicks(points) : undefined), [period, points]);
 
   const chartElements = useMemo(
     () =>
       domain && valueRange
         ? buildChartElements({
-            series: [{ key: "water", path, color: SERIES_COLOR }],
+            bars,
             mutedTextColor,
             leftRange: valueRange,
             rightRange: null,
-            leftLabelFormat: period === "year" ? (value) => `${formatLitersAxis(value)} L` : (value) => `${formatRate(value)} L/h`,
+            leftLabelFormat: (value) => `${formatLitersAxis(value)} L`,
             domain,
             layout: MODAL_CHART_LAYOUT,
             timeTicks: monthTicks,
           })
         : null,
-    [domain, valueRange, path, mutedTextColor, period, monthTicks]
+    [domain, valueRange, bars, mutedTextColor, monthTicks]
   );
 
-  const hasData = points.some((point) => point.v !== null && (point.v as number) > 0);
+  const hasData = bars.some((bar) => bar.v !== null && (bar.v as number) > 0);
   const chartVisible = Boolean(domain) && Boolean(valueRange) && Boolean(chartElements);
 
-  const latest = latestValue(points);
-  const totalLiters =
-    period === "year" ? monthly.reduce((sum, entry) => sum + entry.liters, 0) : series.reduce((sum, entry) => sum + entry.liters, 0);
+  const latest = useMemo(() => {
+    for (let i = bars.length - 1; i >= 0; i -= 1) {
+      const v = bars[i].v;
+      if (v !== null && Number.isFinite(v)) {
+        return v;
+      }
+    }
+    return null;
+  }, [bars]);
+  const totalLiters = useMemo(() => bars.reduce((sum, bar) => sum + (bar.v ?? 0), 0), [bars]);
 
   const hoverT = hoverRatio !== null && domain ? domain.minT + hoverRatio * (domain.maxT - domain.minT) : null;
-  const hoverValue = hoverT !== null ? valueAtTime(points, hoverT) : null;
+  const hoverValue = hoverT !== null ? barValueAtTime(bars, hoverT) : null;
 
   const overlayChildren: ReactNode[] = [];
   if (hoverT !== null && hoverRatio !== null && hoverValue !== null && valueRange) {
@@ -229,7 +282,7 @@ export function WaterIntradayDetailModal({
           width: "8px",
           height: "8px",
           borderRadius: "999px",
-          backgroundColor: SERIES_COLOR,
+          backgroundColor: BAR_COLOR,
           border: "2px solid rgba(4,8,17,0.9)",
           transform: "translate(-50%, -50%)",
         },
@@ -261,11 +314,7 @@ export function WaterIntradayDetailModal({
           { key: "tt-time", style: { color: mutedTextColor, marginBottom: "2px" } },
           period === "year" ? formatMonthLabel(hoverT) : formatDateTime(hoverT)
         ),
-        createElement(
-          "div",
-          { key: "tt-value", style: { color: SERIES_COLOR } },
-          period === "year" ? formatLiters(hoverValue) : `${formatRate(hoverValue)} L/h`
-        )
+        createElement("div", { key: "tt-value", style: { color: BAR_COLOR } }, formatLiters(hoverValue))
       )
     );
   }
@@ -325,7 +374,7 @@ export function WaterIntradayDetailModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: textColor }]}>Wasserverbrauch</Text>
+            <Text style={[styles.title, { color: textColor }]}>Absoluter Verbrauch</Text>
             <Pressable onPress={onClose}>
               <Text style={[styles.close, { color: mutedTextColor }]}>Schliessen</Text>
             </Pressable>
@@ -335,13 +384,7 @@ export function WaterIntradayDetailModal({
             "div",
             { style: webStatsRowStyle },
             latest !== null
-              ? statBadge(
-                  period === "year" ? "letzter Monat" : "aktuell",
-                  period === "year" ? formatLiters(latest) : `${formatRate(latest)} L/h`,
-                  SERIES_COLOR,
-                  "left",
-                  "latest"
-                )
+              ? statBadge(period === "year" ? "letzter Monat" : "aktuell", formatLiters(latest), BAR_COLOR, "left", "latest")
               : null,
             statBadge("gesamt", formatLiters(totalLiters), mutedTextColor, "right", "total")
           )}
@@ -418,134 +461,3 @@ export function WaterIntradayDetailModal({
     </Modal>
   );
 }
-
-export function formatDateTime(t: number) {
-  const date = new Date(t);
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${dd}.${mm}. ${hh}:${min}`;
-}
-
-function formatRate(value: number) {
-  return value.toFixed(value > 0 && value < 10 ? 1 : 0);
-}
-
-export function formatLiters(value: number) {
-  return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: value >= 100 ? 0 : 1 }).format(value)} L`;
-}
-
-export function formatLitersAxis(value: number) {
-  if (value >= 1000) {
-    return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value / 1000)}k`;
-  }
-  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(value);
-}
-
-export function monthMidpoint(month: string) {
-  return new Date(`${month}-15T12:00:00Z`).getTime();
-}
-
-export function formatMonthLabel(t: number) {
-  return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(new Date(t));
-}
-
-const webEmptyStateStyle = {
-  fontSize: "13px",
-  fontWeight: 600,
-  textAlign: "center" as const,
-  padding: "32px 0",
-};
-
-export const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.74)",
-    padding: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 860,
-    borderRadius: 22,
-    backgroundColor: palette.panelStrong,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 18,
-    gap: 12,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontWeight: "800",
-    fontSize: 20,
-  },
-  close: {
-    fontWeight: "700",
-  },
-  periodRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  periodChip: {
-    minHeight: 34,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: palette.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  periodChipActive: {
-    backgroundColor: palette.accent,
-    borderColor: palette.accent,
-  },
-  periodChipLabel: {
-    color: palette.text,
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  periodChipLabelActive: {
-    color: "#041019",
-  },
-  paginationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  pageButton: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  pageButtonLabel: {
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  rangeLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
-  },
-  errorText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: palette.danger,
-  },
-  chartContainer: {
-    minHeight: 340,
-  },
-});
