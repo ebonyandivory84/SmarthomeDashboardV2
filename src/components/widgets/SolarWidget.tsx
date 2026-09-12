@@ -870,17 +870,17 @@ function NodeCard({
   sceneScale?: number;
 }) {
   const scale = clamp(sceneScale ?? 1, 0.52, 1);
-  const iconSize = Math.round(clamp(38 * scale, 24, 38));
-  const cardPadding = Math.round(clamp(10 * scale, 5, 10));
+  const iconSize = Math.round(clamp(46 * scale, 28, 46));
+  const cardPadding = Math.round(clamp(12 * scale, 6, 12));
   const cardRadius = Math.round(clamp(20 * scale, 12, 20));
-  const iconBox = Math.round(clamp(54 * scale, 34, 54));
-  const iconRadius = Math.round(clamp(15 * scale, 10, 15));
-  const iconInnerBox = Math.round(clamp(44 * scale, 28, 44));
-  const iconInnerRadius = Math.round(clamp(12 * scale, 7, 12));
-  const valueFontSize = Math.round(clamp(20 * scale, 13, 20));
-  const valueMarginTop = Math.round(clamp(7 * scale, 3, 7));
-  const metaFontSize = Math.round(clamp(9 * scale, 7, 9));
-  const metaMarginTop = Math.round(clamp(4 * scale, 2, 4));
+  const iconBox = Math.round(clamp(62 * scale, 40, 62));
+  const iconRadius = Math.round(clamp(18 * scale, 12, 18));
+  const iconInnerBox = Math.round(clamp(50 * scale, 32, 50));
+  const iconInnerRadius = Math.round(clamp(14 * scale, 8, 14));
+  const valueFontSize = Math.round(clamp(24 * scale, 16, 24));
+  const valueMarginTop = Math.round(clamp(8 * scale, 4, 8));
+  const metaFontSize = Math.round(clamp(11 * scale, 8, 11));
+  const metaMarginTop = Math.round(clamp(5 * scale, 3, 5));
 
   return (
     <View
@@ -1437,11 +1437,11 @@ function resolveBatteryIcon(soc: number | null): keyof typeof MaterialCommunityI
 
 function getDefaultNodeLayout(): SolarLayoutConfig {
   return {
-    pv: { x: 0.4, y: 0.03, w: 0.2, h: 0.12 },
-    home: { x: 0.39, y: 0.43, w: 0.22, h: 0.16 },
-    battery: { x: 0.03, y: 0.45, w: 0.19, h: 0.16 },
-    grid: { x: 0.78, y: 0.45, w: 0.19, h: 0.16 },
-    car: { x: 0.37, y: 0.74, w: 0.26, h: 0.1 },
+    pv: { x: 0.4, y: 0.03, w: 0.2, h: 0.145 },
+    home: { x: 0.39, y: 0.43, w: 0.22, h: 0.19 },
+    battery: { x: 0.03, y: 0.45, w: 0.19, h: 0.19 },
+    grid: { x: 0.78, y: 0.45, w: 0.19, h: 0.19 },
+    car: { x: 0.37, y: 0.74, w: 0.26, h: 0.12 },
   };
 }
 
@@ -1584,14 +1584,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.06)",
   },
   nodeIconCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+  },
+  nodeIconVeryCompact: {
     width: 34,
     height: 34,
     borderRadius: 12,
-  },
-  nodeIconVeryCompact: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
   },
   nodeIconActive: {
     borderColor: "rgba(255,255,255,0.12)",
@@ -1605,14 +1605,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   nodeIconInnerCompact: {
+    width: 31,
+    height: 31,
+    borderRadius: 12,
+  },
+  nodeIconInnerVeryCompact: {
     width: 26,
     height: 26,
     borderRadius: 10,
-  },
-  nodeIconInnerVeryCompact: {
-    width: 22,
-    height: 22,
-    borderRadius: 8,
   },
   nodeLabel: {
     marginTop: 8,
