@@ -140,6 +140,10 @@ let uiSoundSettings: UiSoundSettings = DEFAULT_UI_SOUND_SETTINGS;
 const soundCursor = new Map<string, number>();
 const encodedAudioCache = new Map<string, Promise<ArrayBuffer | null>>();
 const decodedAudioCache = new Map<string, Promise<AudioBuffer | null>>();
+// Synchron abfragbare Sicht auf bereits dekodierte Puffer. Nur damit laesst
+// sich im Klick-Handler ohne await entscheiden, ob der Web-Audio-Weg sofort
+// spielbereit ist.
+const readyDecodedAudio = new Map<string, AudioBuffer>();
 const MAX_DECODED_AUDIO_CACHE = 48;
 const MAX_SOUND_CURSOR_KEYS = 320;
 const SYNTH_GAIN_BOOST = 2.4;
@@ -192,7 +196,7 @@ export function playConfiguredUiSound(soundIds: string[] | undefined, fallback: 
   const cursorKey = `${cycleKey}::${normalizedSelection.join("|")}`;
   const startIndex = soundCursor.get(cursorKey) || 0;
   const soundId = normalizedSelection[startIndex % normalizedSelection.length];
-  if (playHtmlAudio(soundId, fallback)) {
+  if (playReadyDecodedAudio(soundId) || playHtmlAudio(soundId, fallback)) {
     rememberSoundCursor(cursorKey, (startIndex + 1) % normalizedSelection.length);
     return;
   }
@@ -211,8 +215,26 @@ export function primeConfiguredSounds(soundIds: string[]) {
     return;
   }
 
-  const selectedSoundIds = normalizeSoundSelection(soundIds, Number.MAX_SAFE_INTEGER);
-  const preload = () => selectedSoundIds.forEach((soundId) => void loadEncodedAudio(soundId));
+  // Auch die eingebauten Standardklaenge vorladen: sie kommen bei jedem Element
+  // ohne eigene Soundzuweisung zum Einsatz und waren bisher gar nicht erfasst.
+  const selectedSoundIds = Array.from(
+    new Set([
+      ...normalizeSoundSelection(soundIds, Number.MAX_SAFE_INTEGER),
+      ...Object.values(DEFAULT_AUDIO_FILE_BY_SOUND),
+    ])
+  );
+
+  const preload = () => {
+    selectedSoundIds.forEach((soundId) => {
+      // Bis zum dekodierten Puffer vorladen, nicht nur bis zu den rohen Bytes:
+      // nur ein fertiger AudioBuffer laesst sich beim Klick ohne await starten.
+      void loadDecodedAudio(soundId);
+      // Der HTMLAudio-Weg dient als Rueckfallebene; sein Pool wurde bisher erst
+      // beim ersten Abspielen erzeugt, was genau den ersten Ton verzoegert hat.
+      ensureHtmlAudioPool(soundId);
+    });
+  };
+
   const requestIdle = (window as typeof window & {
     requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   }).requestIdleCallback;
@@ -223,38 +245,80 @@ export function primeConfiguredSounds(soundIds: string[]) {
   window.setTimeout(preload, 500);
 }
 
+/**
+ * Spielt einen bereits dekodierten Puffer ohne jedes await. Der Start wird im
+ * Audio-Thread geplant und ist damit unempfindlich gegen einen Hauptthread, der
+ * direkt nach dem Klick mit Rendern beschaeftigt ist - anders als
+ * HTMLAudioElement.play(), dessen Start sich dabei hoerbar verzoegert.
+ */
+function playReadyDecodedAudio(soundId: string) {
+  const buffer = readyDecodedAudio.get(soundId);
+  if (!buffer) {
+    return false;
+  }
+  const context = getAudioContext();
+  const masterGain = masterGainNode;
+  if (!context || !masterGain || context.state !== "running") {
+    return false;
+  }
+  try {
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(masterGain);
+    source.start();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function playSynthSound(sound: UiSound) {
   void playSynthSoundAsync(sound);
 }
 
 function playDefaultUiSound(sound: UiSound) {
-  if (!playHtmlAudio(DEFAULT_AUDIO_FILE_BY_SOUND[sound], sound)) {
+  const soundId = DEFAULT_AUDIO_FILE_BY_SOUND[sound];
+  if (playReadyDecodedAudio(soundId)) {
+    return;
+  }
+  if (!playHtmlAudio(soundId, sound)) {
     playSynthSound(sound);
   }
 }
 
-function playHtmlAudio(soundId: string, fallback: UiSound) {
+function ensureHtmlAudioPool(soundId: string) {
   if (Platform.OS !== "web" || typeof window === "undefined" || typeof Audio === "undefined") {
-    return false;
+    return null;
+  }
+
+  const existing = htmlAudioPools.get(soundId);
+  if (existing) {
+    return existing;
   }
 
   const uri = resolveLcarsSoundUri(soundId);
   if (!uri) {
-    return false;
+    return null;
   }
 
+  const items = Array.from({ length: HTML_AUDIO_POOL_SIZE }, () => {
+    const audio = new Audio(uri);
+    audio.preload = "auto";
+    audio.setAttribute("playsinline", "true");
+    audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
+    audio.load();
+    return audio;
+  });
+  const pool = { cursor: 0, items };
+  htmlAudioPools.set(soundId, pool);
+  return pool;
+}
+
+function playHtmlAudio(soundId: string, fallback: UiSound) {
   try {
-    let pool = htmlAudioPools.get(soundId);
+    const pool = ensureHtmlAudioPool(soundId);
     if (!pool) {
-      const items = Array.from({ length: HTML_AUDIO_POOL_SIZE }, () => {
-        const audio = new Audio(uri);
-        audio.preload = "auto";
-        audio.setAttribute("playsinline", "true");
-        audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
-        return audio;
-      });
-      pool = { cursor: 0, items };
-      htmlAudioPools.set(soundId, pool);
+      return false;
     }
 
     const audio = pool.items[pool.cursor % pool.items.length];
@@ -338,6 +402,8 @@ function loadDecodedAudio(soundId: string) {
     .then((decoded) => {
       if (!decoded) {
         decodedAudioCache.delete(soundId);
+      } else {
+        readyDecodedAudio.set(soundId, decoded);
       }
       return decoded;
     });
@@ -546,6 +612,7 @@ function trimDecodedAudioCache() {
       break;
     }
     decodedAudioCache.delete(oldest);
+    readyDecodedAudio.delete(oldest);
   }
 }
 
