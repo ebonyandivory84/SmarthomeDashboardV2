@@ -1017,6 +1017,7 @@ export function CameraWidget({
                       offsetX={webFullscreenOffset.x}
                       offsetY={webFullscreenOffset.y}
                       onAspectRatioDetected={reportAspectRatioValue}
+                      active={runtimeActive}
                       onSourceIndexChange={setPreviewFlvSourceIndex}
                       preferredSourceIndex={previewFlvSourceIndex}
                       sources={previewFlvSources.length ? previewFlvSources : [previewFeed.url]}
@@ -1040,6 +1041,7 @@ export function CameraWidget({
                       offsetX={webFullscreenOffset.x}
                       offsetY={webFullscreenOffset.y}
                       onAspectRatioDetected={reportAspectRatioValue}
+                      active={runtimeActive}
                       onSourceIndexChange={setPreviewFmp4SourceIndex}
                       preferredSourceIndex={previewFmp4SourceIndex}
                       sources={previewFmp4Sources.length ? previewFmp4Sources : [previewFeed.url]}
@@ -1278,6 +1280,7 @@ export function CameraWidget({
                       fullScreen
                       muted={fullscreenMuted}
                       onAspectRatioDetected={reportAspectRatioValue}
+                      active={runtimeActive}
                       onSourceIndexChange={setFullscreenFlvSourceIndex}
                       preferredSourceIndex={fullscreenFlvSourceIndex}
                       sources={fullscreenFlvSources.length ? fullscreenFlvSources : [fullscreenFeed.url]}
@@ -1298,6 +1301,7 @@ export function CameraWidget({
                       fullScreen
                       muted={fullscreenMuted}
                       onAspectRatioDetected={reportAspectRatioValue}
+                      active={runtimeActive}
                       onSourceIndexChange={setFullscreenFmp4SourceIndex}
                       preferredSourceIndex={fullscreenFmp4SourceIndex}
                       sources={fullscreenFmp4Sources.length ? fullscreenFmp4Sources : [fullscreenFeed.url]}
@@ -1576,6 +1580,7 @@ function WebFlvPlayer({
   onAspectRatioDetected,
   preferredSourceIndex = 0,
   onSourceIndexChange,
+  active = true,
 }: {
   sources: string[];
   title: string;
@@ -1587,6 +1592,12 @@ function WebFlvPlayer({
   onAspectRatioDetected?: (ratio: number) => void;
   preferredSourceIndex?: number;
   onSourceIndexChange?: (index: number) => void;
+  /**
+   * Solange false, wird kein Player aufgebaut und ein bestehender abgeraeumt.
+   * Sonst laeuft der Dekoder weiter, wenn der Browser-Tab verborgen oder der
+   * Bildschirm dunkel ist - das Aufraeumen haengt andernfalls allein am Unmount.
+   */
+  active?: boolean;
 }) {
   const videoRef = useRef<any>(null);
   const setVideoRef = useCallback((element: any) => {
@@ -1642,7 +1653,7 @@ function WebFlvPlayer({
   }, [muted]);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || typeof window === "undefined") {
+    if (Platform.OS !== "web" || typeof window === "undefined" || !active) {
       return;
     }
 
@@ -1842,7 +1853,7 @@ function WebFlvPlayer({
       }
       playerRef.current = null;
     };
-  }, [clearStreamError, currentSource, normalizedSources.length, queueStreamError, restartNonce, sourceIndex]);
+  }, [active, clearStreamError, currentSource, normalizedSources.length, queueStreamError, restartNonce, sourceIndex]);
 
   return (
     <>
@@ -1876,6 +1887,7 @@ function WebFmp4Player({
   onAspectRatioDetected,
   preferredSourceIndex = 0,
   onSourceIndexChange,
+  active = true,
 }: {
   sources: string[];
   title: string;
@@ -1887,6 +1899,12 @@ function WebFmp4Player({
   onAspectRatioDetected?: (ratio: number) => void;
   preferredSourceIndex?: number;
   onSourceIndexChange?: (index: number) => void;
+  /**
+   * Solange false, wird kein Player aufgebaut und ein bestehender abgeraeumt.
+   * Sonst laeuft der Dekoder weiter, wenn der Browser-Tab verborgen oder der
+   * Bildschirm dunkel ist - das Aufraeumen haengt andernfalls allein am Unmount.
+   */
+  active?: boolean;
 }) {
   const videoRef = useRef<any>(null);
   const setVideoRef = useCallback((element: any) => {
@@ -1946,7 +1964,7 @@ function WebFmp4Player({
   }, [muted]);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || !currentSourceWithNonce) {
+    if (Platform.OS !== "web" || !currentSourceWithNonce || !active) {
       return;
     }
 
@@ -2069,7 +2087,7 @@ function WebFmp4Player({
       videoElement.removeAttribute("src");
       videoElement.load();
     };
-  }, [clearStreamError, currentSourceWithNonce, normalizedSources.length, queueStreamError, sourceIndex]);
+  }, [active, clearStreamError, currentSourceWithNonce, normalizedSources.length, queueStreamError, sourceIndex]);
 
   return (
     <>

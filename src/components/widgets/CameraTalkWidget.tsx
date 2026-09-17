@@ -1853,6 +1853,7 @@ export function CameraTalkWidget({
               ? Platform.OS === "web"
                 ? (
                     <WebFlvPlayer
+                      active={runtimeActive}
                       key={`preview-flv-${previewFeedKey}:${previewFlvSession}`}
                       fullScreen={showInPlaceFullscreen}
                       muted={previewMuted}
@@ -1876,6 +1877,7 @@ export function CameraTalkWidget({
               ? Platform.OS === "web"
                 ? (
                     <WebFmp4Player
+                      active={runtimeActive}
                       key={`preview-fmp4-${previewFeedKey}:${currentPreviewFmp4Src || "none"}`}
                       fullScreen={showInPlaceFullscreen}
                       muted={previewMuted}
@@ -2074,6 +2076,7 @@ export function CameraTalkWidget({
               ? Platform.OS === "web"
                 ? (
                     <WebFlvPlayer
+                      active={runtimeActive}
                       key={`fullscreen-flv-${fullscreenFeedKey}:${fullscreenSession}`}
                       fullScreen
                       muted={fullscreenMuted}
@@ -2094,6 +2097,7 @@ export function CameraTalkWidget({
               ? Platform.OS === "web"
                 ? (
                     <WebFmp4Player
+                      active={runtimeActive}
                       key={`fullscreen-fmp4-${fullscreenFeedKey}:${currentFullscreenFmp4Src || "none"}`}
                       fullScreen
                       muted={fullscreenMuted}
@@ -2472,6 +2476,7 @@ function WebFlvPlayer({
   onAspectRatioDetected,
   preferredSourceIndex = 0,
   onSourceIndexChange,
+  active = true,
 }: {
   sources: string[];
   title: string;
@@ -2483,6 +2488,12 @@ function WebFlvPlayer({
   onAspectRatioDetected?: (ratio: number) => void;
   preferredSourceIndex?: number;
   onSourceIndexChange?: (index: number) => void;
+  /**
+   * Solange false, wird kein Player aufgebaut und ein bestehender abgeraeumt.
+   * Sonst laeuft der Dekoder weiter, wenn der Browser-Tab verborgen oder der
+   * Bildschirm dunkel ist - das Aufraeumen haengt andernfalls allein am Unmount.
+   */
+  active?: boolean;
 }) {
   const videoRef = useRef<any>(null);
   const setVideoRef = useCallback((element: any) => {
@@ -2538,7 +2549,7 @@ function WebFlvPlayer({
   }, [muted]);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || typeof window === "undefined") {
+    if (Platform.OS !== "web" || typeof window === "undefined" || !active) {
       return;
     }
 
@@ -2734,7 +2745,7 @@ function WebFlvPlayer({
       }
       playerRef.current = null;
     };
-  }, [clearStreamError, currentSource, normalizedSources.length, queueStreamError, restartNonce, sourceIndex]);
+  }, [active, clearStreamError, currentSource, normalizedSources.length, queueStreamError, restartNonce, sourceIndex]);
 
   return (
     <>
@@ -2768,6 +2779,7 @@ function WebFmp4Player({
   onAspectRatioDetected,
   preferredSourceIndex = 0,
   onSourceIndexChange,
+  active = true,
 }: {
   sources: string[];
   title: string;
@@ -2779,6 +2791,12 @@ function WebFmp4Player({
   onAspectRatioDetected?: (ratio: number) => void;
   preferredSourceIndex?: number;
   onSourceIndexChange?: (index: number) => void;
+  /**
+   * Solange false, wird kein Player aufgebaut und ein bestehender abgeraeumt.
+   * Sonst laeuft der Dekoder weiter, wenn der Browser-Tab verborgen oder der
+   * Bildschirm dunkel ist - das Aufraeumen haengt andernfalls allein am Unmount.
+   */
+  active?: boolean;
 }) {
   const videoRef = useRef<any>(null);
   const setVideoRef = useCallback((element: any) => {
@@ -2838,7 +2856,7 @@ function WebFmp4Player({
   }, [muted]);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || !currentSourceWithNonce) {
+    if (Platform.OS !== "web" || !currentSourceWithNonce || !active) {
       return;
     }
 
@@ -2961,7 +2979,7 @@ function WebFmp4Player({
       videoElement.removeAttribute("src");
       videoElement.load();
     };
-  }, [clearStreamError, currentSourceWithNonce, normalizedSources.length, queueStreamError, sourceIndex]);
+  }, [active, clearStreamError, currentSourceWithNonce, normalizedSources.length, queueStreamError, sourceIndex]);
 
   return (
     <>
