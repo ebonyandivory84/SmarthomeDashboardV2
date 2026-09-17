@@ -36,6 +36,14 @@ const SOLAR_MAX_STAT_CARDS = 6;
 const FLOW_ACTIVE_THRESHOLD_W = 20;
 const GRID_IMPORT_FLOW_THRESHOLD_W = 100;
 const CAR_FLOW_THRESHOLD_W = 100;
+// Flussfarben folgen der Farbe der jeweiligen Node; beim Netz kodiert die Farbe
+// zusaetzlich die Richtung, damit Bezug und Einspeisung auf einen Blick
+// unterscheidbar sind und nicht erst an der Laufrichtung des Punktes.
+const FLOW_COLOR_PV = "#ffd34f";
+const FLOW_COLOR_BATTERY = "#8b8dff";
+const FLOW_COLOR_CAR = "#9fe89f";
+const FLOW_COLOR_GRID_IMPORT = "#ff8a75";
+const FLOW_COLOR_GRID_EXPORT = "#7ee2a8";
 const DEFAULT_WALLBOX_STATE_IDS = {
   carState: "go-e.0.car",
   chargePower: "go-e.0.nrg.11",
@@ -405,6 +413,7 @@ function SolarFlowScene({
   const batteryBox = resolveNodeBox(nodeLayout?.battery, defaults.battery, fittedScene);
   const gridBox = resolveNodeBox(nodeLayout?.grid, defaults.grid, fittedScene);
   const carBox = resolveNodeBox(nodeLayout?.car, defaults.car, fittedScene);
+  const gridFlowColor = gridDir === "toHome" ? FLOW_COLOR_GRID_IMPORT : FLOW_COLOR_GRID_EXPORT;
   const flowDotSize = Math.max(8, Math.min(12, Math.round(fittedScene.width * 0.012)));
   const lineGap = Math.max(2, Math.round(fittedScene.width * 0.01));
   const verticalGap = Math.max(8, Math.round(fittedScene.height * 0.02));
@@ -488,6 +497,7 @@ function SolarFlowScene({
         range={pvDir === "toHome" ? [0, Math.max(0, topLineHeight - flowDotSize)] : [Math.max(0, topLineHeight - flowDotSize), 0]}
         baseStyle={{ top: topLineStart, left: topLineLeft - (flowDotSize - 4) / 2 }}
         size={flowDotSize}
+        color={FLOW_COLOR_PV}
         strength={clamp((pvNow || 0) / 8000, 0.2, 1)}
       />
       <AnimatedFlowDot
@@ -500,6 +510,7 @@ function SolarFlowScene({
         range={battDir === "toHome" ? [0, Math.max(0, leftLineWidth - flowDotSize)] : [Math.max(0, leftLineWidth - flowDotSize), 0]}
         baseStyle={{ top: leftLineTop - (flowDotSize - 4) / 2, left: leftLineStart }}
         size={flowDotSize}
+        color={FLOW_COLOR_BATTERY}
         strength={clamp(battPower / 6000, 0.2, 1)}
       />
       <AnimatedFlowDot
@@ -512,6 +523,7 @@ function SolarFlowScene({
         range={gridDir === "toHome" ? [Math.max(0, rightLineWidth - flowDotSize), 0] : [0, Math.max(0, rightLineWidth - flowDotSize)]}
         baseStyle={{ top: rightLineTop - (flowDotSize - 4) / 2, left: rightLineStart }}
         size={flowDotSize}
+        color={gridFlowColor}
         strength={clamp(gridPower / 12000, 0.2, 1)}
       />
       <AnimatedFlowDot
@@ -528,6 +540,7 @@ function SolarFlowScene({
         }
         baseStyle={{ top: bottomLineStart, left: bottomLineLeft - (flowDotSize - 4) / 2 }}
         size={flowDotSize}
+        color={FLOW_COLOR_CAR}
         strength={clamp((carPower || 0) / 12000, 0.2, 1)}
       />
 
@@ -702,6 +715,7 @@ function AnimatedFlowDot({
   range,
   size,
   strength,
+  color,
   baseStyle,
 }: {
   active: boolean;
@@ -713,6 +727,7 @@ function AnimatedFlowDot({
   range: [number, number];
   size: number;
   strength: number;
+  color: string;
   baseStyle?: object;
 }) {
   if (!active) {
@@ -726,6 +741,8 @@ function AnimatedFlowDot({
       ...webFlowDotStyle,
       ...(lowPowerMode ? webFlowDotLowPowerStyle : null),
       ...webBaseStyle,
+      background: color,
+      boxShadow: lowPowerMode ? "none" : `0 0 10px ${color}cc`,
       width: `${size}px`,
       height: `${size}px`,
       borderRadius: `${size / 2}px`,
@@ -780,6 +797,8 @@ function AnimatedFlowDot({
             width: size,
             height: size,
             borderRadius: size / 2,
+            backgroundColor: color,
+            shadowColor: color,
             opacity: clamp(0.3 + strength * 0.45, 0.3, 0.75),
             transform,
           },
@@ -803,6 +822,8 @@ function AnimatedFlowDot({
           width: size,
           height: size,
           borderRadius: size / 2,
+          backgroundColor: color,
+          shadowColor: color,
           opacity: clamp(0.35 + strength * 0.65, 0.35, 1),
           transform,
         },
