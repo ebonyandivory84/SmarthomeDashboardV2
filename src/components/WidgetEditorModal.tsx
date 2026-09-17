@@ -598,6 +598,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           ) ||
           "go-e-gemini-adapter.0.status.activeMode",
         pvPriorityWriteStateId: widget.pvPriorityWriteStateId || widget.modeStateId || "go-e-gemini-adapter.0.control.mode",
+        chargeGaugeLabel: widget.chargeGaugeLabel || "",
+        chargeGaugeMinKw: String(widget.chargeGaugeMinKw ?? 0),
+        chargeGaugeMaxKw: String(widget.chargeGaugeMaxKw ?? 12),
+        pvPowerGaugeStateId: widget.pvPowerGaugeStateId || "",
+        pvPowerGaugeLabel: widget.pvPowerGaugeLabel || "",
+        pvPowerGaugeMinKw: String(widget.pvPowerGaugeMinKw ?? 0),
+        pvPowerGaugeMaxKw: String(widget.pvPowerGaugeMaxKw ?? 20),
         pvPriorityStateId:
           widget.pvPriorityStateId ||
           resolveMappedStateId(
@@ -1230,6 +1237,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         pvStateId: draft.pvStateId?.trim() || undefined,
         pvPriorityWriteStateId: draft.pvPriorityWriteStateId?.trim() || undefined,
         pvPriorityStateId: draft.pvPriorityStateId?.trim() || undefined,
+        chargeGaugeLabel: draft.chargeGaugeLabel?.trim() || undefined,
+        chargeGaugeMinKw: parseGaugeBound(draft.chargeGaugeMinKw, 0),
+        chargeGaugeMaxKw: parseGaugeBound(draft.chargeGaugeMaxKw, 12),
+        pvPowerGaugeStateId: draft.pvPowerGaugeStateId?.trim() || undefined,
+        pvPowerGaugeLabel: draft.pvPowerGaugeLabel?.trim() || undefined,
+        pvPowerGaugeMinKw: parseGaugeBound(draft.pvPowerGaugeMinKw, 0),
+        pvPowerGaugeMaxKw: parseGaugeBound(draft.pvPowerGaugeMaxKw, 20),
         gridWriteStateId: draft.gridWriteStateId?.trim() || undefined,
         gridStateId: draft.gridStateId?.trim() || undefined,
         manualCurrentWriteStateId: draft.manualCurrentWriteStateId?.trim() || undefined,
@@ -3759,6 +3773,74 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                         onChangeText={(value) => setDraft((current) => ({ ...current, pvStateValue: value }))}
                         style={styles.input}
                         value={draft.pvStateValue || ""}
+                      />
+                    </Field>
+                  </View>
+
+                  <Text style={styles.sectionTitle}>Analoge Zeiger</Text>
+                  <Text style={styles.sectionHelper}>
+                    Nur im Wallbox-V2-Widget. Der linke Zeiger zeigt die Ladeleistung, der rechte die
+                    PV-Leistung und erscheint erst mit gesetztem Datenpunkt. Werte in Watt, Skala in kW,
+                    Farbe von Gruen am Minimum bis Rot am Maximum.
+                  </Text>
+                  <View style={styles.splitRow}>
+                    <Field label="PV-Leistung Datenpunkt (W)">
+                      <StateFieldInput
+                        onBrowse={() => setPickerField("pvPowerGaugeStateId")}
+                        onChangeText={(value) => setDraft((current) => ({ ...current, pvPowerGaugeStateId: value }))}
+                        value={draft.pvPowerGaugeStateId || ""}
+                      />
+                    </Field>
+                    <Field label="PV-Leistung Beschriftung">
+                      <TextInput
+                        onChangeText={(value) => setDraft((current) => ({ ...current, pvPowerGaugeLabel: value }))}
+                        placeholder="PV-Leistung"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.pvPowerGaugeLabel || ""}
+                      />
+                    </Field>
+                  </View>
+                  <View style={styles.splitRow}>
+                    <Field label="PV Skala von (kW)">
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, pvPowerGaugeMinKw: value }))}
+                        placeholder="0"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.pvPowerGaugeMinKw || ""}
+                      />
+                    </Field>
+                    <Field label="PV Skala bis (kW)">
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, pvPowerGaugeMaxKw: value }))}
+                        placeholder="20"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.pvPowerGaugeMaxKw || ""}
+                      />
+                    </Field>
+                  </View>
+                  <View style={styles.splitRow}>
+                    <Field label="Ladeleistung Beschriftung">
+                      <TextInput
+                        onChangeText={(value) => setDraft((current) => ({ ...current, chargeGaugeLabel: value }))}
+                        placeholder="Ladeleistung"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.chargeGaugeLabel || ""}
+                      />
+                    </Field>
+                    <Field label="Ladeleistung Skala bis (kW)">
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, chargeGaugeMaxKw: value }))}
+                        placeholder="12"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.chargeGaugeMaxKw || ""}
                       />
                     </Field>
                   </View>

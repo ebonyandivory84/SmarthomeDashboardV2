@@ -12,14 +12,16 @@ import { Platform, StyleSheet, Text, View } from "react-native";
  */
 
 const GAUGE_VIEWBOX_W = 200;
-const GAUGE_VIEWBOX_H = 132;
+const GAUGE_VIEWBOX_H = 104;
 const GAUGE_CX = GAUGE_VIEWBOX_W / 2;
-const GAUGE_CY = 104;
+const GAUGE_CY = 98;
 const GAUGE_RADIUS = 76;
-const GAUGE_SWEEP_DEG = 115;
+/** Exakt 90 Grad je Seite: der Bogen ist damit ein echter Halbkreis. */
+const GAUGE_SWEEP_DEG = 90;
 const GAUGE_TICK_COUNT = 25;
 const GAUGE_ARC_STROKE = 13;
-const GAUGE_NEEDLE_LENGTH = GAUGE_RADIUS - 16;
+const GAUGE_NEEDLE_LENGTH = GAUGE_RADIUS - 14;
+const GAUGE_NEEDLE_HALF_WIDTH = 3.6;
 
 const COLOR_LOW = [61, 220, 132] as const;
 const COLOR_MID = [242, 201, 76] as const;
@@ -95,6 +97,8 @@ export function PowerGauge({
     const trackPath = arcPath(GAUGE_RADIUS, -GAUGE_SWEEP_DEG, GAUGE_SWEEP_DEG);
     const needleAngle = -GAUGE_SWEEP_DEG + quantizedRatio * GAUGE_SWEEP_DEG * 2;
     const needleTip = polarPoint(GAUGE_NEEDLE_LENGTH, needleAngle);
+    const needleBaseLeft = polarPoint(GAUGE_NEEDLE_HALF_WIDTH, needleAngle - 90);
+    const needleBaseRight = polarPoint(GAUGE_NEEDLE_HALF_WIDTH, needleAngle + 90);
 
     const ticks = Array.from({ length: GAUGE_TICK_COUNT }, (_, index) => {
       const tickRatio = index / (GAUGE_TICK_COUNT - 1);
@@ -143,15 +147,15 @@ export function PowerGauge({
         strokeWidth: GAUGE_ARC_STROKE,
         strokeLinecap: "round",
       }),
-      createElement("line", {
+      createElement("polygon", {
         key: "needle",
-        x1: GAUGE_CX,
-        y1: GAUGE_CY,
-        x2: needleTip.x,
-        y2: needleTip.y,
-        stroke: valueColor,
-        strokeWidth: 3,
-        strokeLinecap: "round",
+        // Dreieck von der Nabe zur Spitze statt einer Linie gleicher Staerke.
+        points: [
+          `${needleTip.x.toFixed(2)},${needleTip.y.toFixed(2)}`,
+          `${needleBaseLeft.x.toFixed(2)},${needleBaseLeft.y.toFixed(2)}`,
+          `${needleBaseRight.x.toFixed(2)},${needleBaseRight.y.toFixed(2)}`,
+        ].join(" "),
+        fill: valueColor,
       }),
       createElement("circle", {
         key: "hub-outer",
@@ -172,26 +176,22 @@ export function PowerGauge({
     );
   }, [instanceId, quantizedRatio, size, valueColor]);
 
-  const valueFontSize = Math.round(size * 0.2);
+  const valueFontSize = Math.round(size * 0.155);
   const unitFontSize = Math.round(size * 0.1);
   const gaugeHeight = Math.round((size * GAUGE_VIEWBOX_H) / GAUGE_VIEWBOX_W);
-  // Die Nabe sitzt bei 104 von 132 Einheiten, also knapp 79 % der Hoehe. Der
-  // Messwert wird darueber verankert, sonst klebt er auf der Nadelachse.
-  const readoutBottom = Math.round(gaugeHeight * 0.24);
 
   return (
     <View style={[styles.wrapper, { width: size }]}>
-      <View style={[styles.gaugeSlot, { height: gaugeHeight }]}>
-        {gaugeSvg}
-        <View style={[styles.readoutOverlay, { bottom: readoutBottom }]} pointerEvents="none">
-          <Text numberOfLines={1} style={[styles.value, { color: textColor, fontSize: valueFontSize }]}>
-            {valueText}
-          </Text>
-          <Text numberOfLines={1} style={[styles.unit, { color: mutedTextColor, fontSize: unitFontSize }]}>
-            kW
-          </Text>
-        </View>
+      {/* Messwert ueber dem Bogen: so kann die Nadel ihn nie kreuzen. */}
+      <View style={styles.readoutRow}>
+        <Text numberOfLines={1} style={[styles.value, { color: textColor, fontSize: valueFontSize }]}>
+          {valueText}
+        </Text>
+        <Text numberOfLines={1} style={[styles.unit, { color: mutedTextColor, fontSize: unitFontSize }]}>
+          kW
+        </Text>
       </View>
+      <View style={[styles.gaugeSlot, { height: gaugeHeight }]}>{gaugeSvg}</View>
       <Text numberOfLines={1} style={[styles.label, { color: valueColor, fontSize: unitFontSize + 1 }]}>
         {label}
       </Text>
@@ -208,11 +208,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
   },
-  readoutOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
+  readoutRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    gap: 4,
+    marginBottom: 2,
   },
   value: {
     fontWeight: "800",
@@ -220,7 +221,6 @@ const styles = StyleSheet.create({
   },
   unit: {
     fontWeight: "700",
-    marginTop: -2,
   },
   label: {
     marginTop: 2,

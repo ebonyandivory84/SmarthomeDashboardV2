@@ -398,6 +398,18 @@ export type WallboxWidgetConfig = WidgetBase & {
   highlightOpacity?: number;
   backgroundImage?: string;
   backgroundImageBlur?: number;
+  /**
+   * Analoge Zeiger im Wallbox-V2-Widget: links die Ladeleistung, rechts die
+   * PV-Leistung. Der PV-Zeiger bleibt ohne Datenpunkt ausgeblendet; die
+   * Datenpunkte liefern Watt, die Skala ist in kW.
+   */
+  chargeGaugeLabel?: string;
+  chargeGaugeMinKw?: number;
+  chargeGaugeMaxKw?: number;
+  pvPowerGaugeStateId?: string;
+  pvPowerGaugeLabel?: string;
+  pvPowerGaugeMinKw?: number;
+  pvPowerGaugeMaxKw?: number;
   stopWriteStateId?: string;
   stopSecondaryWriteStateId?: string;
   stopStateId?: string;
