@@ -49,6 +49,75 @@ const LazyWallboxAnalogWidget = lazy(() =>
   import("./widgets/WallboxAnalogWidget").then((module) => ({ default: module.WallboxAnalogWidget }))
 );
 
+// Dieselben Modulspezifizierer wie oben, damit Bundler und Prefetch denselben
+// Chunk treffen. Ohne Vorabholen faellt der Netzwerk- und Parse-Aufwand eines
+// Chunks erst beim ersten Besuch der Seite an, auf der das Widget sitzt - das
+// ist auf schwacher Hardware als Verzoegerung beim Seitenwechsel spuerbar.
+const LAZY_WIDGET_MODULE_LOADERS: Partial<Record<WidgetType, () => Promise<unknown>>> = {
+  camera: () => import("./widgets/CameraWidget"),
+  cameraTalk: () => import("./widgets/CameraTalkWidget"),
+  cameraTalkReolink: () => import("./widgets/CameraTalkWidget"),
+  grafana: () => import("./widgets/GrafanaWidget"),
+  alarmFloorplan: () => import("./widgets/AlarmFloorplanWidget"),
+  coco: () => import("./widgets/CocoWidget"),
+  wallbox: () => import("./widgets/WallboxWidget"),
+  goe: () => import("./widgets/WallboxWidget"),
+  wallboxV2: () => import("./widgets/WallboxAnalogWidget"),
+  heating: () => import("./widgets/HeatingWidget"),
+  heatingV2: () => import("./widgets/HeatingWidgetV2"),
+};
+
+const prefetchedWidgetModules = new Set<WidgetType>();
+
+/**
+ * Holt im Leerlauf die Chunks aller konfigurierten Widget-Typen, damit der
+ * erste Wechsel auf eine Seite nicht auf einen Nachladevorgang wartet.
+ * Mehrfachaufrufe sind unschaedlich, jeder Typ wird nur einmal angestossen.
+ */
+export function prefetchLazyWidgetModules(types: Iterable<WidgetType>) {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return;
+  }
+
+  const pending: Array<() => Promise<unknown>> = [];
+  for (const type of types) {
+    const loader = LAZY_WIDGET_MODULE_LOADERS[type];
+    if (!loader || prefetchedWidgetModules.has(type)) {
+      continue;
+    }
+    prefetchedWidgetModules.add(type);
+    pending.push(loader);
+  }
+
+  if (!pending.length) {
+    return;
+  }
+
+  // Nacheinander statt parallel: auf einem RK3399 soll das Parsen der Chunks
+  // den Hauptthread nicht am Stueck blockieren.
+  const runNext = (index: number) => {
+    if (index >= pending.length) {
+      return;
+    }
+    void pending[index]()
+      .catch(() => undefined)
+      .then(() => scheduleIdle(() => runNext(index + 1)));
+  };
+
+  scheduleIdle(() => runNext(0));
+}
+
+function scheduleIdle(task: () => void) {
+  const requestIdle = (window as typeof window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  }).requestIdleCallback;
+  if (requestIdle) {
+    requestIdle(task, { timeout: 4000 });
+    return;
+  }
+  window.setTimeout(task, 300);
+}
+
 type GridCanvasProps = {
   config: DashboardSettings;
   stateStore: IoBrokerStateStore;

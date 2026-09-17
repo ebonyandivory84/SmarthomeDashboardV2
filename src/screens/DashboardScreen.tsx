@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { GridCanvas } from "../components/GridCanvas";
+import { GridCanvas, prefetchLazyWidgetModules } from "../components/GridCanvas";
 import { SettingsModal } from "../components/SettingsModal";
 import { TopBar } from "../components/TopBar";
 import { WidgetLibraryModal } from "../components/WidgetLibraryModal";
@@ -395,6 +395,22 @@ export function DashboardScreen() {
 
     primeConfiguredSounds(configuredSoundIds);
   }, [config.uiSounds, config.widgets]);
+
+  // Chunks der lazy geladenen Widget-Typen im Leerlauf vorab holen - ueber alle
+  // Seiten hinweg, nicht nur die aktive. Sonst zahlt der erste Wechsel auf eine
+  // Seite den Nachladevorgang ihrer Widgets.
+  useEffect(() => {
+    const types = new Set<WidgetType>();
+    for (const page of dashboardPages) {
+      for (const widget of page.widgets) {
+        types.add(widget.type);
+      }
+    }
+    for (const widget of config.widgets) {
+      types.add(widget.type);
+    }
+    prefetchLazyWidgetModules(types);
+  }, [config.widgets, dashboardPages]);
 
   const addWidgetByType = (type: WidgetType) => {
     if (normalizeDashboardPageMode(activeDashboardPage?.mode) === "url") {
