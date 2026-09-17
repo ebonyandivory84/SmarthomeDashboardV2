@@ -26,7 +26,13 @@ const MAX_SCALED_CONTENT_AXIS_PX = 4096;
 const WIDGET_AUTO_SCALE_MINIMUMS: Partial<Record<WidgetType, AutoScaleMinimum>> = {
   state: { width: 220, height: 180 },
   energy: { width: 380, height: 260 },
-  solar: { width: 960, height: 960 },
+  // 960 war hier der Ausreisser: die Surface rendert das Widget immer mit
+  // mindestens dieser Kantenlaenge und skaliert es anschliessend per transform
+  // herunter, d.h. bei einer 420-px-Kachel rasterte der Browser gut das
+  // Fuenffache der sichtbaren Flaeche. 640 halbiert die Rasterflaeche mehr als,
+  // die effektive Pixelgroesse der Inhalte bleibt praktisch gleich, weil die
+  // internen clamp()-Grenzen des Widgets den kleineren sceneScale auffangen.
+  solar: { width: 640, height: 640 },
   numpad: { width: 560, height: 360 },
   host: { width: 560, height: 340 },
   raspberryPiStats: { width: 560, height: 340 },
