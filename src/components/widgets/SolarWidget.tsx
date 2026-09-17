@@ -539,7 +539,6 @@ function SolarFlowScene({
 
       <NodeCard
         icon="white-balance-sunny"
-        label="PV"
         iconColor="#ffd34f"
         iconSurface="rgba(120, 98, 24, 0.36)"
         nodeColor={widgetAppearance?.pvCardColor}
@@ -547,8 +546,6 @@ function SolarFlowScene({
         textColor={textColor}
         mutedTextColor={textColor}
         widgetAppearance={widgetAppearance}
-        compact={compactMode}
-        veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         style={{ ...styles.nodePosition, top: pvBox.y, left: pvBox.x, width: pvBox.w, minHeight: pvBox.h }}
         value={fmtW(pvNow)}
@@ -556,7 +553,6 @@ function SolarFlowScene({
       />
       <NodeCard
         icon="home-variant-outline"
-        label="Haus"
         iconColor="#86b7ff"
         iconSurface="rgba(35, 59, 110, 0.34)"
         nodeColor={widgetAppearance?.homeCardColor}
@@ -564,8 +560,6 @@ function SolarFlowScene({
         textColor={textColor}
         mutedTextColor={textColor}
         widgetAppearance={widgetAppearance}
-        compact={compactMode}
-        veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         style={{ ...styles.nodePosition, top: homeBox.y, left: homeBox.x, width: homeBox.w, minHeight: homeBox.h }}
         value={fmtW(homeNow)}
@@ -573,7 +567,6 @@ function SolarFlowScene({
       />
       <NodeCard
         icon={resolveBatteryIcon(soc)}
-        label="Akku"
         iconColor="#8b8dff"
         iconSurface="rgba(58, 48, 110, 0.34)"
         nodeColor={widgetAppearance?.batteryCardColor}
@@ -581,8 +574,6 @@ function SolarFlowScene({
         textColor={textColor}
         mutedTextColor={textColor}
         widgetAppearance={widgetAppearance}
-        compact={compactMode}
-        veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         style={{ ...styles.nodePosition, top: batteryBox.y, left: batteryBox.x, width: batteryBox.w, minHeight: batteryBox.h }}
         value={fmtW(battPower || null)}
@@ -590,7 +581,6 @@ function SolarFlowScene({
       />
       <NodeCard
         icon="transmission-tower-export"
-        label="Netz"
         iconColor="#b9c4d8"
         iconSurface="rgba(70, 78, 98, 0.28)"
         nodeColor={widgetAppearance?.gridCardColor}
@@ -598,8 +588,6 @@ function SolarFlowScene({
         textColor={textColor}
         mutedTextColor={mutedTextColor}
         widgetAppearance={widgetAppearance}
-        compact={compactMode}
-        veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         style={{ ...styles.nodePosition, top: gridBox.y, left: gridBox.x, width: gridBox.w, minHeight: gridBox.h }}
         value={fmtW(gridPower || null)}
@@ -607,7 +595,6 @@ function SolarFlowScene({
       />
       <NodeCard
         icon="ev-station"
-        label="Auto"
         iconColor="#9fe89f"
         iconSurface="rgba(46, 94, 62, 0.28)"
         nodeColor={widgetAppearance?.carCardColor}
@@ -615,8 +602,6 @@ function SolarFlowScene({
         textColor={textColor}
         mutedTextColor={mutedTextColor}
         widgetAppearance={widgetAppearance}
-        compact={compactMode}
-        veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         style={{ ...styles.nodePosition, top: carBox.y, left: carBox.x, width: carBox.w, minHeight: carBox.h }}
         value={carPower === null ? "—" : fmtW(carPower)}
@@ -834,7 +819,6 @@ function AnimatedFlowDot({
 
 function NodeCard({
   icon,
-  label,
   value,
   meta,
   highlight,
@@ -847,12 +831,9 @@ function NodeCard({
   iconColor,
   iconSurface,
   valueColor,
-  compact,
-  veryCompact,
   sceneScale,
 }: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  label: string;
   value: string;
   meta?: string;
   highlight?: boolean;
@@ -865,8 +846,6 @@ function NodeCard({
   iconColor?: string;
   iconSurface?: string;
   valueColor?: string;
-  compact?: boolean;
-  veryCompact?: boolean;
   sceneScale?: number;
 }) {
   const scale = clamp(sceneScale ?? 1, 0.52, 1);
@@ -1561,14 +1540,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
   },
-  nodeCardCompact: {
-    borderRadius: 16,
-    padding: 8,
-  },
-  nodeCardVeryCompact: {
-    borderRadius: 14,
-    padding: 6,
-  },
   nodeCardActive: {
     shadowOpacity: 0.2,
     shadowRadius: 14,
@@ -1583,16 +1554,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
-  nodeIconCompact: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-  },
-  nodeIconVeryCompact: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-  },
   nodeIconActive: {
     borderColor: "rgba(255,255,255,0.12)",
   },
@@ -1604,40 +1565,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.05)",
   },
-  nodeIconInnerCompact: {
-    width: 31,
-    height: 31,
-    borderRadius: 12,
-  },
-  nodeIconInnerVeryCompact: {
-    width: 26,
-    height: 26,
-    borderRadius: 10,
-  },
-  nodeLabel: {
-    marginTop: 8,
-    color: palette.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
   nodeValue: {
     marginTop: 8,
     color: palette.text,
     fontSize: 16,
     fontWeight: "800",
-  },
-  nodeValueCompact: {
-    marginTop: 10,
-  },
-  nodeValueCompactText: {
-    marginTop: 8,
-    fontSize: 14,
-  },
-  nodeValueVeryCompactText: {
-    marginTop: 6,
-    fontSize: 12,
   },
   nodeMeta: {
     marginTop: 4,
@@ -1645,14 +1577,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     maxWidth: "92%",
     textAlign: "center",
-  },
-  nodeMetaCompact: {
-    marginTop: 2,
-    fontSize: 8,
-  },
-  nodeMetaVeryCompact: {
-    marginTop: 2,
-    fontSize: 7,
   },
   externalInfo: {
     position: "absolute",
