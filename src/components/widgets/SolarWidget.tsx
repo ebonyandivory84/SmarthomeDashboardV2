@@ -433,7 +433,22 @@ function SolarFlowScene({
   const leftStats = statCards.slice(0, leftStatCount);
   const rightStats = statCards.slice(leftStatCount);
   const maxStackCount = Math.max(leftStats.length, rightStats.length, 1);
-  const maxStatStackHeight = Math.round(clamp(fittedScene.height * 0.34, 120, 260));
+  const infoGap = Math.round(clamp(14 * sceneScale, 8, 18));
+  const infoMaxBottom = Math.max(0, fittedScene.height - Math.round(clamp(78 * sceneScale, 52, 90)));
+  const batteryInfoTop = clamp(batteryBox.y + batteryBox.h + infoGap, 0, infoMaxBottom);
+  // Geschaetzte Hoehe eines zweizeiligen ExternalNodeInfo-Blocks.
+  const infoBlockHeight = Math.round(clamp(58 * sceneScale, 40, 64));
+  // Der linke MiniStat-Stapel waechst vom unteren Rand nach oben in dieselbe
+  // Spalte, in der die Akku-Info sitzt (sceneStatLeft steht auf left: 0 mit 33 %
+  // Breite, die Akku-Info bei 3 % mit 19 %). Statt die Info nach oben in die
+  // Akku-Karte zu schieben, wird die Stapelhoehe so begrenzt, dass beide
+  // untereinander Platz haben.
+  const leftStatStackLimit = leftStats.length
+    ? fittedScene.height - (batteryInfoTop + infoBlockHeight) - statGap
+    : fittedScene.height;
+  const maxStatStackHeight = Math.round(
+    clamp(Math.min(fittedScene.height * 0.34, leftStatStackLimit), 60, 260)
+  );
   const statMinHeight = Math.round(
     clamp((maxStatStackHeight - statGap * Math.max(0, maxStackCount - 1)) / maxStackCount, 36, 96)
   );
@@ -458,13 +473,12 @@ function SolarFlowScene({
   const bottomLineStart = homeBox.y + homeBox.h + verticalGap;
   const bottomLineEnd = carBox.y - verticalGap;
   const bottomLineHeight = Math.max(12, bottomLineEnd - bottomLineStart);
-  const infoGap = Math.round(clamp(14 * sceneScale, 8, 18));
   const batteryInfoWidth = Math.round(batteryBox.w);
   const carInfoWidth = Math.round(carBox.w);
-  const infoMaxBottom = Math.max(0, fittedScene.height - Math.round(clamp(78 * sceneScale, 52, 90)));
   const batteryInfoLeft = batteryBox.x;
   const carInfoLeft = carBox.x;
-  const batteryInfoTop = clamp(batteryBox.y + batteryBox.h + infoGap, 0, infoMaxBottom);
+  // Die Auto-Info sitzt mittig (37-63 %) und damit zwischen den beiden
+  // Stat-Spalten, braucht die Begrenzung von oben also nicht.
   const carInfoTop = clamp(carBox.y + carBox.h + infoGap, 0, infoMaxBottom);
   const batteryInfoLines = [
     {
