@@ -1635,6 +1635,7 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 16,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   nodeMeta: {
     marginTop: 4,
@@ -1676,6 +1677,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 19,
     textAlign: "center",
+    fontVariant: ["tabular-nums"],
   },
   sceneStat: {
     position: "absolute",
@@ -1709,6 +1711,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     textAlign: "center",
+    fontVariant: ["tabular-nums"],
   },
   miniValueCompact: {
     fontSize: 15,
