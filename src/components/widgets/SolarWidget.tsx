@@ -122,14 +122,9 @@ export function SolarWidget({
     [config.dailyEnergyUnit, config.keys, config.statePrefix, states, wallboxStateIds]
   );
 
-  const [displaySnapshot, setDisplaySnapshot] = useState(incomingSnapshot);
-
-  // No transition mechanism depends on this delay — sync directly to avoid
-  // a second re-render 220ms after every state update (costly on weak SoCs).
-  useEffect(() => {
-    setDisplaySnapshot(incomingSnapshot);
-  }, [incomingSnapshot]);
-
+  // incomingSnapshot wird direkt verwendet: der frueher hier liegende
+  // State + useEffect hat den Snapshot nur gespiegelt und damit pro
+  // Datenupdate einen zweiten Render ausgeloest (teuer auf schwachen SoCs).
   const {
     pvNow,
     homeNow,
@@ -147,8 +142,7 @@ export function SolarWidget({
     wallboxPhaseModeRaw,
     wallboxCarSocRaw,
     wallboxCarRangeRaw,
-  } =
-    displaySnapshot;
+  } = incomingSnapshot;
   const missingCore = pvNow === null && homeNow === null && gridIn === null && gridOut === null;
 
   const battSigned =
