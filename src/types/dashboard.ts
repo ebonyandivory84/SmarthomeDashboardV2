@@ -16,8 +16,6 @@ export type WidgetType =
   | "host"
   | "raspberryPiStats"
   | "coco"
-  | "wallbox"
-  | "goe"
   | "wallboxV2"
   | "heatingV2"
   | "telegram"
@@ -388,8 +386,12 @@ export type CocoWidgetConfig = WidgetBase & {
   streamUrl?: string;
 };
 
-export type WallboxWidgetConfig = WidgetBase & {
-  type: "wallbox";
+/**
+ * Gemeinsame Felder des Wallbox-Widgets. Frueher WallboxWidgetConfig mit den
+ * Typen "wallbox" und "goe"; beide sind entfallen, die Feldliste bleibt als
+ * Basis fuer V2 bestehen.
+ */
+export type WallboxWidgetBaseConfig = WidgetBase & {
   manualHeightOverride?: boolean;
   refreshMs?: number;
   showStatusSubtitle?: boolean;
@@ -483,11 +485,7 @@ export type WallboxWidgetConfig = WidgetBase & {
   stopChargeingAtCarSoc80StateId?: string;
 };
 
-export type GoEWidgetConfig = Omit<WallboxWidgetConfig, "type"> & {
-  type: "goe";
-};
-
-export type WallboxWidgetV2Config = Omit<WallboxWidgetConfig, "type"> & {
+export type WallboxWidgetV2Config = WallboxWidgetBaseConfig & {
   type: "wallboxV2";
 };
 
@@ -658,8 +656,6 @@ export type WidgetConfig =
   | HostStatsWidgetConfig
   | RaspberryPiStatsWidgetConfig
   | CocoWidgetConfig
-  | WallboxWidgetConfig
-  | GoEWidgetConfig
   | WallboxWidgetV2Config
   | HeatingWidgetV2Config
   | TelegramWidgetConfig

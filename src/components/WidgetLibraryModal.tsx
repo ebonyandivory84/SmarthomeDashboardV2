@@ -150,20 +150,8 @@ const OPTIONS: Array<{
     icon: "cat",
   },
   {
-    type: "wallbox",
-    title: "Wallbox",
-    description: "Steuert go-e Lademodus, Netzstrom und 80%-Begrenzung in einer kompakten Card.",
-    icon: "ev-station",
-  },
-  {
-    type: "goe",
-    title: "go-e",
-    description: "Spezial-Widget fuer den go-e-gemini-adapter mit vorkonfigurierten States.",
-    icon: "ev-station",
-  },
-  {
     type: "wallboxV2",
-    title: "Wallbox V2",
+    title: "Wallbox",
     description: "Analoge Ladeleistungs-Anzeige mit Zeigernadel und physischen Bedienelementen.",
     icon: "speedometer",
   },

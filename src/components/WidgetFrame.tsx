@@ -48,8 +48,6 @@ export function WidgetFrame({
   const showHeaderTitle =
     widget.type !== "camera" &&
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
-    widget.type !== "wallbox" &&
-    widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
     widget.type !== "heatingV2" &&
     widget.type !== "weather" &&
@@ -83,8 +81,6 @@ export function WidgetFrame({
     widget.type === "waterMeter" ||
     widget.type === "pdfSlideshow" ||
     widget.type === "coco" ||
-    widget.type === "wallbox" ||
-    widget.type === "goe" ||
     widget.type === "wallboxV2" ||
     widget.type === "heatingV2";
 
@@ -255,8 +251,6 @@ export function WidgetFrame({
         widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
         widget.type !== "solar" &&
         widget.type !== "state" &&
-        widget.type !== "wallbox" &&
-        widget.type !== "goe" &&
         widget.type !== "wallboxV2" &&
             widget.type !== "heatingV2" &&
         widget.type !== "grafana" &&

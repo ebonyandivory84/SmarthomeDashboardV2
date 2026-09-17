@@ -50,7 +50,7 @@ export function buildWidgetTemplate(
                           ? 4
                         : type === "coco"
                       ? 6
-                    : type === "wallbox" || type === "goe" || type === "wallboxV2"
+                    : type === "wallboxV2"
                       ? 6
                     : type === "heatingV2"
                       ? 6
@@ -94,7 +94,7 @@ export function buildWidgetTemplate(
                             ? 5
                           : type === "coco"
                         ? 3
-                      : type === "wallbox" || type === "goe" || type === "wallboxV2"
+                      : type === "wallboxV2"
                         ? 3
                         : type === "heatingV2"
                           ? 3
@@ -521,13 +521,11 @@ export function buildWidgetTemplate(
     };
   }
 
-  if (type === "wallbox" || type === "goe" || type === "wallboxV2") {
-    const isGoE = type === "goe";
-    const isWallboxV2 = type === "wallboxV2";
+  if (type === "wallboxV2") {
     return {
-      id: isWallboxV2 ? `wallbox-v2-${suffix}` : `${isGoE ? "goe" : "wallbox"}-${suffix}`,
+      id: `wallbox-v2-${suffix}`,
       type,
-      title: isWallboxV2 ? `Wallbox V2 ${suffix}` : `${isGoE ? "go-e" : "Wallbox"} ${suffix}`,
+      title: `Wallbox ${suffix}`,
       refreshMs: 2000,
       showStatusSubtitle: false,
       showGridAmpereControl: true,

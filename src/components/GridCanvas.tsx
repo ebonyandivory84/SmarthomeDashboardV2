@@ -43,7 +43,6 @@ const LazyCocoWidget = lazy(() => import("./widgets/CocoWidget").then((module) =
 const LazyHeatingWidgetV2 = lazy(() =>
   import("./widgets/HeatingWidgetV2").then((module) => ({ default: module.HeatingWidgetV2 }))
 );
-const LazyWallboxWidget = lazy(() => import("./widgets/WallboxWidget").then((module) => ({ default: module.WallboxWidget })));
 const LazyWallboxAnalogWidget = lazy(() =>
   import("./widgets/WallboxAnalogWidget").then((module) => ({ default: module.WallboxAnalogWidget }))
 );
@@ -59,8 +58,6 @@ const LAZY_WIDGET_MODULE_LOADERS: Partial<Record<WidgetType, () => Promise<unkno
   grafana: () => import("./widgets/GrafanaWidget"),
   alarmFloorplan: () => import("./widgets/AlarmFloorplanWidget"),
   coco: () => import("./widgets/CocoWidget"),
-  wallbox: () => import("./widgets/WallboxWidget"),
-  goe: () => import("./widgets/WallboxWidget"),
   wallboxV2: () => import("./widgets/WallboxAnalogWidget"),
   heatingV2: () => import("./widgets/HeatingWidgetV2"),
 };
@@ -301,8 +298,6 @@ export function GridCanvas({
                   widget.type === "waterMeter" ||
                   widget.type === "pdfSlideshow" ||
                   widget.type === "coco" ||
-                  widget.type === "wallbox" ||
-                  widget.type === "goe" ||
                   widget.type === "wallboxV2" ||
                   widget.type === "heatingV2" ||
                   (Platform.OS === "web" && (widget.type === "weather" || widget.type === "grafana" || widget.type === "alarmFloorplan"))
@@ -780,8 +775,6 @@ function getAutoLayoutSpec(
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
         return { w: 1, h: roundGridUnit(3) };
-      case "wallbox":
-      case "goe":
       case "wallboxV2":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
@@ -873,8 +866,6 @@ function getAutoLayoutSpec(
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
       return { w: mainColumnWidth, h: roundGridUnit(3) };
-    case "wallbox":
-    case "goe":
     case "wallboxV2":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
@@ -1089,8 +1080,6 @@ function WebGridCanvas({
             widget.type === "waterMeter" ||
             widget.type === "pdfSlideshow" ||
             widget.type === "coco" ||
-            widget.type === "wallbox" ||
-            widget.type === "goe" ||
             widget.type === "wallboxV2" ||
             widget.type === "heatingV2" ||
             widget.type === "weather"
@@ -1168,8 +1157,6 @@ function WebWidgetShell({
   const showHeaderTitle =
     widget.type !== "camera" &&
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
-    widget.type !== "wallbox" &&
-    widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
     widget.type !== "heatingV2" &&
@@ -1300,8 +1287,6 @@ function WebWidgetShell({
           widget.type === "waterMeter" ||
           widget.type === "pdfSlideshow" ||
           widget.type === "coco" ||
-          widget.type === "wallbox" ||
-          widget.type === "goe" ||
           widget.type === "wallboxV2" ||
           widget.type === "heatingV2")
           ? CAMERA_GRID_SNAP
@@ -1317,7 +1302,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallboxV2" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1355,8 +1340,6 @@ function WebWidgetShell({
           widget.type === "waterMeter" ||
           widget.type === "pdfSlideshow" ||
           widget.type === "coco" ||
-          widget.type === "wallbox" ||
-          widget.type === "goe" ||
           widget.type === "wallboxV2" ||
           widget.type === "heatingV2"
         ) {
@@ -1473,8 +1456,6 @@ function WebWidgetShell({
     widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink" &&
     widget.type !== "solar" &&
     widget.type !== "state" &&
-    widget.type !== "wallbox" &&
-    widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
     widget.type !== "heatingV2" &&
@@ -1895,14 +1876,6 @@ function renderWidget(
     );
   }
 
-  if (effectiveWidget.type === "wallbox" || effectiveWidget.type === "goe") {
-    return (
-      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
-        <LazyWallboxWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
-      </Suspense>
-    );
-  }
-
   if (effectiveWidget.type === "wallboxV2") {
     return (
       <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
@@ -1969,8 +1942,6 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "waterMeter" ||
     type === "pdfSlideshow" ||
     type === "coco" ||
-    type === "wallbox" ||
-    type === "goe" ||
     type === "wallboxV2" ||
     type === "heatingV2"
   );
@@ -2198,7 +2169,7 @@ const webResizeHandleStyle: CSSProperties = {
 function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThemeSettings>): CSSProperties {
   const appearance = widget.appearance;
   if (appearance?.widgetColor) {
-    if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "coco" || widget.type === "heatingV2") {
+    if (widget.type === "wallboxV2" || widget.type === "coco" || widget.type === "heatingV2") {
       return {
         background: buildGradientBackground(appearance.widgetColor, appearance.widgetColor2),
         border: "none",
@@ -2305,7 +2276,7 @@ function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThe
       boxShadow: "0 16px 28px rgba(5, 10, 19, 0.34)",
     };
   }
-  if (type === "wallbox" || type === "goe" || type === "wallboxV2") {
+  if (type === "wallboxV2") {
     return {
       background: "linear-gradient(145deg, rgba(19, 31, 49, 0.96), rgba(10, 17, 31, 0.98))",
       border: "none",

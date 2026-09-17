@@ -81,6 +81,9 @@ function migrateLegacyWidgetType<T extends { type: string }>(widget: T): T {
   if (widget.type === "heating") {
     return { ...widget, type: "heatingV2" } as T;
   }
+  if (widget.type === "wallbox" || widget.type === "goe") {
+    return { ...widget, type: "wallboxV2" } as T;
+  }
   return widget;
 }
 
@@ -971,9 +974,13 @@ function normalizeWidgetTypeSoundDefaults(
     host: normalizeWidgetInteractionSounds(input.host),
     raspberryPiStats: normalizeWidgetInteractionSounds(input.raspberryPiStats),
     coco: normalizeWidgetInteractionSounds(input.coco),
-    wallbox: normalizeWidgetInteractionSounds(input.wallbox),
-    goe: normalizeWidgetInteractionSounds(input.goe),
-    wallboxV2: normalizeWidgetInteractionSounds(input.wallboxV2),
+    // Die frueher unter "wallbox" bzw. "goe" abgelegten Soundsaetze werden
+    // uebernommen, damit bestehende Konfigurationen ihre Zuordnung behalten.
+    wallboxV2: normalizeWidgetInteractionSounds(
+      input.wallboxV2 ||
+        (input as { wallbox?: typeof input.wallboxV2; goe?: typeof input.wallboxV2 }).wallbox ||
+        (input as { goe?: typeof input.wallboxV2 }).goe
+    ),
     // Der frueher unter "heating" abgelegte Soundsatz wird uebernommen, damit
     // bestehende Konfigurationen ihre Zuordnung nach dem Wegfall von V1 behalten.
     heatingV2: normalizeWidgetInteractionSounds(

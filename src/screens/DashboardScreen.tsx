@@ -365,12 +365,9 @@ export function DashboardScreen() {
       ...(config.uiSounds?.widgetTypeDefaults?.log?.notifyError || []),
       ...(config.uiSounds?.widgetTypeDefaults?.script?.press || []),
       ...(config.uiSounds?.widgetTypeDefaults?.script?.scroll || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.wallbox?.press || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.wallbox?.confirm || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.wallbox?.slider || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.goe?.press || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.goe?.confirm || []),
-      ...(config.uiSounds?.widgetTypeDefaults?.goe?.slider || []),
+      ...(config.uiSounds?.widgetTypeDefaults?.wallboxV2?.press || []),
+      ...(config.uiSounds?.widgetTypeDefaults?.wallboxV2?.confirm || []),
+      ...(config.uiSounds?.widgetTypeDefaults?.wallboxV2?.slider || []),
       ...(config.uiSounds?.pageSounds?.tabPress || []),
       ...(config.uiSounds?.pageSounds?.swipe || []),
       ...(config.uiSounds?.pageSounds?.contentScroll || []),
@@ -456,8 +453,6 @@ export function DashboardScreen() {
       currentWidget.type === "host" ||
       currentWidget.type === "raspberryPiStats" ||
       currentWidget.type === "pdfSlideshow" ||
-      currentWidget.type === "wallbox" ||
-      currentWidget.type === "goe" ||
       currentWidget.type === "wallboxV2" ||
             currentWidget.type === "heatingV2";
     if (partial.mobilePosition) {
@@ -505,8 +500,6 @@ export function DashboardScreen() {
                 currentWidget.type === "host" ||
                 currentWidget.type === "raspberryPiStats" ||
                 currentWidget.type === "pdfSlideshow" ||
-                currentWidget.type === "wallbox" ||
-                currentWidget.type === "goe" ||
                 currentWidget.type === "wallboxV2" ||
                                 currentWidget.type === "heatingV2"
               ? { minHeight: 1, heightSnap: 0.1 }
