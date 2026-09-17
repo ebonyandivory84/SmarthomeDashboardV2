@@ -610,6 +610,7 @@ function SolarFlowScene({
 
       <NodeCard
         icon="white-balance-sunny"
+        iconScale={1.25}
         iconColor="#ffd34f"
         iconSurface="rgba(120, 98, 24, 0.36)"
         nodeColor={widgetAppearance?.pvCardColor}
@@ -624,6 +625,7 @@ function SolarFlowScene({
       />
       <NodeCard
         icon="home-variant-outline"
+        iconScale={1.25}
         iconColor="#86b7ff"
         iconSurface="rgba(35, 59, 110, 0.34)"
         nodeColor={widgetAppearance?.homeCardColor}
@@ -911,6 +913,7 @@ function NodeCard({
   iconSurface,
   valueColor,
   sceneScale,
+  iconScale,
 }: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   value: string;
@@ -926,15 +929,18 @@ function NodeCard({
   iconSurface?: string;
   valueColor?: string;
   sceneScale?: number;
+  /** Zusaetzlicher Faktor nur auf den Icon-Block, ohne Schrift und Abstaende. */
+  iconScale?: number;
 }) {
   const scale = clamp(sceneScale ?? 1, 0.52, 1);
-  const iconSize = Math.round(clamp(46 * scale, 28, 46));
+  const iconBoost = clamp(iconScale ?? 1, 0.6, 1.6);
+  const iconSize = Math.round(clamp(46 * scale, 28, 46) * iconBoost);
   const cardPadding = Math.round(clamp(12 * scale, 6, 12));
   const cardRadius = Math.round(clamp(20 * scale, 12, 20));
-  const iconBox = Math.round(clamp(62 * scale, 40, 62));
-  const iconRadius = Math.round(clamp(18 * scale, 12, 18));
-  const iconInnerBox = Math.round(clamp(50 * scale, 32, 50));
-  const iconInnerRadius = Math.round(clamp(14 * scale, 8, 14));
+  const iconBox = Math.round(clamp(62 * scale, 40, 62) * iconBoost);
+  const iconRadius = Math.round(clamp(18 * scale, 12, 18) * iconBoost);
+  const iconInnerBox = Math.round(clamp(50 * scale, 32, 50) * iconBoost);
+  const iconInnerRadius = Math.round(clamp(14 * scale, 8, 14) * iconBoost);
   const valueFontSize = Math.round(clamp(24 * scale, 16, 24));
   const valueMarginTop = Math.round(clamp(8 * scale, 4, 8));
   const metaFontSize = Math.round(clamp(11 * scale, 8, 11));
@@ -1511,11 +1517,11 @@ function resolveBatteryIcon(soc: number | null): keyof typeof MaterialCommunityI
 
 function getDefaultNodeLayout(): SolarLayoutConfig {
   return {
-    pv: { x: 0.4, y: 0.03, w: 0.2, h: 0.145 },
+    pv: { x: 0.4, y: 0.03, w: 0.2, h: 0.16 },
     home: { x: 0.39, y: 0.43, w: 0.22, h: 0.19 },
     battery: { x: 0.03, y: 0.45, w: 0.19, h: 0.19 },
     grid: { x: 0.78, y: 0.45, w: 0.19, h: 0.19 },
-    car: { x: 0.37, y: 0.74, w: 0.26, h: 0.12 },
+    car: { x: 0.37, y: 0.74, w: 0.26, h: 0.14 },
   };
 }
 
@@ -1629,6 +1635,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     shadowColor: "#000",
     shadowOpacity: 0.14,
