@@ -480,19 +480,23 @@ function SolarFlowScene({
   // Die Auto-Info sitzt mittig (37-63 %) und damit zwischen den beiden
   // Stat-Spalten, braucht die Begrenzung von oben also nicht.
   const carInfoTop = clamp(carBox.y + carBox.h + infoGap, 0, infoMaxBottom);
-  const batteryInfoLines = [
+  const batteryInfoLines: ExternalNodeInfoLine[] = [
     {
+      icon: resolveBatteryIcon(soc),
       value: soc === null ? "-" : `${Math.round(clamp(soc, 0, 100))} %`,
     },
     {
+      icon: "thermometer",
       value: battTemp === null ? "-" : `${battTemp.toFixed(1)} °C`,
     },
   ];
-  const carInfoLines = [
+  const carInfoLines: ExternalNodeInfoLine[] = [
     {
+      icon: "car-electric-outline",
       value: carSoc === null ? "-" : `${Math.round(clamp(carSoc, 0, 100))} %`,
     },
     {
+      icon: "map-marker-distance",
       value: carRange === null ? "-" : `${Math.max(0, Math.round(carRange))} km`,
     },
   ];
@@ -1016,6 +1020,7 @@ function NodeCard({
 
 type ExternalNodeInfoLine = {
   label?: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   value: string;
 };
 
@@ -1086,19 +1091,29 @@ function ExternalNodeInfo({
               {line.label}
             </Text>
           ) : null}
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.externalInfoValue,
-              {
-                color: valueColor || textColor,
-                fontSize: valueSize,
-                fontWeight: valueWeight || "500",
-              },
-            ]}
-          >
-            {line.value}
-          </Text>
+          <View style={styles.externalInfoValueRow}>
+            {line.icon ? (
+              <MaterialCommunityIcons
+                color={mutedTextColor}
+                name={line.icon}
+                size={Math.round(clamp(valueSize * 0.78, 10, 26))}
+                style={styles.externalInfoIcon}
+              />
+            ) : null}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.externalInfoValue,
+                {
+                  color: valueColor || textColor,
+                  fontSize: valueSize,
+                  fontWeight: valueWeight || "500",
+                },
+              ]}
+            >
+              {line.value}
+            </Text>
+          </View>
         </View>
       ))}
     </View>
@@ -1685,6 +1700,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 0.3,
+  },
+  externalInfoValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  externalInfoIcon: {
+    marginRight: 5,
+    opacity: 0.85,
   },
   externalInfoValue: {
     fontSize: 16,
