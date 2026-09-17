@@ -711,6 +711,12 @@ export type DashboardSettings = {
     gap: number;
   };
   pollingMs: number;
+  /**
+   * Steuert die teuren Weboberflaechen-Effekte. "auto" leitet sie wie bisher
+   * aus dem Zeigergeraet ab, "low" und "full" setzen sie fest. Zusaetzlich
+   * geraetegebunden per ?lowpower= ueberschreibbar.
+   */
+  performanceMode?: "auto" | "low" | "full";
   uiSounds?: UiSoundSettings;
   iobroker: {
     baseUrl: string;

@@ -5,6 +5,11 @@ import { SoundPickerField } from "./SoundPickerField";
 import { useDashboardConfig } from "../context/DashboardConfigContext";
 import { IoBrokerClient } from "../services/iobroker";
 import { UiSoundSet, WidgetImageEntry } from "../types/dashboard";
+import {
+  PerformanceMode,
+  detectCoarsePointerWeb,
+  normalizePerformanceMode,
+} from "../utils/performanceMode";
 import { palette } from "../utils/theme";
 
 type SettingsModalProps = {
@@ -13,6 +18,12 @@ type SettingsModalProps = {
 };
 
 type ActiveTab = "general" | "sounds" | "json";
+
+const PERFORMANCE_MODE_OPTIONS: Array<{ value: PerformanceMode; label: string }> = [
+  { value: "auto", label: "Automatisch" },
+  { value: "low", label: "Sparsam" },
+  { value: "full", label: "Volle Effekte" },
+];
 
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const {
@@ -38,6 +49,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [backgroundColor, setBackgroundColor] = useState("#08111f");
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(undefined);
   const [backgroundImageBlur, setBackgroundImageBlur] = useState("8");
+  const [performanceMode, setPerformanceMode] = useState<PerformanceMode>("auto");
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundVolume, setSoundVolume] = useState("55");
@@ -67,6 +79,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     setBackgroundColor(config.backgroundColor || "#08111f");
     setBackgroundImage(config.backgroundImage || undefined);
     setBackgroundImageBlur(String(config.backgroundImageBlur ?? 8));
+    setPerformanceMode(normalizePerformanceMode(config.performanceMode));
     setSoundEnabled(config.uiSounds?.enabled !== false);
     setSoundVolume(String(config.uiSounds?.volume ?? 55));
     setSoundSet(config.uiSounds?.soundSet || "voyager");
@@ -113,6 +126,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
       parsed.backgroundColor = backgroundColor;
       parsed.backgroundImage = backgroundImage || undefined;
       parsed.backgroundImageBlur = clampInt(backgroundImageBlur, 8, 0);
+      parsed.performanceMode = performanceMode;
       parsed.uiSounds = {
         enabled: soundEnabled,
         volume: Math.max(0, Math.min(100, normalizedVolume)),
@@ -263,6 +277,42 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </Pressable>
                   <Text style={styles.fieldLabel}>Unschaerfe</Text>
                   <BlurControl onChange={setBackgroundImageBlur} value={backgroundImageBlur} />
+                </View>
+                <View style={styles.libraryCard}>
+                  <Text style={styles.sectionTitle}>Darstellungsleistung</Text>
+                  <Text style={styles.helperInline}>
+                    Sparsam schaltet Backdrop-Unschaerfe, Schlagschatten, Hintergrundunschaerfe und
+                    schnelle Flussanimationen ab. Auf schwacher Grafikhardware wie dem RK3399 ist das
+                    der wirksamste Hebel. Automatisch entscheidet nach Zeigergeraet und laesst damit
+                    Kiosk-Rechner ohne Touch auf voller Last laufen.
+                  </Text>
+                  <View style={styles.choiceRow}>
+                    {PERFORMANCE_MODE_OPTIONS.map((option) => (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => setPerformanceMode(option.value)}
+                        style={[
+                          styles.choiceChip,
+                          performanceMode === option.value ? styles.choiceChipActive : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.choiceChipLabel,
+                            performanceMode === option.value ? styles.choiceChipLabelActive : null,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={styles.helperInline}>
+                    Dieses Geraet wuerde automatisch {detectCoarsePointerWeb() ? "sparsam" : "voll"} laufen.
+                    Einzelne Anzeigegeraete lassen sich unabhaengig von dieser Einstellung per URL
+                    festlegen: ?lowpower=1 erzwingt sparsam, ?lowpower=0 voll, ?lowpower=auto setzt
+                    zurueck. Der Wert bleibt in dem jeweiligen Browser gespeichert.
+                  </Text>
                 </View>
               </>
             )}

@@ -7,6 +7,7 @@ import { IoBrokerStateStore } from "../state/IoBrokerStateStore";
 import { DashboardSettings, StateSnapshot, WidgetConfig, WidgetInteractionSounds, WidgetType } from "../types/dashboard";
 import { constrainToPrimarySections, GRID_SNAP, GRID_VERTICAL_SNAP } from "../utils/gridLayout";
 import { applyMobileOverridesToSettings } from "../utils/mobileWidget";
+import { resolveLowPowerWebEffects } from "../utils/performanceMode";
 import { playConfiguredUiSound } from "../utils/uiSounds";
 import { resolveThemeSettings } from "../utils/themeConfig";
 import { palette } from "../utils/theme";
@@ -91,7 +92,12 @@ export function GridCanvas({
       (typeof window !== "undefined" &&
         "matchMedia" in window &&
         window.matchMedia("(pointer: coarse)").matches)));
-  const useLowPowerWebEffects = Platform.OS === "web" && isCoarsePointerWeb;
+  // Nicht mehr allein am Zeigergeraet: die Dashboard-Einstellung und ein
+  // geraetegebundener ?lowpower=-Override gehen vor (siehe utils/performanceMode).
+  const useLowPowerWebEffects = useMemo(
+    () => resolveLowPowerWebEffects(config.performanceMode),
+    [config.performanceMode]
+  );
   const isPhoneLikeWeb = isCoarsePointerWeb && Math.max(windowWidth, windowHeight) < 1000;
   const isCompactViewport = windowWidth < 700 || isPhoneLikeWeb;
   const isCompactWeb = Platform.OS === "web" && isCompactViewport;

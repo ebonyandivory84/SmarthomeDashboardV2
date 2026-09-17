@@ -95,6 +95,7 @@ export const defaultConfig: DashboardSettings = {
     gap: 12,
   },
   pollingMs: 2000,
+  performanceMode: "auto",
   uiSounds: {
     enabled: true,
     volume: 55,
