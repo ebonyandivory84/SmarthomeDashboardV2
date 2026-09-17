@@ -44,6 +44,12 @@ const FLOW_COLOR_BATTERY = "#8b8dff";
 const FLOW_COLOR_CAR = "#9fe89f";
 const FLOW_COLOR_GRID_IMPORT = "#ff8a75";
 const FLOW_COLOR_GRID_EXPORT = "#7ee2a8";
+const LINE_COLOR_IDLE = "rgba(255,255,255,0.07)";
+// Aktive Kante in der Flussfarbe, aber stark gedaempft: die Leitung soll den
+// Punkt nicht ueberstrahlen.
+function lineColor(active: boolean, color: string) {
+  return active ? `${color}4d` : LINE_COLOR_IDLE;
+}
 const DEFAULT_WALLBOX_STATE_IDS = {
   carState: "go-e.0.car",
   chargePower: "go-e.0.nrg.11",
@@ -482,10 +488,50 @@ function SolarFlowScene({
       onLayout={(event: LayoutChangeEvent) => setSceneLayout(event.nativeEvent.layout)}
       style={styles.scene}
     >
-      <View style={[styles.lineVertical, { top: topLineStart, left: topLineLeft, height: topLineHeight }]} />
-      <View style={[styles.lineVertical, { top: bottomLineStart, left: bottomLineLeft, height: bottomLineHeight }]} />
-      <View style={[styles.lineHorizontal, { top: leftLineTop, left: leftLineStart, width: leftLineWidth }]} />
-      <View style={[styles.lineHorizontal, { top: rightLineTop, left: rightLineStart, width: rightLineWidth }]} />
+      <View
+        style={[
+          styles.lineVertical,
+          {
+            top: topLineStart,
+            left: topLineLeft,
+            height: topLineHeight,
+            backgroundColor: lineColor(pvDir !== "idle", FLOW_COLOR_PV),
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.lineVertical,
+          {
+            top: bottomLineStart,
+            left: bottomLineLeft,
+            height: bottomLineHeight,
+            backgroundColor: lineColor(carDir !== "idle", FLOW_COLOR_CAR),
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.lineHorizontal,
+          {
+            top: leftLineTop,
+            left: leftLineStart,
+            width: leftLineWidth,
+            backgroundColor: lineColor(battDir !== "idle", FLOW_COLOR_BATTERY),
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.lineHorizontal,
+          {
+            top: rightLineTop,
+            left: rightLineStart,
+            width: rightLineWidth,
+            backgroundColor: lineColor(gridDir !== "idle", gridFlowColor),
+          },
+        ]}
+      />
 
       <AnimatedFlowDot
         active={pvDir !== "idle"}
