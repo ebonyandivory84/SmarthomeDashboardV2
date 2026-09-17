@@ -1275,6 +1275,10 @@ function fmtW(n: number | null) {
   if (n === null) {
     return "—";
   }
+  // Unter 1 kW in ganzen Watt anzeigen: "250 W" statt "0.3 kW".
+  if (Math.abs(n) < 1000) {
+    return `${Math.round(n)} W`;
+  }
   return `${(n / 1000).toFixed(1)} kW`;
 }
 
