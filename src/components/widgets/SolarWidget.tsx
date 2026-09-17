@@ -580,7 +580,7 @@ function SolarFlowScene({
         highlight={battDir !== "idle"}
       />
       <NodeCard
-        icon="transmission-tower-export"
+        icon={gridDir === "toHome" ? "transmission-tower-import" : "transmission-tower-export"}
         iconColor="#b9c4d8"
         iconSurface="rgba(70, 78, 98, 0.28)"
         nodeColor={widgetAppearance?.gridCardColor}
