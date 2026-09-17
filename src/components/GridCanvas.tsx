@@ -40,7 +40,6 @@ const LazyAlarmFloorplanWidget = lazy(() =>
   import("./widgets/AlarmFloorplanWidget").then((module) => ({ default: module.AlarmFloorplanWidget }))
 );
 const LazyCocoWidget = lazy(() => import("./widgets/CocoWidget").then((module) => ({ default: module.CocoWidget })));
-const LazyHeatingWidget = lazy(() => import("./widgets/HeatingWidget").then((module) => ({ default: module.HeatingWidget })));
 const LazyHeatingWidgetV2 = lazy(() =>
   import("./widgets/HeatingWidgetV2").then((module) => ({ default: module.HeatingWidgetV2 }))
 );
@@ -63,7 +62,6 @@ const LAZY_WIDGET_MODULE_LOADERS: Partial<Record<WidgetType, () => Promise<unkno
   wallbox: () => import("./widgets/WallboxWidget"),
   goe: () => import("./widgets/WallboxWidget"),
   wallboxV2: () => import("./widgets/WallboxAnalogWidget"),
-  heating: () => import("./widgets/HeatingWidget"),
   heatingV2: () => import("./widgets/HeatingWidgetV2"),
 };
 
@@ -306,7 +304,6 @@ export function GridCanvas({
                   widget.type === "wallbox" ||
                   widget.type === "goe" ||
                   widget.type === "wallboxV2" ||
-                  widget.type === "heating" ||
                   widget.type === "heatingV2" ||
                   (Platform.OS === "web" && (widget.type === "weather" || widget.type === "grafana" || widget.type === "alarmFloorplan"))
                 }
@@ -790,7 +787,6 @@ function getAutoLayoutSpec(
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
         }
         return { w: 1, h: roundGridUnit(3) };
-      case "heating":
       case "heatingV2":
         if (widget.manualHeightOverride) {
           return { w: 1, h: Math.max(1, roundGridUnit(fallbackHeight)) };
@@ -884,7 +880,6 @@ function getAutoLayoutSpec(
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
       }
       return { w: mainColumnWidth, h: roundGridUnit(3) };
-    case "heating":
     case "heatingV2":
       if (widget.manualHeightOverride) {
         return { w: mainColumnWidth, h: Math.max(1, roundGridUnit(fallbackHeight)) };
@@ -1097,7 +1092,6 @@ function WebGridCanvas({
             widget.type === "wallbox" ||
             widget.type === "goe" ||
             widget.type === "wallboxV2" ||
-            widget.type === "heating" ||
             widget.type === "heatingV2" ||
             widget.type === "weather"
           }
@@ -1178,7 +1172,6 @@ function WebWidgetShell({
     widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
-    widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
     widget.type !== "weather" &&
     widget.showTitle !== false &&
@@ -1310,7 +1303,6 @@ function WebWidgetShell({
           widget.type === "wallbox" ||
           widget.type === "goe" ||
           widget.type === "wallboxV2" ||
-          widget.type === "heating" ||
           widget.type === "heatingV2")
           ? CAMERA_GRID_SNAP
           : GRID_VERTICAL_SNAP
@@ -1325,7 +1317,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heating" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {
@@ -1366,7 +1358,6 @@ function WebWidgetShell({
           widget.type === "wallbox" ||
           widget.type === "goe" ||
           widget.type === "wallboxV2" ||
-          widget.type === "heating" ||
           widget.type === "heatingV2"
         ) {
           const minHeight = widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? 0.5 : widget.type === "solar" ? 2.5 : 1;
@@ -1486,7 +1477,6 @@ function WebWidgetShell({
     widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
     widget.type !== "coco" &&
-    widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
     widget.type !== "numpad" &&
     widget.type !== "grafana" &&
@@ -1921,14 +1911,6 @@ function renderWidget(
     );
   }
 
-  if (effectiveWidget.type === "heating") {
-    return (
-      <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
-        <LazyHeatingWidget client={client} config={effectiveWidget} isActivePage={isActivePage} lowPowerMode={lowPowerMode} states={states} />
-      </Suspense>
-    );
-  }
-
   if (effectiveWidget.type === "heatingV2") {
     return (
       <Suspense fallback={<View style={styles.lazyWidgetFallback} />}>
@@ -1990,7 +1972,6 @@ function supportsManualHeightOverride(type: WidgetType) {
     type === "wallbox" ||
     type === "goe" ||
     type === "wallboxV2" ||
-    type === "heating" ||
     type === "heatingV2"
   );
 }
@@ -2217,7 +2198,7 @@ const webResizeHandleStyle: CSSProperties = {
 function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThemeSettings>): CSSProperties {
   const appearance = widget.appearance;
   if (appearance?.widgetColor) {
-    if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "coco" || widget.type === "heating" || widget.type === "heatingV2") {
+    if (widget.type === "wallbox" || widget.type === "goe" || widget.type === "wallboxV2" || widget.type === "coco" || widget.type === "heatingV2") {
       return {
         background: buildGradientBackground(appearance.widgetColor, appearance.widgetColor2),
         border: "none",
@@ -2331,7 +2312,7 @@ function getWidgetTone(widget: WidgetConfig, theme: ReturnType<typeof resolveThe
       boxShadow: "0 16px 28px rgba(5, 10, 19, 0.36)",
     };
   }
-  if (type === "heating" || type === "heatingV2") {
+  if (type === "heatingV2") {
     return {
       background: "linear-gradient(145deg, rgba(18, 28, 42, 0.96), rgba(10, 16, 27, 0.98))",
       border: "none",

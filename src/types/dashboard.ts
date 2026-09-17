@@ -19,7 +19,6 @@ export type WidgetType =
   | "wallbox"
   | "goe"
   | "wallboxV2"
-  | "heating"
   | "heatingV2"
   | "telegram"
   | "roomSensorHistory"
@@ -480,8 +479,12 @@ export type WallboxWidgetV2Config = Omit<WallboxWidgetConfig, "type"> & {
   type: "wallboxV2";
 };
 
-export type HeatingWidgetConfig = WidgetBase & {
-  type: "heating";
+/**
+ * Gemeinsame Felder des Heizungs-Widgets. Frueher war dies HeatingWidgetConfig
+ * mit type "heating"; das Widget der ersten Generation ist entfallen, die
+ * Feldliste bleibt als Basis fuer V2 bestehen.
+ */
+export type HeatingWidgetBaseConfig = WidgetBase & {
   manualHeightOverride?: boolean;
   refreshMs?: number;
   showStatusSubtitle?: boolean;
@@ -531,7 +534,7 @@ export type HeatingWidgetConfig = WidgetBase & {
   oneTimeChargeIcon?: string;
 };
 
-export type HeatingWidgetV2Config = Omit<HeatingWidgetConfig, "type"> & {
+export type HeatingWidgetV2Config = HeatingWidgetBaseConfig & {
   type: "heatingV2";
   stateDefaultsVersion?: number;
 };
@@ -634,7 +637,6 @@ export type WidgetConfig =
   | WallboxWidgetConfig
   | GoEWidgetConfig
   | WallboxWidgetV2Config
-  | HeatingWidgetConfig
   | HeatingWidgetV2Config
   | TelegramWidgetConfig
   | RoomSensorHistoryWidgetConfig

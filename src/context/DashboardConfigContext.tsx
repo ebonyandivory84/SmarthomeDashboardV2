@@ -71,6 +71,19 @@ const ASSET_NAME_MIGRATIONS: Record<string, string> = {
 
 const DashboardConfigContext = createContext<DashboardConfigContextValue | null>(null);
 
+/**
+ * Das Heizungs-Widget der ersten Generation ist entfallen. Gespeicherte
+ * Konfigurationen werden auf heatingV2 gehoben statt das Widget zu verlieren:
+ * V2 war von Anfang an als Superset von V1 typisiert, alle Felder passen
+ * unveraendert.
+ */
+function migrateLegacyWidgetType<T extends { type: string }>(widget: T): T {
+  if (widget.type === "heating") {
+    return { ...widget, type: "heatingV2" } as T;
+  }
+  return widget;
+}
+
 function migrateConfig(input: DashboardSettings): DashboardSettings {
   const nextConfig: DashboardSettings = {
     ...input,
@@ -79,7 +92,7 @@ function migrateConfig(input: DashboardSettings): DashboardSettings {
       ...input.iobroker,
       baseUrl: input.iobroker.baseUrl === LEGACY_DEMO_BASE_URL ? "" : input.iobroker.baseUrl,
     },
-    widgets: input.widgets.map((widget) => {
+    widgets: input.widgets.map(migrateLegacyWidgetType).map((widget) => {
       const normalizedInteractionSounds = normalizeWidgetInteractionSounds(widget.interactionSounds);
 
       if (widget.type !== "camera" && widget.type !== "cameraTalk" && widget.type !== "cameraTalkReolink") {
@@ -961,8 +974,11 @@ function normalizeWidgetTypeSoundDefaults(
     wallbox: normalizeWidgetInteractionSounds(input.wallbox),
     goe: normalizeWidgetInteractionSounds(input.goe),
     wallboxV2: normalizeWidgetInteractionSounds(input.wallboxV2),
-    heating: normalizeWidgetInteractionSounds(input.heating),
-    heatingV2: normalizeWidgetInteractionSounds(input.heatingV2),
+    // Der frueher unter "heating" abgelegte Soundsatz wird uebernommen, damit
+    // bestehende Konfigurationen ihre Zuordnung nach dem Wegfall von V1 behalten.
+    heatingV2: normalizeWidgetInteractionSounds(
+      input.heatingV2 || (input as { heating?: typeof input.heatingV2 }).heating
+    ),
   };
 }
 
@@ -973,7 +989,7 @@ function normalizeWidgetConfigList(input: DashboardSettings["widgets"] | undefin
 
   const usedIds = new Set<string>();
 
-  return input.map((widget, index) => {
+  return input.map(migrateLegacyWidgetType).map((widget, index) => {
     const baseId = (widget.id || `${widget.type}-${index + 1}`).trim();
     let nextId = baseId || `${widget.type}-${index + 1}`;
     let suffix = 2;

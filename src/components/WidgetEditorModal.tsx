@@ -696,7 +696,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
-    if (widget.type === "heating" || widget.type === "heatingV2") {
+    if (widget.type === "heatingV2") {
       setSoundDraft({
         press: resolveDraftSoundValue(
           widget.interactionSounds?.press,
@@ -1298,7 +1298,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         ),
         appearance,
       });
-    } else if (widget.type === "heating" || widget.type === "heatingV2") {
+    } else if (widget.type === "heatingV2") {
       onSave(widget.id, {
         title: draft.title,
         showTitle: draft.showTitle !== "false",
@@ -1506,8 +1506,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       widget.type !== "wallbox" &&
       widget.type !== "goe" &&
       widget.type !== "wallboxV2" &&
-      widget.type !== "heating" &&
-      widget.type !== "heatingV2"
+        widget.type !== "heatingV2"
     ) {
       return;
     }
@@ -1796,7 +1795,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   />
                 </>
               ) : null}
-              {widget.type === "heating" || widget.type === "heatingV2" ? (
+              {widget.type === "heatingV2" ? (
                 <>
                   <ColorInputRow
                     firstKey="cardColor"
@@ -4217,7 +4216,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 </View>
               </>
             ) : null}
-            {widget.type === "heating" || widget.type === "heatingV2" ? (
+            {widget.type === "heatingV2" ? (
               <>
                 <View style={styles.splitRow}>
                   <Field label="Refresh (ms)">
@@ -4923,7 +4922,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
               : "Link-Icon waehlen"
             : widget?.type === "wallbox" || widget?.type === "goe" || widget?.type === "wallboxV2"
               ? "Wallbox-Hintergrund waehlen"
-              : (widget?.type === "heating" || widget?.type === "heatingV2")
+              : (widget?.type === "heatingV2")
                 ? "Heizung-Hintergrund waehlen"
               : widget?.type === "telegram"
                 ? "Telegram-Hintergrund waehlen"
@@ -4936,7 +4935,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ? "Waehle eine Bilddatei aus dem Ordner `assets/`."
             : widget?.type === "wallbox" || widget?.type === "goe" || widget?.type === "wallboxV2"
               ? "Waehle ein Hintergrundbild. Drag&Drop, Datei-Upload und Browser-Auswahl sind verfuegbar."
-              : (widget?.type === "heating" || widget?.type === "heatingV2")
+              : (widget?.type === "heatingV2")
                 ? "Waehle ein Hintergrundbild fuer das Heizungs-Widget. Drag&Drop und Datei-Upload sind verfuegbar."
               : widget?.type === "telegram"
                 ? "Waehle ein Hintergrundbild fuer das Telegram-Widget. Drag&Drop und Datei-Upload sind verfuegbar."
@@ -4963,7 +4962,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 backgroundImage: entry.name,
               };
             }
-            if (widget?.type === "heating" || widget?.type === "heatingV2" || widget?.type === "telegram") {
+            if (widget?.type === "heatingV2" || widget?.type === "telegram") {
               return {
                 ...current,
                 backgroundImage: entry.name,
@@ -5648,7 +5647,7 @@ function getWidgetAppearanceDefaults(
     };
   }
 
-  if (widget.type === "heating" || widget.type === "heatingV2") {
+  if (widget.type === "heatingV2") {
     return {
       widgetColor: "rgba(18, 28, 42, 0.96)",
       widgetColor2: "rgba(10, 16, 27, 0.98)",
@@ -6004,7 +6003,6 @@ function buildStoredInteractionSounds(
     widgetType !== "wallbox" &&
     widgetType !== "goe" &&
     widgetType !== "wallboxV2" &&
-    widgetType !== "heating" &&
     widgetType !== "heatingV2"
   ) {
     return undefined;

@@ -168,14 +168,8 @@ const OPTIONS: Array<{
     icon: "speedometer",
   },
   {
-    type: "heating",
-    title: "Heizung",
-    description: "Steuert Viessmann Heizmodus, Solltemperaturen und Warmwasser in einer kompakten Card.",
-    icon: "radiator",
-  },
-  {
     type: "heatingV2",
-    title: "Heizung V2",
+    title: "Heizung",
     description: "Uebersichtlichere Heizungsansicht mit Fokus auf Schnellsteuerung und kompakten Details.",
     icon: "radiator-disabled",
   },

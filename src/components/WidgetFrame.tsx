@@ -51,7 +51,6 @@ export function WidgetFrame({
     widget.type !== "wallbox" &&
     widget.type !== "goe" &&
     widget.type !== "wallboxV2" &&
-    widget.type !== "heating" &&
     widget.type !== "heatingV2" &&
     widget.type !== "weather" &&
     widget.showTitle !== false &&
@@ -87,7 +86,6 @@ export function WidgetFrame({
     widget.type === "wallbox" ||
     widget.type === "goe" ||
     widget.type === "wallboxV2" ||
-    widget.type === "heating" ||
     widget.type === "heatingV2";
 
   const releaseScrollBlock = () => {
@@ -260,8 +258,7 @@ export function WidgetFrame({
         widget.type !== "wallbox" &&
         widget.type !== "goe" &&
         widget.type !== "wallboxV2" &&
-        widget.type !== "heating" &&
-        widget.type !== "heatingV2" &&
+            widget.type !== "heatingV2" &&
         widget.type !== "grafana" &&
         widget.type !== "alarmFloorplan" &&
         widget.type !== "weather" &&

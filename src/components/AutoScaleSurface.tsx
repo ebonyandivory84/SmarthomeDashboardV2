@@ -37,7 +37,6 @@ const WIDGET_AUTO_SCALE_MINIMUMS: Partial<Record<WidgetType, AutoScaleMinimum>> 
   host: { width: 560, height: 340 },
   raspberryPiStats: { width: 560, height: 340 },
   coco: { width: 560, height: 320 },
-  heating: { width: 560, height: 680 },
   roomSensorHistory: { width: 320, height: 560 },
   historyChart: { width: 420, height: 260 },
   waterMeter: { width: 420, height: 360 },

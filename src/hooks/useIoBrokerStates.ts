@@ -175,7 +175,7 @@ export const collectWidgetStateIds = (widget: WidgetConfig) => {
       ...WALLBOX_LEGACY_FALLBACK_STATE_IDS,
     ];
   }
-  if (widget.type === "heating" || widget.type === "heatingV2") {
+  if (widget.type === "heatingV2") {
     return [
       ...collectExplicitStateIds(widget),
       ...HEATING_FALLBACK_STATE_IDS,
