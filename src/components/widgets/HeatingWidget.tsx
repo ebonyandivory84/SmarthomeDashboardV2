@@ -216,7 +216,11 @@ export function HeatingWidget({ config, client, states, isActivePage = true, low
 
   useEffect(() => {
     tempBarGlowAnim.setValue(0);
-    if (!runtimeActive) {
+    // Auf Web ist useNativeDriver wirkungslos - react-native-web hat keinen
+    // Native-Driver, die Schleife laeuft per requestAnimationFrame im JS und
+    // schreibt jeden Frame Styles. Auf einer Mali-T860 ist das zu teuer fuer
+    // einen Glow-Effekt. Gleiche Bremse wie im WallboxWidget.
+    if (!runtimeActive || Platform.OS === "web") {
       return;
     }
     const glowLoop = Animated.loop(

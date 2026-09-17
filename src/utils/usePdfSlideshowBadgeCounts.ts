@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { IoBrokerClient } from "../services/iobroker";
 import { DashboardPage, PdfSlideshowWidgetConfig } from "../types/dashboard";
+import { useDocumentVisibility } from "../hooks/useDocumentVisibility";
 
 const POLL_INTERVAL_MS = 60_000;
 
 export function usePdfSlideshowBadgeCounts(dashboardPages: DashboardPage[], client: IoBrokerClient) {
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const documentVisible = useDocumentVisibility();
 
   useEffect(() => {
+    // Ohne diese Bremse lief die WebDAV-Abfrage auch bei dunklem Bildschirm
+    // weiter - als einziger Timer im Projekt ohne Sichtbarkeits-Gating.
+    if (!documentVisible) {
+      return;
+    }
+
     let cancelled = false;
 
     const poll = async () => {
@@ -41,7 +49,7 @@ export function usePdfSlideshowBadgeCounts(dashboardPages: DashboardPage[], clie
       cancelled = true;
       clearInterval(timer);
     };
-  }, [client, dashboardPages]);
+  }, [client, dashboardPages, documentVisible]);
 
   return counts;
 }
