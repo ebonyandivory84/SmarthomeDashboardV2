@@ -437,7 +437,7 @@ function SolarFlowScene({
   const infoMaxBottom = Math.max(0, fittedScene.height - Math.round(clamp(78 * sceneScale, 52, 90)));
   const batteryInfoTop = clamp(batteryBox.y + batteryBox.h + infoGap, 0, infoMaxBottom);
   // Geschaetzte Hoehe eines zweizeiligen ExternalNodeInfo-Blocks.
-  const infoBlockHeight = Math.round(clamp(58 * sceneScale, 40, 64));
+  const infoBlockHeight = Math.round(clamp(70 * sceneScale, 48, 78));
   // Der linke MiniStat-Stapel waechst vom unteren Rand nach oben in dieselbe
   // Spalte, in der die Akku-Info sitzt (sceneStatLeft steht auf left: 0 mit 33 %
   // Breite, die Akku-Info bei 3 % mit 19 %). Statt die Info nach oben in die
@@ -694,7 +694,7 @@ function SolarFlowScene({
         veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         showPanel={false}
-        valueSizeBoost={0.95}
+        valueSizeBoost={1.25}
         valueWeight="500"
         valueColor="#f5f8ff"
       />
@@ -714,7 +714,7 @@ function SolarFlowScene({
         veryCompact={veryCompactMode}
         sceneScale={sceneScale}
         showPanel={false}
-        valueSizeBoost={0.95}
+        valueSizeBoost={1.25}
         valueWeight="500"
         valueColor="#ffffff"
       />
@@ -1062,7 +1062,7 @@ function ExternalNodeInfo({
   const radius = Math.round(clamp(12 * scale, 8, 12));
   const labelSize = Math.round(clamp(11 * scale, 8, 12));
   const valueScale = clamp(valueSizeBoost ?? 1, 0.82, 1.8);
-  const valueSize = Math.round(clamp(17 * scale * valueScale, 12, 34));
+  const valueSize = Math.round(clamp(17 * scale * valueScale, 13, 40));
   const rowGap = Math.round(clamp(6 * scale, 3, 6));
 
   return (
@@ -1096,7 +1096,7 @@ function ExternalNodeInfo({
               <MaterialCommunityIcons
                 color={mutedTextColor}
                 name={line.icon}
-                size={Math.round(clamp(valueSize * 0.78, 10, 26))}
+                size={Math.round(clamp(valueSize * 0.86, 12, 32))}
                 style={styles.externalInfoIcon}
               />
             ) : null}
@@ -1107,6 +1107,7 @@ function ExternalNodeInfo({
                 {
                   color: valueColor || textColor,
                   fontSize: valueSize,
+                  lineHeight: Math.round(valueSize * 1.18),
                   fontWeight: valueWeight || "500",
                 },
               ]}
@@ -1707,13 +1708,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   externalInfoIcon: {
-    marginRight: 5,
+    marginRight: 6,
     opacity: 0.85,
   },
   externalInfoValue: {
     fontSize: 16,
     fontWeight: "800",
-    lineHeight: 19,
     textAlign: "center",
     fontVariant: ["tabular-nums"],
   },
