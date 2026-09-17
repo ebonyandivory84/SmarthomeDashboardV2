@@ -20,6 +20,7 @@ import { useDashboardConfig } from "../../context/DashboardConfigContext";
 import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { resolveThemeSettings } from "../../utils/themeConfig";
 import { palette } from "../../utils/theme";
+import { buildWidgetAssetUrl } from "../../utils/widgetAssets";
 
 type SolarWidgetProps = {
   config: SolarWidgetConfig;
@@ -1553,11 +1554,10 @@ function buildBlurredWidgetBackgroundStyle(imageName: string, blur: number) {
   return {
     position: "absolute",
     inset: "-18px",
-    backgroundImage: `url("/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(imageName)}")`,
+    backgroundImage: `url("${buildWidgetAssetUrl(imageName, blur)}")`,
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
-    filter: `blur(${blur}px)`,
     transform: "scale(1.04)",
   };
 }

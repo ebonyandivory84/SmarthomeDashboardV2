@@ -6,6 +6,7 @@ import { GoEWidgetConfig, StateSnapshot, WallboxWidgetConfig } from "../../types
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { palette } from "../../utils/theme";
 import { AutoFitContent } from "../AutoFitContent";
+import { buildWidgetAssetUrl } from "../../utils/widgetAssets";
 
 type WallboxWidgetProps = {
   config: WallboxWidgetConfig | GoEWidgetConfig;
@@ -2015,8 +2016,7 @@ function buildStatusSubtitle({
 function buildBlurredWidgetBackgroundStyle(imageName: string, blur: number) {
   return {
     ...webBackgroundLayerStyle,
-    backgroundImage: `url("/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(imageName)}")`,
-    filter: `blur(${blur}px)`,
+    backgroundImage: `url("${buildWidgetAssetUrl(imageName, blur)}")`,
   };
 }
 

@@ -27,6 +27,7 @@ import { configureUiSounds, playConfiguredUiSound, primeConfiguredSounds } from 
 import { usePdfSlideshowBadgeCounts } from "../utils/usePdfSlideshowBadgeCounts";
 import { buildWidgetTemplate } from "../utils/widgetFactory";
 import { palette } from "../utils/theme";
+import { buildWidgetAssetUrl } from "../utils/widgetAssets";
 
 const LazyWidgetEditorModal = lazy(() =>
   import("../components/WidgetEditorModal").then((module) => ({ default: module.WidgetEditorModal }))
@@ -1247,17 +1248,16 @@ function clampInt(value: number | undefined, fallback: number, min: number) {
 }
 
 function buildBlurredDashboardBackgroundStyle(imageName: string, blurPx: number): Record<string, string | number> {
-  const encoded = encodeURIComponent(imageName);
+  const assetUrl = buildWidgetAssetUrl(imageName, Math.max(0, blurPx));
   return {
     position: "absolute",
     top: "-12%",
     left: "-12%",
     right: "-12%",
     bottom: "-12%",
-    backgroundImage: `url(/smarthome-dashboard-v2/widget-assets/${encoded})`,
+    backgroundImage: `url(${assetUrl})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
-    filter: `blur(${Math.max(0, blurPx)}px)`,
     transform: "scale(1.08)",
     pointerEvents: "none",
     zIndex: 0,

@@ -37,6 +37,14 @@ try {
   createWebdavClient = null;
 }
 
+// Cache fuer vorgeblurrte Widget-Hintergruende. Bewusst ausserhalb des
+// assets-Verzeichnisses, damit die Varianten nicht in der Bildauswahl auftauchen,
+// und ausserhalb des Adapterverzeichnisses, damit ein Adapter-Update sie nicht
+// mitnimmt - neu erzeugt werden sie ohnehin beim ersten Abruf.
+const WIDGET_BLUR_CACHE_DIR = path.join(os.tmpdir(), "iobroker.smarthome-dashboard-v2-blur-cache");
+const WIDGET_BLUR_SOURCE_MAX_WIDTH = 720;
+const WIDGET_BLUR_MAX_SIGMA = 40;
+
 const objectEntriesMap = new Map();
 let objectEntriesReady = false;
 let objectEntriesPromise = null;
@@ -1226,6 +1234,76 @@ async function main(adapter) {
     const hadSession = reolinkTalkSessions.delete(token);
     adapter.log.info(`[reolink-talk] stop token=${token.slice(0, 8)}... active=${hadSession ? "yes" : "no"}`);
     res.json({ ok: true });
+  });
+
+  // Vorgeblurrte Varianten der Widget-Hintergrundbilder. Ohne das muss der
+  // Browser pro Widget einen permanenten CSS-filter: blur() unterhalten, was auf
+  // schwacher GPU (Mali-T860 im RK3399) dauerhaft Compositing-Zeit kostet. Hier
+  // wird einmal mit sharp gerechnet, auf Platte gecacht und als unveraenderliche
+  // Ressource ausgeliefert - danach ist es eine gewoehnliche Textur.
+  app.get("/smarthome-dashboard-v2/widget-assets/:name", async (req, res, next) => {
+    const requestedBlur = Number.parseInt(String(req.query.blur ?? ""), 10);
+    if (!Number.isFinite(requestedBlur) || requestedBlur <= 0) {
+      next();
+      return;
+    }
+    if (!Sharp) {
+      // Ohne sharp faellt der Aufruf auf das Originalbild zurueck: unscharf ist
+      // es dann nicht, aber die Oberflaeche bleibt funktionsfaehig.
+      next();
+      return;
+    }
+
+    const safeName = path.basename(String(req.params.name || ""));
+    if (!safeName || safeName.startsWith(".")) {
+      next();
+      return;
+    }
+
+    const sourcePath = path.join(widgetAssetsRoot, safeName);
+    try {
+      const stat = await fs.promises.stat(sourcePath);
+      if (!stat.isFile()) {
+        next();
+        return;
+      }
+
+      const sigma = Math.max(0.3, Math.min(WIDGET_BLUR_MAX_SIGMA, requestedBlur));
+      const cacheName = `${safeName}.${Math.round(stat.mtimeMs)}.${stat.size}.b${sigma}.webp`.replace(
+        /[^\w.-]/g,
+        "_"
+      );
+      const cachePath = path.join(WIDGET_BLUR_CACHE_DIR, cacheName);
+
+      let cached = true;
+      try {
+        await fs.promises.access(cachePath, fs.constants.R_OK);
+      } catch {
+        cached = false;
+      }
+
+      if (!cached) {
+        await fs.promises.mkdir(WIDGET_BLUR_CACHE_DIR, { recursive: true });
+        const buffer = await Sharp(sourcePath)
+          .rotate()
+          .resize({ width: WIDGET_BLUR_SOURCE_MAX_WIDTH, withoutEnlargement: true })
+          .blur(sigma)
+          .webp({ quality: 72 })
+          .toBuffer();
+        await fs.promises.writeFile(cachePath, buffer);
+        adapter.log.debug(`[widget-assets] blurred variant generated: ${cacheName} (${buffer.length} bytes)`);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.sendFile(cachePath, (error) => {
+        if (error && !res.headersSent) {
+          next();
+        }
+      });
+    } catch (error) {
+      adapter.log.debug(`[widget-assets] blur failed for ${safeName}: ${error instanceof Error ? error.message : error}`);
+      next();
+    }
   });
 
   app.use("/smarthome-dashboard-v2/widget-assets", express.static(widgetAssetsRoot));

@@ -39,13 +39,22 @@ if [ ! -d adapter/www/_expo ]; then
   exit 1
 fi
 
-BACKUP_DIR="/opt/iobroker/backups/smarthome-dashboard-v2-www-before-${SHA_SHORT}"
+ADAPTER_DIR=$(dirname "$TARGET_DIR")
+BACKUP_DIR="/opt/iobroker/backups/smarthome-dashboard-v2-before-${SHA_SHORT}"
 echo "--> Backup: $BACKUP_DIR"
-mkdir -p "$BACKUP_DIR"
-cp -a "$TARGET_DIR/." "$BACKUP_DIR/"
+mkdir -p "$BACKUP_DIR/www" "$BACKUP_DIR/lib"
+cp -a "$TARGET_DIR/." "$BACKUP_DIR/www/"
+cp -a "$ADAPTER_DIR/main.js" "$BACKUP_DIR/main.js"
+cp -a "$ADAPTER_DIR/lib/." "$BACKUP_DIR/lib/"
 
 echo "--> kopiere adapter/www"
 cp -R adapter/www/. "$TARGET_DIR/"
+
+# Adaptercode mitkopieren: seit der serverseitigen Hintergrund-Unschaerfe steckt
+# Funktionalitaet auch in adapter/main.js, nicht mehr nur im Web-Export.
+echo "--> kopiere adapter/main.js und adapter/lib"
+cp adapter/main.js "$ADAPTER_DIR/main.js"
+cp -R adapter/lib/. "$ADAPTER_DIR/lib/"
 
 echo "--> restart $INSTANCE"
 iobroker restart "$INSTANCE"
@@ -55,7 +64,10 @@ curl -fsS -o /dev/null -w '--> HTTP=%{http_code}\n' "http://127.0.0.1:${PORT}/sm
 
 echo
 echo "Fertig. Rollback bei Bedarf:"
-echo "  cp -R $BACKUP_DIR/. $TARGET_DIR/ && iobroker restart $INSTANCE"
+echo "  cp -R $BACKUP_DIR/www/. $TARGET_DIR/"
+echo "  cp $BACKUP_DIR/main.js $ADAPTER_DIR/main.js"
+echo "  cp -R $BACKUP_DIR/lib/. $ADAPTER_DIR/lib/"
+echo "  iobroker restart $INSTANCE"
 REMOTE
 
 echo "==> Deploy abgeschlossen. Im Browser einmal hart neu laden (Cmd+Shift+R)."
