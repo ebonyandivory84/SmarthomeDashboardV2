@@ -1,4 +1,4 @@
-import { Suspense, createElement, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, createElement, lazy, startTransition, useEffect, useMemo, useRef, useState } from "react";
 import {
   ImageBackground,
   Linking,
@@ -647,7 +647,9 @@ export function DashboardScreen() {
       }
       committedPageIdRef.current = nextPage.id;
       setVisiblePageId(nextPage.id);
-      setActivePage(nextPage.id);
+      startTransition(() => {
+        setActivePage(nextPage.id);
+      });
     }
   };
 
@@ -894,8 +896,13 @@ export function DashboardScreen() {
             horizontalOffsetRef.current = width * nextIndex;
             horizontalPagerRef.current?.scrollTo({ x: width * nextIndex, animated: false });
           }
+          // setVisiblePageId ist das dringende Update: die Tab-Hervorhebung soll
+          // sofort gezeichnet werden. Der eigentliche Seitenaufbau laeuft als
+          // Transition hinterher, damit die Rueckmeldung nicht auf ihn wartet.
           setVisiblePageId(pageId);
-          setActivePage(pageId);
+          startTransition(() => {
+            setActivePage(pageId);
+          });
         }}
         onToggleLayoutMode={() => setLayoutMode((current) => !current)}
         onMovePage={(pageId, direction) => {
