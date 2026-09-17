@@ -760,6 +760,14 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         dhwTempStateId: widget.dhwTempStateId || "",
         compressorPowerStateId: widget.compressorPowerStateId || "",
         compressorSensorPowerStateId: widget.compressorSensorPowerStateId || "",
+        powerGaugeStateId: widget.powerGaugeStateId || "",
+        powerGaugeLabel: widget.powerGaugeLabel || "",
+        powerGaugeMinKw: String(widget.powerGaugeMinKw ?? 0),
+        powerGaugeMaxKw: String(widget.powerGaugeMaxKw ?? 12),
+        heatingRodGaugeStateId: widget.heatingRodGaugeStateId || "",
+        heatingRodGaugeLabel: widget.heatingRodGaugeLabel || "",
+        heatingRodGaugeMinKw: String(widget.heatingRodGaugeMinKw ?? 0),
+        heatingRodGaugeMaxKw: String(widget.heatingRodGaugeMaxKw ?? 9),
         showInfoProgram: widget.showInfoProgram === false ? "false" : "true",
         showInfoTargets: widget.showInfoTargets === false ? "false" : "true",
         showInfoOutsideTemp: widget.showInfoOutsideTemp === false ? "false" : "true",
@@ -1335,6 +1343,14 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         dhwTempStateId: draft.dhwTempStateId?.trim() || undefined,
         compressorPowerStateId: draft.compressorPowerStateId?.trim() || undefined,
         compressorSensorPowerStateId: draft.compressorSensorPowerStateId?.trim() || undefined,
+        powerGaugeStateId: draft.powerGaugeStateId?.trim() || undefined,
+        powerGaugeLabel: draft.powerGaugeLabel?.trim() || undefined,
+        powerGaugeMinKw: parseGaugeBound(draft.powerGaugeMinKw, 0),
+        powerGaugeMaxKw: parseGaugeBound(draft.powerGaugeMaxKw, 12),
+        heatingRodGaugeStateId: draft.heatingRodGaugeStateId?.trim() || undefined,
+        heatingRodGaugeLabel: draft.heatingRodGaugeLabel?.trim() || undefined,
+        heatingRodGaugeMinKw: parseGaugeBound(draft.heatingRodGaugeMinKw, 0),
+        heatingRodGaugeMaxKw: parseGaugeBound(draft.heatingRodGaugeMaxKw, 9),
         showInfoProgram: draft.showInfoProgram !== "false",
         showInfoTargets: draft.showInfoTargets !== "false",
         showInfoOutsideTemp: draft.showInfoOutsideTemp !== "false",
@@ -4469,6 +4485,92 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
+                <Text style={styles.sectionTitle}>Analoge Zeiger (unterer Rand)</Text>
+                <Text style={styles.sectionHelper}>
+                  Je Zeiger einen Datenpunkt in Watt angeben. Ohne Datenpunkt bleibt der Zeiger ausgeblendet.
+                  Die Skala ist in kW, die Farbe laeuft von Gruen am Minimum bis Rot am Maximum.
+                </Text>
+                <View style={styles.splitRow}>
+                  <Field label="Verbrauch Datenpunkt (W)">
+                    <StateFieldInput
+                      onBrowse={() => setPickerField("powerGaugeStateId")}
+                      onChangeText={(value) => setDraft((current) => ({ ...current, powerGaugeStateId: value }))}
+                      value={draft.powerGaugeStateId || ""}
+                    />
+                  </Field>
+                  <Field label="Heizstab Datenpunkt (W)">
+                    <StateFieldInput
+                      onBrowse={() => setPickerField("heatingRodGaugeStateId")}
+                      onChangeText={(value) => setDraft((current) => ({ ...current, heatingRodGaugeStateId: value }))}
+                      value={draft.heatingRodGaugeStateId || ""}
+                    />
+                  </Field>
+                </View>
+                <View style={styles.splitRow}>
+                  <Field label="Verbrauch Beschriftung">
+                    <TextInput
+                      onChangeText={(value) => setDraft((current) => ({ ...current, powerGaugeLabel: value }))}
+                      placeholder="Verbrauch"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.powerGaugeLabel || ""}
+                    />
+                  </Field>
+                  <Field label="Heizstab Beschriftung">
+                    <TextInput
+                      onChangeText={(value) => setDraft((current) => ({ ...current, heatingRodGaugeLabel: value }))}
+                      placeholder="Heizstab"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.heatingRodGaugeLabel || ""}
+                    />
+                  </Field>
+                </View>
+                <View style={styles.splitRow}>
+                  <Field label="Verbrauch Skala von (kW)">
+                    <TextInput
+                      keyboardType="numbers-and-punctuation"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, powerGaugeMinKw: value }))}
+                      placeholder="0"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.powerGaugeMinKw || ""}
+                    />
+                  </Field>
+                  <Field label="Verbrauch Skala bis (kW)">
+                    <TextInput
+                      keyboardType="numbers-and-punctuation"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, powerGaugeMaxKw: value }))}
+                      placeholder="12"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.powerGaugeMaxKw || ""}
+                    />
+                  </Field>
+                </View>
+                <View style={styles.splitRow}>
+                  <Field label="Heizstab Skala von (kW)">
+                    <TextInput
+                      keyboardType="numbers-and-punctuation"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, heatingRodGaugeMinKw: value }))}
+                      placeholder="0"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.heatingRodGaugeMinKw || ""}
+                    />
+                  </Field>
+                  <Field label="Heizstab Skala bis (kW)">
+                    <TextInput
+                      keyboardType="numbers-and-punctuation"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, heatingRodGaugeMaxKw: value }))}
+                      placeholder="9"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.heatingRodGaugeMaxKw || ""}
+                    />
+                  </Field>
+                </View>
+
                 <Text style={styles.sectionTitle}>Button-Icons (MaterialCommunityIcons)</Text>
                 <View style={styles.splitRow}>
                   <Field label="Standby Icon">
@@ -5672,6 +5774,16 @@ function getWidgetAppearanceDefaults(
   };
 }
 
+/** Skalengrenze aus dem Editor-Entwurf lesen; leere oder unsinnige Eingaben fallen auf die Vorgabe zurueck. */
+function parseGaugeBound(raw: string | undefined, fallback: number) {
+  const normalized = String(raw ?? "").trim().replace(",", ".");
+  if (!normalized) {
+    return fallback;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function applyObjectSelection(
   fieldKey: string | null,
   objectId: string,
@@ -6110,6 +6222,13 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 14,
     fontWeight: "800",
+  },
+  sectionHelper: {
+    marginTop: -4,
+    marginBottom: 8,
+    color: palette.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
   },
   groupCard: {
     borderRadius: 14,

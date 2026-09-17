@@ -18,6 +18,7 @@ import { HEATING_V2_STATE_DEFAULTS } from "../../utils/heatingStateDefaults";
 import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { palette } from "../../utils/theme";
 import { AutoFitContent } from "../AutoFitContent";
+import { PowerGauge } from "./PowerGauge";
 import { buildWidgetAssetUrl } from "../../utils/widgetAssets";
 
 type HeatingWidgetProps = {
@@ -188,6 +189,8 @@ export function HeatingWidgetV2({
       dhwTemp: resolveOptionalStateId(config.dhwTempStateId, DEFAULT_IDS.dhwTemp),
       compressorPower: resolveOptionalStateId(config.compressorPowerStateId, DEFAULT_IDS.compressorPower),
       compressorSensorPower: resolveOptionalStateId(config.compressorSensorPowerStateId, DEFAULT_IDS.compressorSensorPower),
+      powerGauge: (config.powerGaugeStateId || "").trim(),
+      heatingRodGauge: (config.heatingRodGaugeStateId || "").trim(),
     }),
     [
       config.modeSetStateId,
@@ -218,6 +221,8 @@ export function HeatingWidgetV2({
       config.dhwTempStateId,
       config.compressorPowerStateId,
       config.compressorSensorPowerStateId,
+      config.powerGaugeStateId,
+      config.heatingRodGaugeStateId,
     ]
   );
 
@@ -316,6 +321,13 @@ export function HeatingWidgetV2({
   const compressorPowerW =
     normalizePowerToWatts(readValue(stateIds.compressorPower)) ||
     normalizePowerToWatts(readValue(stateIds.compressorSensorPower));
+  // Die Zeiger-Datenpunkte liefern Watt. Bewusst ohne die Heuristik aus
+  // normalizePowerToWatts, die Werte unter 80 als kW deutet - im Standby sind
+  // zweistellige Wattwerte voellig normal und wuerden sonst vertausendfacht.
+  const powerGaugeKw = wattsToKilowatts(normalizeFloat(readValue(stateIds.powerGauge)));
+  const heatingRodGaugeKw = wattsToKilowatts(normalizeFloat(readValue(stateIds.heatingRodGauge)));
+  const showPowerGauge = Boolean(stateIds.powerGauge);
+  const showHeatingRodGauge = Boolean(stateIds.heatingRodGauge);
 
   const ventilationSliderValue = clampVentilationLevel(ventilationLevelDraft ?? ventilationLevelSetpoint);
   const ventilationDisplayActual = ventilationLevelActual ?? ventilationLevelSetpoint;
@@ -922,6 +934,33 @@ export function HeatingWidgetV2({
             </View>
           ) : null}
         </View>
+
+        {showPowerGauge || showHeatingRodGauge ? (
+          <View style={styles.gaugeRow}>
+            {showPowerGauge ? (
+              <PowerGauge
+                instanceId={`${config.id}-power`}
+                label={config.powerGaugeLabel?.trim() || "Verbrauch"}
+                maxKw={normalizeGaugeBound(config.powerGaugeMaxKw, 12)}
+                minKw={normalizeGaugeBound(config.powerGaugeMinKw, 0)}
+                mutedTextColor={mutedTextColor}
+                textColor={textColor}
+                valueKw={powerGaugeKw}
+              />
+            ) : null}
+            {showHeatingRodGauge ? (
+              <PowerGauge
+                instanceId={`${config.id}-heatingrod`}
+                label={config.heatingRodGaugeLabel?.trim() || "Heizstab"}
+                maxKw={normalizeGaugeBound(config.heatingRodGaugeMaxKw, 9)}
+                minKw={normalizeGaugeBound(config.heatingRodGaugeMinKw, 0)}
+                mutedTextColor={mutedTextColor}
+                textColor={textColor}
+                valueKw={heatingRodGaugeKw}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.footerSlot}>
           {footerStatusText ? (
@@ -1716,6 +1755,14 @@ function formatProgramLabel(value: ProgramMode | null) {
   return "-";
 }
 
+function wattsToKilowatts(watts: number | null) {
+  return watts === null ? null : watts / 1000;
+}
+
+function normalizeGaugeBound(value: number | undefined, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 function normalizePowerToWatts(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.abs(value) > 80 ? value : value * 1000;
@@ -2106,6 +2153,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     fontWeight: "700",
+  },
+  gaugeRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    gap: 18,
+    marginTop: 2,
+    marginBottom: 2,
   },
   footerSlot: {
     height: 16,

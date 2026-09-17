@@ -537,6 +537,18 @@ export type HeatingWidgetBaseConfig = WidgetBase & {
 export type HeatingWidgetV2Config = HeatingWidgetBaseConfig & {
   type: "heatingV2";
   stateDefaultsVersion?: number;
+  /**
+   * Analoge Zeigeranzeigen am unteren Rand. Ohne State-ID bleibt der jeweilige
+   * Zeiger ausgeblendet. Die Datenpunkte liefern Watt, die Skala ist in kW.
+   */
+  powerGaugeStateId?: string;
+  powerGaugeLabel?: string;
+  powerGaugeMinKw?: number;
+  powerGaugeMaxKw?: number;
+  heatingRodGaugeStateId?: string;
+  heatingRodGaugeLabel?: string;
+  heatingRodGaugeMinKw?: number;
+  heatingRodGaugeMaxKw?: number;
 };
 
 export type SolarNodeLayout = {
