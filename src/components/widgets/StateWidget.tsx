@@ -38,7 +38,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const resolvedAddonValue = resolveAddonValue(config, value, addonValue, active);
   const compactTile = tileLayout.width > 0 && (tileLayout.width < 220 || tileLayout.height < 180);
   const veryCompactTile = tileLayout.width > 0 && (tileLayout.width < 170 || tileLayout.height < 140);
-  const iconSize = halfTile ? 26 : veryCompactTile ? 34 : compactTile ? 38 : 44;
+  const iconSize = halfTile ? 32 : veryCompactTile ? 34 : compactTile ? 38 : 44;
   const showStatus = interactionState === "pending" || interactionState === "error" || showConfirmedPulse;
   const iconImageUri = config.iconImage
     ? `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.iconImage)}`
@@ -103,7 +103,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
           ]}
         />
       ) : null}
-      <AddonChip config={config} value={resolvedAddonValue} />
+      <AddonChip config={config} half={halfTile} value={resolvedAddonValue} />
       {showStatus ? (
         <InteractionStatusChip
           state={interactionState === "confirmed" ? "confirmed" : interactionState}
@@ -144,6 +144,11 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
               !halfTile && veryCompactTile ? styles.textBlockVeryCompact : null,
             ]}
           >
+            {halfTile && hasTitle ? (
+              <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.titleHalf, { color: config.appearance?.textColor || palette.text }]}>
+                {config.title}
+              </Text>
+            ) : null}
             <Text
               ellipsizeMode="tail"
               numberOfLines={halfTile ? 1 : 3}
@@ -158,7 +163,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   );
 
   return (
-    <View style={[styles.container, hasTitle ? styles.containerWithTitle : null]}>
+    <View style={[styles.container, hasTitle && !halfTile ? styles.containerWithTitle : null]}>
       {config.writeable ? (
         <Pressable
           onPress={() => {
@@ -213,9 +218,11 @@ function InteractionStatusChip({
 function AddonChip({
   config,
   value,
+  half = false,
 }: {
   config: StateWidgetConfig;
   value: string | null;
+  half?: boolean;
 }) {
   if (!config.addonMode || config.addonMode === "none" || !value) {
     return null;
@@ -225,8 +232,8 @@ function AddonChip({
 
   if (config.addonMode === "circle") {
     return (
-      <View style={[styles.addonCircle, { backgroundColor: color }]}>
-        <Text style={styles.addonCircleLabel}>{value}</Text>
+      <View style={[styles.addonCircle, half ? styles.addonCircleHalf : null, { backgroundColor: color }]}>
+        <Text style={[styles.addonCircleLabel, half ? styles.addonCircleLabelHalf : null]}>{value}</Text>
       </View>
     );
   }
@@ -632,28 +639,45 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   tileHalf: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 6,
+    borderRadius: 18,
   },
   iconWrapHalf: {
-    width: 38,
+    width: 44,
     height: undefined,
     top: 0,
     bottom: 0,
-    left: 10,
+    left: 12,
   },
   textBlockHalf: {
-    left: 54,
-    right: 42,
+    left: 62,
+    right: 46,
     top: 0,
     bottom: 0,
     justifyContent: "center",
   },
+  titleHalf: {
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: "800",
+    alignSelf: "stretch",
+  },
   valueHalf: {
     fontSize: 13,
     lineHeight: 16,
+  },
+  addonCircleHalf: {
+    top: "50%",
+    right: 12,
+    minWidth: 26,
+    height: 26,
+    paddingHorizontal: 7,
+    transform: [{ translateY: -13 }],
+  },
+  addonCircleLabelHalf: {
+    fontSize: 12,
   },
   statusBar: {
     position: "absolute",
