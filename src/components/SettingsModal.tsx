@@ -17,7 +17,7 @@ type SettingsModalProps = {
   onClose: () => void;
 };
 
-type ActiveTab = "general" | "sounds" | "json";
+type ActiveTab = "general" | "sounds" | "dashboards" | "advanced";
 
 const PERFORMANCE_MODE_OPTIONS: Array<{ value: PerformanceMode; label: string }> = [
   { value: "auto", label: "Automatisch" },
@@ -97,7 +97,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   }, [config.backgroundColor, config.homeLabel, config.title, rawDesktopJson, rawMobileJson, visible]);
 
   const save = () => {
-    if (activeTab === "json" && activeJsonTarget === "mobile") {
+    if (activeTab === "advanced" && activeJsonTarget === "mobile") {
       const result = updateMobileConfigFromJson(mobileDraft);
       if (!result.ok) {
         setError(result.error || "JSON invalid");
@@ -219,7 +219,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 [
                   { key: "general", label: "Allgemein" },
                   { key: "sounds", label: "Sounds" },
-                  { key: "json", label: "JSON" },
+                  { key: "dashboards", label: "Dashboards" },
+                  { key: "advanced", label: "Erweitert" },
                 ] as const
               ).map((tab) => (
                 <Pressable
@@ -427,7 +428,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
             )}
 
             {/* Tab: JSON */}
-            {activeTab === "json" && (
+            {activeTab === "dashboards" && (
               <>
                 <View style={styles.libraryCardCompact}>
                   <Text style={styles.sectionTitle}>Gespeicherte Dashboards</Text>
@@ -465,7 +466,15 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     )}
                   </View>
                 </View>
+              </>
+            )}
 
+            {activeTab === "advanced" && (
+              <>
+                <Text style={styles.helper}>
+                  Direkter Zugriff auf die Konfiguration. Aenderungen hier wirken sofort auf das
+                  gesamte Dashboard - im Zweifel vorher unter "Dashboards" eine benannte Kopie sichern.
+                </Text>
                 <View style={styles.editorWrap}>
                   <View style={styles.libraryCardCompact}>
                     <Text style={styles.sectionTitle}>JSON-Editor</Text>
