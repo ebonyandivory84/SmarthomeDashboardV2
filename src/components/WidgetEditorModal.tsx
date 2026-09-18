@@ -1873,6 +1873,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             </Field>
             {widget.type === "state" ? (
               <>
+                <Section title="Datenpunkt und Werte">
                 <Field label="State ID">
                   <StateFieldInput
                     onBrowse={() => setPickerField("stateId")}
@@ -1957,6 +1958,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Besonders sinnvoll bei `text` und `number`.
                   </Text>
                 </Field>
+                </Section>
+                <Section title="Symbole und Bild">
                 <Field label="Symbole">
                   <View style={styles.iconPreviewRow}>
                     <View style={styles.iconPreviewCard}>
@@ -2012,6 +2015,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     />
                   </Field>
                 </Field>
+                </Section>
+                <Section title="Addon">
                 <Field label="Addon">
                   <ChoiceRow
                     options={["none", "circle", "text", "icon", "bars"]}
@@ -2062,6 +2067,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </>
                   ) : null}
                 </Field>
+                </Section>
                 <Field label="Sounds bei Interaktion">
                   <Field label="Beim Druecken">
                     <SoundPickerField
@@ -2653,6 +2659,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "log" ? (
               <>
+                <Section title="Anzeige">
                 <View style={styles.splitRow}>
                   <Field label="Refresh (ms)">
                     <TextInput
@@ -2672,6 +2679,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     <Text style={styles.mappingHint}>Maximal 200 Eintraege.</Text>
                   </Field>
                 </View>
+                </Section>
+                <Section title="Filter">
                 <Field label="Mindest-Level">
                   <ChoiceRow
                     options={["silly", "debug", "info", "warn", "error"]}
@@ -2699,6 +2708,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.textFilter || ""}
                   />
                 </Field>
+                </Section>
                 <Field label="Sounds bei Interaktion">
                   <Field label="Warn/Error Button">
                     <SoundPickerField
@@ -2738,6 +2748,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "telegram" ? (
               <>
+                <Section title="Anzeige">
                 <View style={styles.splitRow}>
                   <Field label="Refresh (ms)">
                     <TextInput
@@ -2764,6 +2775,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
                   />
                 </Field>
+                </Section>
+                <Section title="Darstellung">
                 <Field label="Farbthema">
                   <ChoiceRow
                     options={["standard", "alarm"]}
@@ -2831,6 +2844,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     />
                   </Field>
                 </Field>
+                </Section>
                 <Field label="Sounds bei Interaktion">
                   <Field label="Alle Buttons (Kamera & Aktionen)">
                     <SoundPickerField
