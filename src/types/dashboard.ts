@@ -581,6 +581,8 @@ export type HeatingWidgetV2Config = HeatingWidgetBaseConfig & {
   heatingRodGaugeLabel?: string;
   heatingRodGaugeMinKw?: number;
   heatingRodGaugeMaxKw?: number;
+  /** Beschriftungen unter den Zeigern einblenden (Default: nur Icons). */
+  gaugeShowLabels?: boolean;
 };
 
 export type SolarNodeLayout = {

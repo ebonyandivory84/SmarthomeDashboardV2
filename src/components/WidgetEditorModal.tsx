@@ -786,6 +786,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         heatingRodGaugeLabel: widget.heatingRodGaugeLabel || "",
         heatingRodGaugeMinKw: String(widget.heatingRodGaugeMinKw ?? 0),
         heatingRodGaugeMaxKw: String(widget.heatingRodGaugeMaxKw ?? 9),
+        gaugeShowLabels: widget.gaugeShowLabels === true ? "true" : "false",
         showInfoProgram: widget.showInfoProgram === false ? "false" : "true",
         showInfoTargets: widget.showInfoTargets === false ? "false" : "true",
         showInfoOutsideTemp: widget.showInfoOutsideTemp === false ? "false" : "true",
@@ -1384,6 +1385,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         heatingRodGaugeLabel: draft.heatingRodGaugeLabel?.trim() || undefined,
         heatingRodGaugeMinKw: parseGaugeBound(draft.heatingRodGaugeMinKw, 0),
         heatingRodGaugeMaxKw: parseGaugeBound(draft.heatingRodGaugeMaxKw, 9),
+        gaugeShowLabels: draft.gaugeShowLabels === "true",
         showInfoProgram: draft.showInfoProgram !== "false",
         showInfoTargets: draft.showInfoTargets !== "false",
         showInfoOutsideTemp: draft.showInfoOutsideTemp !== "false",
@@ -4731,8 +4733,19 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Section title="Analoge Zeiger (unterer Rand)">
                 <SectionHelper>
                   Je Zeiger einen Datenpunkt in Watt angeben. Ohne Datenpunkt bleibt der Zeiger ausgeblendet.
-                  Die Skala ist in kW, die Farbe laeuft von Gruen am Minimum bis Rot am Maximum.
+                  Die Skala ist in kW, die Farbe laeuft von Gruen am Minimum bis Rot am Maximum. Statt
+                  Beschriftungen zeigen die Zeiger passende Icons (Verdichter, Heizstab); Beschriftungen
+                  lassen sich unten einblenden.
                 </SectionHelper>
+                <View style={styles.splitRow}>
+                  <Field label="Zeiger: Beschriftungen anzeigen">
+                    <ChoiceRow
+                      options={["false", "true"]}
+                      value={draft.gaugeShowLabels || "false"}
+                      onSelect={(value) => setDraft((current) => ({ ...current, gaugeShowLabels: value }))}
+                    />
+                  </Field>
+                </View>
                 <View style={styles.splitRow}>
                   <Field label="Verbrauch Datenpunkt (W)">
                     <StateFieldInput

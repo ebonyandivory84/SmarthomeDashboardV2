@@ -395,6 +395,12 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
   const batterySocGaugeMax = normalizeGaugeBound(config.batterySocGaugeMaxPercent, 100);
   const batterySocGaugeValue = batterySocGaugeStateId ? normalizeFloat(readValue(batterySocGaugeStateId)) : null;
   const gaugeShowLabels = config.gaugeShowLabels === true;
+  // Drei Zeiger nebeneinander brauchen mehr Platz als zwei; Groesse verkleinern,
+  // damit sie nicht in eine zweite Zeile umbrechen.
+  const visibleGaugeCount = 1 + (pvPowerGaugeStateId ? 1 : 0) + (batterySocGaugeStateId ? 1 : 0);
+  const gaugeSize = useWideLayout
+    ? (visibleGaugeCount >= 3 ? 128 : 150)
+    : (visibleGaugeCount >= 3 ? 144 : 168);
   const liveCharging =
     carCode === 2 ||
     (carCode === null && typeof liveAmpere === "number" && liveAmpere > 0.25) ||
@@ -1423,7 +1429,7 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
                 minKw={chargeGaugeMinKw}
                 mutedTextColor={mutedTextColor}
                 showLabel={gaugeShowLabels}
-                size={useWideLayout ? 150 : 168}
+                size={gaugeSize}
                 textColor={textColor}
                 value={chargingPowerW === null ? null : chargingPowerW / 1000}
               />
@@ -1436,7 +1442,7 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
                   minKw={pvGaugeMinKw}
                   mutedTextColor={mutedTextColor}
                   showLabel={gaugeShowLabels}
-                  size={useWideLayout ? 150 : 168}
+                  size={gaugeSize}
                   textColor={textColor}
                   value={pvPowerW === null ? null : pvPowerW / 1000}
                 />
@@ -1445,12 +1451,13 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
                 <PowerGauge
                   icon={resolveBatteryGaugeIcon(batterySocGaugeValue)}
                   instanceId={`${config.id}-battery`}
+                  invertColor
                   label={config.batterySocGaugeLabel?.trim() || "Akku-Ladezustand"}
                   maxKw={batterySocGaugeMax}
                   minKw={batterySocGaugeMin}
                   mutedTextColor={mutedTextColor}
                   showLabel={gaugeShowLabels}
-                  size={useWideLayout ? 150 : 168}
+                  size={gaugeSize}
                   textColor={textColor}
                   unit="%"
                   value={batterySocGaugeValue}

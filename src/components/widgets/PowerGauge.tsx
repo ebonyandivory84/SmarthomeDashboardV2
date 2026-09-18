@@ -75,6 +75,8 @@ export type PowerGaugeProps = {
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   /** Textbeschriftung unter dem Icon anzeigen. Ohne icon wird die Beschriftung immer angezeigt. */
   showLabel?: boolean;
+  /** Farbskala umkehren: gruen am Maximum, rot am Minimum (z.B. fuer Akku-Ladezustand). */
+  invertColor?: boolean;
 };
 
 export function PowerGauge({
@@ -89,13 +91,14 @@ export function PowerGauge({
   unit = "kW",
   icon,
   showLabel = true,
+  invertColor = false,
 }: PowerGaugeProps) {
   const span = maxKw - minKw > 0 ? maxKw - minKw : 1;
   const ratio = value === null ? 0 : clamp((value - minKw) / span, 0, 1);
   // Auf 0.5 % quantisiert: ohne das wuerde jede Nachkommastelle einer
   // Leistungsmessung das komplette SVG neu aufbauen.
   const quantizedRatio = Math.round(ratio * 200) / 200;
-  const valueColor = powerGaugeColor(quantizedRatio);
+  const valueColor = powerGaugeColor(invertColor ? 1 - quantizedRatio : quantizedRatio);
   const valueText =
     value === null ? "--" : unit === "%" ? `${Math.round(value)}` : value.toFixed(value >= 10 ? 1 : 2);
 

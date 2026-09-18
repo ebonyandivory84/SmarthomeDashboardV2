@@ -328,6 +328,7 @@ export function HeatingWidgetV2({
   const heatingRodGaugeKw = wattsToKilowatts(normalizeFloat(readValue(stateIds.heatingRodGauge)));
   const showPowerGauge = Boolean(stateIds.powerGauge);
   const showHeatingRodGauge = Boolean(stateIds.heatingRodGauge);
+  const gaugeShowLabels = config.gaugeShowLabels === true;
 
   const ventilationSliderValue = clampVentilationLevel(ventilationLevelDraft ?? ventilationLevelSetpoint);
   const ventilationDisplayActual = ventilationLevelActual ?? ventilationLevelSetpoint;
@@ -939,22 +940,26 @@ export function HeatingWidgetV2({
           <View style={styles.gaugeRow}>
             {showPowerGauge ? (
               <PowerGauge
+                icon="engine"
                 instanceId={`${config.id}-power`}
                 label={config.powerGaugeLabel?.trim() || "Verbrauch"}
                 maxKw={normalizeGaugeBound(config.powerGaugeMaxKw, 12)}
                 minKw={normalizeGaugeBound(config.powerGaugeMinKw, 0)}
                 mutedTextColor={mutedTextColor}
+                showLabel={gaugeShowLabels}
                 textColor={textColor}
                 value={powerGaugeKw}
               />
             ) : null}
             {showHeatingRodGauge ? (
               <PowerGauge
+                icon="radiator"
                 instanceId={`${config.id}-heatingrod`}
                 label={config.heatingRodGaugeLabel?.trim() || "Heizstab"}
                 maxKw={normalizeGaugeBound(config.heatingRodGaugeMaxKw, 9)}
                 minKw={normalizeGaugeBound(config.heatingRodGaugeMinKw, 0)}
                 mutedTextColor={mutedTextColor}
+                showLabel={gaugeShowLabels}
                 textColor={textColor}
                 value={heatingRodGaugeKw}
               />
