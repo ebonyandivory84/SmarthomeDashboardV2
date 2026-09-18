@@ -156,7 +156,12 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
                 styles.value,
                 halfTile ? styles.valueHalf : null,
                 halfTile && !hasTitle ? styles.valueHalfSolo : null,
-                { color: mutedTextColor },
+                {
+                  color:
+                    halfTile && !hasTitle
+                      ? config.appearance?.textColor || palette.text
+                      : mutedTextColor,
+                },
               ]}
             >
               {hasValue ? resolveStateLabel(config, value, active) : "Keine Daten"}
@@ -678,8 +683,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   valueHalfSolo: {
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 18,
+    lineHeight: 21,
+    fontWeight: "800",
   },
   addonCircleHalf: {
     top: "50%",
