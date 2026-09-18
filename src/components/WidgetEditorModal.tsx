@@ -2096,8 +2096,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   value={draft.textColor || ""}
                   onChange={(value) => setDraft((current) => ({ ...current, textColor: value }))}
                 />
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Miniaturansicht</Text>
+                <CollapsibleGroup title="Miniaturansicht">
                   <Field label="Darstellung">
                     <ChoiceRow
                       options={["snapshot"]}
@@ -2130,9 +2129,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       <Text style={styles.mappingHint}>Nur relevant, wenn Miniatur auf Snapshot steht.</Text>
                     ) : null}
                   </Field>
-                </View>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Maximierte Ansicht</Text>
+                </CollapsibleGroup>
+                <CollapsibleGroup title="Maximierte Ansicht">
                   <Field label="Darstellung">
                     <ChoiceRow
                       options={["webrtc", "fmp4", "flv", "mjpeg", "snapshot"]}
@@ -2165,7 +2163,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       <Text style={styles.mappingHint}>Nur relevant, wenn Vollbild auf Snapshot steht.</Text>
                     ) : null}
                   </Field>
-                </View>
+                </CollapsibleGroup>
                 <Text style={styles.mappingHint}>
                   FLV-Hinweis: Bei `CodecUnsupported` liefert der Stream meist kein browser-kompatibles H.264. Falls
                   vorhanden, statt `main` den `ext`/Substream verwenden (z. B. `channel0_ext.bcs`).
@@ -3401,8 +3399,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Das Bild wird im Widget rund zugeschnitten. Ohne Auswahl wird `coco-face.webp` verwendet.
                   </Text>
                 </Field>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>SureFlap States</Text>
+                <CollapsibleGroup title="SureFlap States">
                   <Field label="Inside">
                     <StateFieldInput
                       onBrowse={() => setPickerField("insideStateId")}
@@ -3449,9 +3446,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       />
                     </Field>
                   </View>
-                </View>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Status</Text>
+                </CollapsibleGroup>
+                <CollapsibleGroup title="Status">
                   <View style={styles.splitRow}>
                     <Field label="Klappen-Batterie">
                       <StateFieldInput
@@ -3500,9 +3496,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       />
                     </Field>
                   </View>
-                </View>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Lock-Modus</Text>
+                </CollapsibleGroup>
+                <CollapsibleGroup title="Lock-Modus">
                   <View style={styles.splitRow}>
                     <Field label="Lock Status State">
                       <StateFieldInput
@@ -3542,7 +3537,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       <TextInput onChangeText={(value) => setDraft((current) => ({ ...current, lockLockedValue: value }))} style={styles.input} value={draft.lockLockedValue || "3"} />
                     </Field>
                   </View>
-                </View>
+                </CollapsibleGroup>
                 <Field label="Snapshot URL">
                   <TextInput
                     autoCapitalize="none"
@@ -3553,8 +3548,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.snapshotUrl || ""}
                   />
                 </Field>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Vollbild / Stream</Text>
+                <CollapsibleGroup title="Vollbild / Stream">
                   <Field label="Vollbild Quelle">
                     <ChoiceRow
                       options={["snapshot", "mjpeg", "flv", "video", "iframe"]}
@@ -3576,7 +3570,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Snapshot bleibt die Vorschau. Im Vollbild wird bei `mjpeg`, `video` oder `iframe` die Stream URL verwendet.
                     RTSP-URLs sind im Browser nicht direkt abspielbar.
                   </Text>
-                </View>
+                </CollapsibleGroup>
                 <Field label="Sounds bei Interaktion">
                   <Field label="Lock Button">
                     <SoundPickerField
@@ -3610,8 +3604,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "wallboxV2" ? (
               <>
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Basis</Text>
+                <CollapsibleGroup title="Basis">
                   <View style={styles.splitRow}>
                     <Field label="Refresh (ms)">
                       <TextInput
@@ -3674,10 +3667,9 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       />
                     </Field>
                   </Field>
-                </View>
+                </CollapsibleGroup>
 
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Schreiben + Status-Bestaetigung</Text>
+                <CollapsibleGroup title="Schreiben + Status-Bestaetigung">
                   <SectionTitle>Ladeautomatik</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Ladeautomatik - Write Value">
@@ -4222,10 +4214,9 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Fuer `control.targetSocPercent` gibt es keinen passenden Status-Spiegelwert. Dieser Datenpunkt wird
                     deshalb als write only genutzt. Optional wird der Slider-Wert zusaetzlich an `TargetSOC Auto-API` geschrieben.
                   </Text>
-                </View>
+                </CollapsibleGroup>
 
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Live-Infos und Stat-Cards</Text>
+                <CollapsibleGroup title="Live-Infos und Stat-Cards">
                   <View style={styles.splitRow}>
                     <Field label="Aktueller Sollstrom (status.setCurrentA)">
                       <StateFieldInput
@@ -4295,10 +4286,9 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   <Text style={styles.mappingHint}>
                     `status.carSocPercent` und optional `Fahrzeug-km` dienen als Ist-Werte fuer Auto-Stop.
                   </Text>
-                </View>
+                </CollapsibleGroup>
 
-                <View style={styles.groupCard}>
-                  <Text style={styles.groupTitle}>Sounds</Text>
+                <CollapsibleGroup title="Sounds">
                   <Field label="Sounds bei Interaktion">
                   <Field label="Button Press">
                     <SoundPickerField
@@ -4324,7 +4314,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Text>
                   </EditorButtonPressable>
                 </Field>
-                </View>
+                </CollapsibleGroup>
               </>
             ) : null}
             {widget.type === "heatingV2" ? (
@@ -5203,6 +5193,28 @@ function matchesFieldFilter(query: string, ...labels: Array<string | undefined>)
     return true;
   }
   return labels.some((label) => (label || "").toLowerCase().includes(query));
+}
+
+/**
+ * Aufklappbarer Block. Ersetzt die bisherigen groupCard-Container, die
+ * teilweise ueber 500 Zeilen Formular am Stueck zeigten. Standardmaessig zu,
+ * damit der Editor mit einer Uebersicht statt einer Wand aus Feldern aufgeht.
+ * Waehrend einer Suche bleibt alles offen, sonst wuerden Treffer verborgen.
+ */
+function CollapsibleGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  const query = useFieldFilter();
+  const [open, setOpen] = useState(false);
+  const expanded = open || Boolean(query);
+
+  return (
+    <View style={styles.groupCard}>
+      <EditorButtonPressable onPress={() => setOpen((current) => !current)} style={styles.groupHeader}>
+        <Text style={styles.groupTitle}>{title}</Text>
+        <Text style={styles.groupToggle}>{expanded ? "Zuklappen" : "Aufklappen"}</Text>
+      </EditorButtonPressable>
+      {expanded ? children : null}
+    </View>
+  );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -6335,6 +6347,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
+  },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  groupToggle: {
+    color: palette.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
   },
   searchRow: {
     flexDirection: "row",
