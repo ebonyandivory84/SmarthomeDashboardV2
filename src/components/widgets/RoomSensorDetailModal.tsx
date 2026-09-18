@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "100%",
-    maxWidth: 860,
+    maxWidth: 1120,
     borderRadius: 22,
     backgroundColor: palette.panelStrong,
     borderWidth: 1,
@@ -597,6 +597,6 @@ const styles = StyleSheet.create({
     color: palette.danger,
   },
   chartContainer: {
-    minHeight: 340,
+    minHeight: 440,
   },
 });
