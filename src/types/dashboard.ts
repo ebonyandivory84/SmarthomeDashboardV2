@@ -103,6 +103,13 @@ export type StateWidgetConfig = WidgetBase & {
   addonColor?: string;
   addonIcon?: string;
   addonUseStateValue?: boolean;
+  /** "half" belegt die halbe Zeilenhoehe, so dass zwei Kacheln auf den Platz einer passen. */
+  tileSize?: "full" | "half";
+  /**
+   * true (Vorgabe): die Kachel schaltet beim Druck sofort optisch um.
+   * false: sie wartet, bis ioBroker den neuen Wert zurueckgemeldet hat.
+   */
+  optimisticFeedback?: boolean;
 };
 
 export type CameraWidgetConfig = WidgetBase & {

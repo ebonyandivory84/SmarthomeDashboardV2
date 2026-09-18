@@ -709,7 +709,7 @@ function getAutoLayoutSpec(
   if (columns === 1) {
     switch (widget.type) {
       case "state":
-        return { w: 1, h: 1 };
+        return { w: 1, h: widget.tileSize === "half" ? 0.5 : 1 };
       case "camera":
       case "cameraTalk":
       case "cameraTalkReolink": {
@@ -795,7 +795,7 @@ function getAutoLayoutSpec(
 
   switch (widget.type) {
     case "state":
-      return { w: 1, h: 1 };
+      return { w: 1, h: widget.tileSize === "half" ? 0.5 : 1 };
     case "camera":
     case "cameraTalk":
     case "cameraTalkReolink": {

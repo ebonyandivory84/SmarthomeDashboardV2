@@ -22,8 +22,11 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const [assumedActive, setAssumedActive] = useState<boolean | null>(null);
   const hasValue = value !== null && value !== undefined;
   const hasTitle = config.showTitle !== false && Boolean(config.title?.trim());
+  const halfTile = config.tileSize === "half";
+  const optimistic = config.optimisticFeedback !== false;
   const actualActive = resolveStateActive(config, value);
-  const active = assumedActive ?? actualActive;
+  // Ohne optimistische Rueckmeldung zaehlt ausschliesslich der zurueckgemeldete Wert.
+  const active = optimistic ? assumedActive ?? actualActive : actualActive;
   const iconName = resolveIconName(config, value, active);
   const mutedTextColor = config.appearance?.mutedTextColor || palette.textMuted;
   const iconColor = active
@@ -35,7 +38,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const resolvedAddonValue = resolveAddonValue(config, value, addonValue, active);
   const compactTile = tileLayout.width > 0 && (tileLayout.width < 220 || tileLayout.height < 180);
   const veryCompactTile = tileLayout.width > 0 && (tileLayout.width < 170 || tileLayout.height < 140);
-  const iconSize = veryCompactTile ? 34 : compactTile ? 38 : 44;
+  const iconSize = halfTile ? 26 : veryCompactTile ? 34 : compactTile ? 38 : 44;
   const showStatus = interactionState === "pending" || interactionState === "error" || showConfirmedPulse;
   const iconImageUri = config.iconImage
     ? `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.iconImage)}`
@@ -82,8 +85,9 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
       style={[
         styles.tile,
         showMaximizedImage && iconImageBorderless ? styles.tileImageMaximized : null,
-        compactTile ? styles.tileCompact : null,
-        veryCompactTile ? styles.tileVeryCompact : null,
+        halfTile ? styles.tileHalf : null,
+        !halfTile && compactTile ? styles.tileCompact : null,
+        !halfTile && veryCompactTile ? styles.tileVeryCompact : null,
         { backgroundColor: tileBackground },
       ]}
     >
@@ -100,14 +104,20 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
         />
       ) : null}
       <AddonChip config={config} value={resolvedAddonValue} />
-      {showStatus ? <InteractionStatusChip state={interactionState === "confirmed" ? "confirmed" : interactionState} /> : null}
+      {showStatus ? (
+        <InteractionStatusChip
+          state={interactionState === "confirmed" ? "confirmed" : interactionState}
+          variant={halfTile ? "bar" : "chip"}
+        />
+      ) : null}
       {!showMaximizedImage ? (
         <>
           <View
             style={[
               styles.iconWrap,
-              compactTile ? styles.iconWrapCompact : null,
-              veryCompactTile ? styles.iconWrapVeryCompact : null,
+              halfTile ? styles.iconWrapHalf : null,
+              !halfTile && compactTile ? styles.iconWrapCompact : null,
+              !halfTile && veryCompactTile ? styles.iconWrapVeryCompact : null,
               iconImageCrop === "rounded" ? styles.iconWrapRounded : null,
               iconImageCrop === "circle" ? styles.iconWrapCircle : null,
             ]}
@@ -129,11 +139,16 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
           <View
             style={[
               styles.textBlock,
-              compactTile ? styles.textBlockCompact : null,
-              veryCompactTile ? styles.textBlockVeryCompact : null,
+              halfTile ? styles.textBlockHalf : null,
+              !halfTile && compactTile ? styles.textBlockCompact : null,
+              !halfTile && veryCompactTile ? styles.textBlockVeryCompact : null,
             ]}
           >
-            <Text ellipsizeMode="tail" numberOfLines={3} style={[styles.value, { color: mutedTextColor }]}>
+            <Text
+              ellipsizeMode="tail"
+              numberOfLines={halfTile ? 1 : 3}
+              style={[styles.value, halfTile ? styles.valueHalf : null, { color: mutedTextColor }]}
+            >
               {hasValue ? resolveStateLabel(config, value, active) : "Keine Daten"}
             </Text>
           </View>
@@ -148,7 +163,9 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
         <Pressable
           onPress={() => {
             playConfiguredUiSound(config.interactionSounds?.press, "toggle", `${config.id}:press`);
-            setAssumedActive(!actualActive);
+            if (optimistic) {
+              setAssumedActive(!actualActive);
+            }
             onToggle();
           }}
           style={({ pressed }) => [styles.tapArea, pressed ? styles.tapAreaPressed : null]}
@@ -162,7 +179,13 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   );
 }
 
-function InteractionStatusChip({ state }: { state: "pending" | "confirmed" | "error" | "idle" }) {
+function InteractionStatusChip({
+  state,
+  variant = "chip",
+}: {
+  state: "pending" | "confirmed" | "error" | "idle";
+  variant?: "chip" | "bar";
+}) {
   if (state === "idle") {
     return null;
   }
@@ -173,6 +196,12 @@ function InteractionStatusChip({ state }: { state: "pending" | "confirmed" | "er
       : state === "confirmed"
         ? { label: "OK", backgroundColor: "rgba(52, 211, 153, 0.92)" }
         : { label: "!", backgroundColor: "rgba(239, 68, 68, 0.92)" };
+
+  // In der halben Kachel ist fuer einen Chip kein Platz, ohne Symbol oder
+  // Addon-Wert zu verdecken - dort wird der Status ein Streifen am linken Rand.
+  if (variant === "bar") {
+    return <View style={[styles.statusBar, { backgroundColor: descriptor.backgroundColor }]} />;
+  }
 
   return (
     <View style={[styles.statusChip, { backgroundColor: descriptor.backgroundColor }]}>
@@ -601,6 +630,39 @@ const styles = StyleSheet.create({
   addonBar: {
     width: 5,
     borderRadius: 2,
+  },
+  tileHalf: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderRadius: 16,
+  },
+  iconWrapHalf: {
+    width: 38,
+    height: undefined,
+    top: 0,
+    bottom: 0,
+    left: 10,
+  },
+  textBlockHalf: {
+    left: 54,
+    right: 42,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+  valueHalf: {
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  statusBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   statusChip: {
     position: "absolute",

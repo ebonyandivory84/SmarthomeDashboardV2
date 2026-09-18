@@ -81,6 +81,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         title: widget.title,
         showTitle: widget.showTitle === false ? "false" : "true",
         stateId: widget.stateId,
+        tileSize: widget.tileSize === "half" ? "half" : "full",
+        optimisticFeedback: widget.optimisticFeedback === false ? "false" : "true",
         iconImage: widget.iconImage || "",
         iconImageCrop: widget.iconImageCrop || "none",
         iconImageSizeMode: widget.iconImageSizeMode || "standard",
@@ -953,6 +955,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         title: draft.title,
         showTitle: draft.showTitle !== "false",
         stateId: draft.stateId || widget.stateId,
+        tileSize: draft.tileSize === "half" ? "half" : "full",
+        optimisticFeedback: draft.optimisticFeedback !== "false",
         iconImage: draft.iconImage || undefined,
         iconImageCrop: normalizeIconImageCrop(draft.iconImageCrop),
         iconImageSizeMode: normalizeIconImageSizeMode(draft.iconImageSizeMode),
@@ -1873,6 +1877,28 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             </Field>
             {widget.type === "state" ? (
               <>
+                <View style={styles.splitRow}>
+                  <Field label="Kachelgroesse">
+                    <ChoiceRow
+                      options={["full", "half"]}
+                      value={draft.tileSize || "full"}
+                      onSelect={(value) => setDraft((current) => ({ ...current, tileSize: value }))}
+                    />
+                  </Field>
+                  <Field label="Rueckmeldung">
+                    <ChoiceRow
+                      options={["true", "false"]}
+                      value={draft.optimisticFeedback || "true"}
+                      onSelect={(value) => setDraft((current) => ({ ...current, optimisticFeedback: value }))}
+                    />
+                  </Field>
+                </View>
+                <Text style={styles.mappingHint}>
+                  Kachelgroesse: "half" belegt die halbe Zeilenhoehe, zwei solche Kacheln passen
+                  mit Zwischenraum auf den Platz einer vollen. Rueckmeldung: "true" schaltet die
+                  Kachel sofort beim Druck um, "false" erst wenn ioBroker den neuen Wert
+                  zurueckgemeldet hat.
+                </Text>
                 <Section title="Datenpunkt und Werte">
                 <Field label="State ID">
                   <StateFieldInput
