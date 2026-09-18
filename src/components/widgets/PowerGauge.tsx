@@ -147,9 +147,9 @@ export function PowerGauge({
         createElement(
           "linearGradient",
           { id: gradientId, x1: "0", y1: "0", x2: "1", y2: "0" },
-          createElement("stop", { offset: "0%", stopColor: `rgb(${COLOR_LOW.join(",")})` }),
+          createElement("stop", { offset: "0%", stopColor: `rgb(${(invertColor ? COLOR_HIGH : COLOR_LOW).join(",")})` }),
           createElement("stop", { offset: "50%", stopColor: `rgb(${COLOR_MID.join(",")})` }),
-          createElement("stop", { offset: "100%", stopColor: `rgb(${COLOR_HIGH.join(",")})` })
+          createElement("stop", { offset: "100%", stopColor: `rgb(${(invertColor ? COLOR_LOW : COLOR_HIGH).join(",")})` })
         )
       ),
       ...ticks,
@@ -188,7 +188,7 @@ export function PowerGauge({
         fill: valueColor,
       })
     );
-  }, [instanceId, quantizedRatio, size, valueColor]);
+  }, [instanceId, invertColor, quantizedRatio, size, valueColor]);
 
   const valueFontSize = Math.round(size * 0.155);
   const unitFontSize = Math.round(size * 0.1);
