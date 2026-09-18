@@ -1981,6 +1981,34 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     selected={draft.iconInactive || "toggle-switch-off-outline"}
                     onSelect={(value) => setDraft((current) => ({ ...current, iconInactive: value }))}
                   />
+                  <Text style={styles.mappingHint}>
+                    Die Vorlagen decken 13 Faelle ab. Jeder andere Name aus MaterialCommunityIcons
+                    laesst sich hier direkt eintragen - die Vorschau oben zeigt sofort, ob er existiert.
+                  </Text>
+                  <View style={styles.splitRow}>
+                    <Field label="Aktiv - Icon-Name">
+                      <TextInput
+                        autoCapitalize="none"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, iconActive: value }))}
+                        placeholder="toggle-switch"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.iconActive || ""}
+                      />
+                      <IconNameHint name={draft.iconActive} />
+                    </Field>
+                    <Field label="Inaktiv - Icon-Name">
+                      <TextInput
+                        autoCapitalize="none"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, iconInactive: value }))}
+                        placeholder="toggle-switch-off-outline"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.iconInactive || ""}
+                      />
+                      <IconNameHint name={draft.iconInactive} />
+                    </Field>
+                  </View>
                 </Field>
                 <Field label="Bild (optional)">
                   <View style={styles.stateFieldRow}>
@@ -5395,6 +5423,15 @@ function StateFieldInput({
   );
 }
 
+/** Weist auf einen Icon-Namen hin, den MaterialCommunityIcons nicht kennt. */
+function IconNameHint({ name }: { name?: string }) {
+  const trimmed = (name || "").trim();
+  if (!trimmed || trimmed in MaterialCommunityIcons.glyphMap) {
+    return null;
+  }
+  return <Text style={styles.iconNameHint}>Unbekanntes Symbol - es wird das Standardsymbol angezeigt.</Text>;
+}
+
 function IconPickerRow({
   label,
   selected,
@@ -6581,6 +6618,12 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 11,
     fontWeight: "700",
+  },
+  iconNameHint: {
+    marginTop: 4,
+    color: palette.danger,
+    fontSize: 11,
+    lineHeight: 15,
   },
   iconPickerBlock: {
     gap: 6,

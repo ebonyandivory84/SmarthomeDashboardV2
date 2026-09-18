@@ -16,10 +16,15 @@ type StateWidgetProps = {
 export function StateWidget({ config, value, addonValue, onToggle, interactionState = "idle" }: StateWidgetProps) {
   const [tileLayout, setTileLayout] = useState({ width: 0, height: 0 });
   const [showConfirmedPulse, setShowConfirmedPulse] = useState(false);
+  // Angenommener Zustand direkt nach dem Druck. Der echte Wert braucht den Weg
+  // ueber ioBroker und den 100-ms-Sammelpuffer zurueck; ohne diese Annahme
+  // steht die Kachel bis dahin unveraendert da und der Druck wirkt verschluckt.
+  const [assumedActive, setAssumedActive] = useState<boolean | null>(null);
   const hasValue = value !== null && value !== undefined;
   const hasTitle = config.showTitle !== false && Boolean(config.title?.trim());
-  const active = resolveStateActive(config, value);
-  const iconName = resolveIconName(config, value);
+  const actualActive = resolveStateActive(config, value);
+  const active = assumedActive ?? actualActive;
+  const iconName = resolveIconName(config, value, active);
   const mutedTextColor = config.appearance?.mutedTextColor || palette.textMuted;
   const iconColor = active
     ? config.appearance?.iconColor || palette.accent
@@ -40,6 +45,24 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const iconImageBorderless = config.iconImageBorderless === true;
   const showMaximizedImage = Boolean(iconImageUri && iconImageSizeMode === "maximized");
   const iconImageResizeMode = iconImageCrop === "circle" ? "cover" : "contain";
+
+  useEffect(() => {
+    if (assumedActive === null) {
+      return;
+    }
+
+    // Annahme faellt, sobald der echte Wert nachgezogen hat oder der Schreib-
+    // vorgang abgeschlossen ist. Bei einem Fehler springt die Kachel damit
+    // sichtbar zurueck, statt eine Aenderung vorzutaeuschen.
+    if (actualActive === assumedActive || interactionState === "confirmed" || interactionState === "error") {
+      setAssumedActive(null);
+      return;
+    }
+
+    // Notbremse, falls gar keine Rueckmeldung kommt.
+    const timer = setTimeout(() => setAssumedActive(null), 5000);
+    return () => clearTimeout(timer);
+  }, [actualActive, assumedActive, interactionState]);
 
   useEffect(() => {
     if (interactionState !== "confirmed") {
@@ -76,7 +99,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
           ]}
         />
       ) : null}
-      {!showStatus ? <AddonChip config={config} value={resolvedAddonValue} /> : null}
+      <AddonChip config={config} value={resolvedAddonValue} />
       {showStatus ? <InteractionStatusChip state={interactionState === "confirmed" ? "confirmed" : interactionState} /> : null}
       {!showMaximizedImage ? (
         <>
@@ -125,9 +148,10 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
         <Pressable
           onPress={() => {
             playConfiguredUiSound(config.interactionSounds?.press, "toggle", `${config.id}:press`);
+            setAssumedActive(!actualActive);
             onToggle();
           }}
-          style={styles.tapArea}
+          style={({ pressed }) => [styles.tapArea, pressed ? styles.tapAreaPressed : null]}
         >
           {content}
         </Pressable>
@@ -239,8 +263,9 @@ export function resolveStateNextValue(config: StateWidgetConfig, currentValue: u
   return parseStateValue(config, config.inactiveValue ?? defaultStateValue(config, false));
 }
 
-function resolveIconName(config: StateWidgetConfig, value: unknown) {
-  const active = resolveStateActive(config, value);
+function resolveIconName(config: StateWidgetConfig, value: unknown, assumedActive?: boolean) {
+  // assumedActive erlaubt es, das Symbol schon vor der Rueckmeldung umzustellen.
+  const active = assumedActive ?? resolveStateActive(config, value);
   const numericValue = asNumber(value);
   const activeIcon = config.iconPair?.active || "toggle-switch";
   const inactiveIcon = config.iconPair?.inactive || "toggle-switch-off-outline";
@@ -433,6 +458,10 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
+  tapAreaPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
+  },
   tile: {
     width: "100%",
     height: "100%",
@@ -576,7 +605,7 @@ const styles = StyleSheet.create({
   statusChip: {
     position: "absolute",
     top: 10,
-    right: 10,
+    left: 10,
     minWidth: 34,
     height: 34,
     borderRadius: 999,

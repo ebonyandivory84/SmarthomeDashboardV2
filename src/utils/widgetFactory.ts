@@ -122,6 +122,13 @@ export function buildWidgetTemplate(
         active: "toggle-switch",
         inactive: "toggle-switch-off-outline",
       },
+      // Kraeftigerer Unterschied zwischen an und aus als die neutralen
+      // Grautoene, die greifen, wenn keine Farben gesetzt sind. Betrifft nur
+      // neu angelegte Kacheln; bestehende behalten ihr Aussehen.
+      appearance: {
+        activeWidgetColor: "rgba(86, 150, 214, 0.96)",
+        inactiveWidgetColor: "rgba(44, 48, 62, 0.96)",
+      },
       position: basePosition,
     };
   }
