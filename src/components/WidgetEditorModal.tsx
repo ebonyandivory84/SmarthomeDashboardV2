@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { createElement, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { createContext, createElement, type Dispatch, type SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { ImagePickerModal } from "./ImagePickerModal";
 import { ObjectPickerModal } from "./ObjectPickerModal";
@@ -33,6 +33,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
   }>>([]);
   const [weatherSearchBusy, setWeatherSearchBusy] = useState(false);
   const [pickerField, setPickerField] = useState<string | null>(null);
+  const [fieldQuery, setFieldQuery] = useState("");
   const [imagePickerField, setImagePickerField] = useState<"backgroundImage" | "iconImage" | "cocoProfileImage" | null>(null);
   const theme = resolveThemeSettings(config.theme);
   const iconPreview = useMemo(() => {
@@ -61,6 +62,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
       return;
     }
 
+    // Beim Oeffnen eines anderen Widgets nicht mit einem alten Filter starten.
+    setFieldQuery("");
     const appearanceDraft = buildAppearanceDraft(widget, theme);
 
     if (widget.type === "state") {
@@ -1575,6 +1578,22 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
               <Text style={styles.close}>Schliessen</Text>
             </EditorButtonPressable>
           </View>
+          <View style={styles.searchRow}>
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={setFieldQuery}
+              placeholder="Einstellung suchen ..."
+              placeholderTextColor={palette.textMuted}
+              style={[styles.input, styles.searchInput]}
+              value={fieldQuery}
+            />
+            {fieldQuery ? (
+              <EditorButtonPressable onPress={() => setFieldQuery("")} style={styles.searchClearButton}>
+                <Text style={styles.searchClearLabel}>Zuruecksetzen</Text>
+              </EditorButtonPressable>
+            ) : null}
+          </View>
+          <FieldFilterContext.Provider value={fieldQuery}>
           <ScrollView>
             <Field label="Titel">
               <TextInput
@@ -3005,7 +3024,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.refreshMs || "120000"}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Raeume</Text>
+                <SectionTitle>Raeume</SectionTitle>
                 <Field label="Anzahl Raeume">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6", "7", "8"]}
@@ -3168,7 +3187,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.refreshMs || "120000"}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Serien</Text>
+                <SectionTitle>Serien</SectionTitle>
                 <Field label="Anzahl Serien">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6", "7", "8"]}
@@ -3258,7 +3277,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "waterMeter" ? (
               <>
-                <Text style={styles.sectionTitle}>Verbindungsstatus</Text>
+                <SectionTitle>Verbindungsstatus</SectionTitle>
                 <Field label="Verbindungs-Datenpunkt">
                   <StateFieldInput
                     browseLabel="Objekt"
@@ -3267,7 +3286,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.connectionStateId || "mqtt.1.watermeter.connection"}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Wasserpreise</Text>
+                <SectionTitle>Wasserpreise</SectionTitle>
                 <View style={styles.splitRow}>
                   <Field label="Trinkwasser (€/m³)">
                     <TextInput
@@ -3297,7 +3316,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget.type === "pdfSlideshow" ? (
               <>
-                <Text style={styles.sectionTitle}>WebDAV-Zugang</Text>
+                <SectionTitle>WebDAV-Zugang</SectionTitle>
                 <Field label="WebDAV Basis-URL">
                   <TextInput
                     autoCapitalize="none"
@@ -3327,7 +3346,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.webdavPassword || ""}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Ordner</Text>
+                <SectionTitle>Ordner</SectionTitle>
                 <Field label="Ordnerpfad">
                   <TextInput
                     autoCapitalize="none"
@@ -3659,7 +3678,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
 
                 <View style={styles.groupCard}>
                   <Text style={styles.groupTitle}>Schreiben + Status-Bestaetigung</Text>
-                  <Text style={styles.sectionTitle}>Ladeautomatik</Text>
+                  <SectionTitle>Ladeautomatik</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Ladeautomatik - Write Value">
                       <StateFieldInput
@@ -3711,7 +3730,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       />
                     </Field>
                   </View>
-                  <Text style={styles.sectionTitle}>Emergency Stop (global)</Text>
+                  <SectionTitle>Emergency Stop (global)</SectionTitle>
                   <Field label="Emergency Stop - Datenpunkt">
                     <StateFieldInput
                       onBrowse={() => setPickerField("emergencyStopStateId")}
@@ -3723,7 +3742,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Separater globaler Not-Aus-Schalter. Dieser Datenpunkt wird nicht fuer die interne Lade-Logik verwendet.
                   </Text>
 
-                  <Text style={styles.sectionTitle}>PV</Text>
+                  <SectionTitle>PV</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="PV - Write Value">
                       <StateFieldInput
@@ -3775,12 +3794,12 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <Text style={styles.sectionTitle}>Analoge Zeiger</Text>
-                  <Text style={styles.sectionHelper}>
+                  <SectionTitle>Analoge Zeiger</SectionTitle>
+                  <SectionHelper>
                     Nur im Wallbox-V2-Widget. Der linke Zeiger zeigt die Ladeleistung, der rechte die
                     PV-Leistung und erscheint erst mit gesetztem Datenpunkt. Werte in Watt, Skala in kW,
                     Farbe von Gruen am Minimum bis Rot am Maximum.
-                  </Text>
+                  </SectionHelper>
                   <View style={styles.splitRow}>
                     <Field label="PV-Leistung Datenpunkt (W)">
                       <StateFieldInput
@@ -3843,7 +3862,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <Text style={styles.sectionTitle}>PV (go-e priority)</Text>
+                  <SectionTitle>PV (go-e priority)</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="PV (go-e priority) - Write Value">
                       <StateFieldInput
@@ -3895,7 +3914,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <Text style={styles.sectionTitle}>Netz</Text>
+                  <SectionTitle>Netz</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Netz - Write Value">
                       <StateFieldInput
@@ -3947,7 +3966,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <Text style={styles.sectionTitle}>Wallbox-Strom (manuell)</Text>
+                  <SectionTitle>Wallbox-Strom (manuell)</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Wallbox-Strom (manuell) - Write Value">
                       <StateFieldInput
@@ -3981,7 +4000,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <Text style={styles.sectionTitle}>Ampere Cards</Text>
+                  <SectionTitle>Ampere Cards</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Ampere-Cards - Write Value">
                       <StateFieldInput
@@ -4099,7 +4118,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </View>
                   </Field>
 
-                  <Text style={styles.sectionTitle}>Phasen Cards</Text>
+                  <SectionTitle>Phasen Cards</SectionTitle>
                   <View style={styles.splitRow}>
                     <Field label="Phasen-Cards - Write Value">
                       <StateFieldInput
@@ -4360,7 +4379,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </Field>
 
-                <Text style={styles.sectionTitle}>Steuerung</Text>
+                <SectionTitle>Steuerung</SectionTitle>
                 <Field label="Mode setzen (setMode.setValue)">
                   <StateFieldInput
                     onBrowse={() => setPickerField("modeSetStateId")}
@@ -4424,7 +4443,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <Text style={styles.sectionTitle}>Live-States (optional)</Text>
+                <SectionTitle>Live-States (optional)</SectionTitle>
                 <View style={styles.splitRow}>
                   <Field label="Aktueller Modus">
                     <StateFieldInput
@@ -4561,11 +4580,11 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <Text style={styles.sectionTitle}>Analoge Zeiger (unterer Rand)</Text>
-                <Text style={styles.sectionHelper}>
+                <SectionTitle>Analoge Zeiger (unterer Rand)</SectionTitle>
+                <SectionHelper>
                   Je Zeiger einen Datenpunkt in Watt angeben. Ohne Datenpunkt bleibt der Zeiger ausgeblendet.
                   Die Skala ist in kW, die Farbe laeuft von Gruen am Minimum bis Rot am Maximum.
-                </Text>
+                </SectionHelper>
                 <View style={styles.splitRow}>
                   <Field label="Verbrauch Datenpunkt (W)">
                     <StateFieldInput
@@ -4647,7 +4666,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <Text style={styles.sectionTitle}>Button-Icons (MaterialCommunityIcons)</Text>
+                <SectionTitle>Button-Icons (MaterialCommunityIcons)</SectionTitle>
                 <View style={styles.splitRow}>
                   <Field label="Standby Icon">
                     <TextInput
@@ -4685,7 +4704,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <Text style={styles.sectionTitle}>Infobox-Textzeilen</Text>
+                <SectionTitle>Infobox-Textzeilen</SectionTitle>
                 <View style={styles.splitRow}>
                   <CheckboxChoice
                     label="Programm"
@@ -4797,7 +4816,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     ))}
                   </View>
                 </Field>
-                <Text style={styles.sectionTitle}>Key-Mapping</Text>
+                <SectionTitle>Key-Mapping</SectionTitle>
                 <View style={styles.splitRow}>
                   <Field label="PV aktuell">
                     <StateFieldInput
@@ -4896,7 +4915,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.keyPvTotal || ""}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Auto / Wallbox (optional)</Text>
+                <SectionTitle>Auto / Wallbox (optional)</SectionTitle>
                 <View style={styles.splitRow}>
                   <Field label="Wallbox Car State ID">
                     <StateFieldInput
@@ -4962,7 +4981,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.statTextScalePct || "100"}
                   />
                 </Field>
-                <Text style={styles.sectionTitle}>Klick-Aktion</Text>
+                <SectionTitle>Klick-Aktion</SectionTitle>
                 <Field label="Aktion">
                   <ChoiceRow
                     options={["none", "dashboard", "url"]}
@@ -5008,7 +5027,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     />
                   </Field>
                 ) : null}
-                <Text style={styles.sectionTitle}>Stats</Text>
+                <SectionTitle>Stats</SectionTitle>
                 <Field label="Anzahl Stat-Cards">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6"]}
@@ -5048,7 +5067,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
             ) : null}
             {widget ? (
               <>
-                <Text style={styles.sectionTitle}>Widget kopieren</Text>
+                <SectionTitle>Widget kopieren</SectionTitle>
                 <Field label="Auf Side-Page kopieren">
                   {copyTargetPages.length ? (
                     <View style={styles.modeRow}>
@@ -5072,6 +5091,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
               </>
             ) : null}
           </ScrollView>
+          </FieldFilterContext.Provider>
           <View style={styles.footer}>
             <EditorButtonPressable onPress={save} style={styles.saveButton}>
               <Text style={styles.saveLabel}>Speichern</Text>
@@ -5167,7 +5187,43 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
   );
 }
 
+/**
+ * Suchbegriff des Editors. Field, ColorInputRow und die Abschnittsueberschriften
+ * blenden sich aus, solange sie nicht dazu passen - bei bis zu 161 Feldern in
+ * einem Widget ist das Filtern der einzige praktikable Weg zu einer Einstellung.
+ */
+const FieldFilterContext = createContext("");
+
+function useFieldFilter() {
+  return useContext(FieldFilterContext).trim().toLowerCase();
+}
+
+function matchesFieldFilter(query: string, ...labels: Array<string | undefined>) {
+  if (!query) {
+    return true;
+  }
+  return labels.some((label) => (label || "").toLowerCase().includes(query));
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  // Waehrend einer Suche wuerden Ueberschriften ohne Inhalt darunter stehen.
+  if (useFieldFilter()) {
+    return null;
+  }
+  return <Text style={styles.sectionTitle}>{children}</Text>;
+}
+
+function SectionHelper({ children }: { children: React.ReactNode }) {
+  if (useFieldFilter()) {
+    return null;
+  }
+  return <Text style={styles.sectionHelper}>{children}</Text>;
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  if (!matchesFieldFilter(useFieldFilter(), label)) {
+    return null;
+  }
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -5925,6 +5981,9 @@ function ColorInputRow({
   values: Record<string, string>;
   onChange: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
+  if (!matchesFieldFilter(useFieldFilter(), firstLabel, secondLabel)) {
+    return null;
+  }
   return (
     <View style={styles.splitRow}>
       <ColorField
@@ -6276,6 +6335,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  searchInput: {
+    flexGrow: 1,
+    flexShrink: 1,
+  },
+  searchClearButton: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  searchClearLabel: {
+    color: palette.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   title: {
     color: palette.text,
