@@ -152,7 +152,12 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             <Text
               ellipsizeMode="tail"
               numberOfLines={halfTile ? 1 : 3}
-              style={[styles.value, halfTile ? styles.valueHalf : null, { color: mutedTextColor }]}
+              style={[
+                styles.value,
+                halfTile ? styles.valueHalf : null,
+                halfTile && !hasTitle ? styles.valueHalfSolo : null,
+                { color: mutedTextColor },
+              ]}
             >
               {hasValue ? resolveStateLabel(config, value, active) : "Keine Daten"}
             </Text>
@@ -239,20 +244,24 @@ function AddonChip({
   }
 
   if (config.addonMode === "text") {
-    return <Text style={[styles.addonText, { color }]}>{value}</Text>;
+    return (
+      <Text numberOfLines={1} style={[styles.addonText, half ? styles.addonTextHalf : null, { color }]}>
+        {value}
+      </Text>
+    );
   }
 
   if (config.addonMode === "icon") {
     return (
-      <View style={styles.addonIconWrap}>
-        <MaterialCommunityIcons color={color} name={(config.addonIcon || "lock") as never} size={16} />
+      <View style={[styles.addonIconWrap, half ? styles.addonIconWrapHalf : null]}>
+        <MaterialCommunityIcons color={color} name={(config.addonIcon || "lock") as never} size={half ? 18 : 16} />
       </View>
     );
   }
 
   const bars = Math.max(1, Math.min(4, Number.parseInt(value, 10) || 1));
   return (
-    <View style={styles.addonBars}>
+    <View style={[styles.addonBars, half ? styles.addonBarsHalf : null]}>
       {Array.from({ length: 4 }).map((_, index) => (
         <View
           key={`bar-${index}`}
@@ -646,10 +655,10 @@ const styles = StyleSheet.create({
   },
   iconWrapHalf: {
     width: 44,
-    height: undefined,
-    top: 0,
-    bottom: 0,
+    height: 44,
+    top: "50%",
     left: 12,
+    transform: [{ translateY: -22 }],
   },
   textBlockHalf: {
     left: 62,
@@ -668,6 +677,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 16,
   },
+  valueHalfSolo: {
+    fontSize: 16,
+    lineHeight: 19,
+  },
   addonCircleHalf: {
     top: "50%",
     right: 12,
@@ -678,6 +691,23 @@ const styles = StyleSheet.create({
   },
   addonCircleLabelHalf: {
     fontSize: 12,
+  },
+  addonTextHalf: {
+    top: "50%",
+    right: 12,
+    fontSize: 14,
+    transform: [{ translateY: -9 }],
+  },
+  addonIconWrapHalf: {
+    top: "50%",
+    right: 12,
+    transform: [{ translateY: -10 }],
+  },
+  addonBarsHalf: {
+    top: "50%",
+    right: 12,
+    height: 24,
+    transform: [{ translateY: -12 }],
   },
   statusBar: {
     position: "absolute",
