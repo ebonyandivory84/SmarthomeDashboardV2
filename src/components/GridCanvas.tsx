@@ -5,7 +5,7 @@ import { StateWriteFeedback, useWidgetIoBrokerStates } from "../hooks/useIoBroke
 import { IoBrokerClient } from "../services/iobroker";
 import { IoBrokerStateStore } from "../state/IoBrokerStateStore";
 import { DashboardSettings, StateSnapshot, WidgetConfig, WidgetInteractionSounds, WidgetType } from "../types/dashboard";
-import { constrainToPrimarySections, GRID_SNAP, GRID_VERTICAL_SNAP } from "../utils/gridLayout";
+import { constrainToPrimarySections, GRID_SNAP, GRID_VERTICAL_SNAP, layoutConstraintOptions } from "../utils/gridLayout";
 import { applyMobileOverridesToSettings } from "../utils/mobileWidget";
 import { resolveLowPowerWebEffects } from "../utils/performanceMode";
 import { playConfiguredUiSound } from "../utils/uiSounds";
@@ -1306,7 +1306,7 @@ function WebWidgetShell({
           ...active.startPosition,
           x: clamp(active.startPosition.x + dx, 0, config.grid.columns - active.startPosition.w),
           y: Math.max(0, active.startPosition.y + dy),
-        }, config.grid.columns, widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? { minHeight: 0.5, heightSnap: 0.1 } : widget.type === "solar" ? { minHeight: 2.5, heightSnap: 0.1 } : widget.type === "grafana" || widget.type === "alarmFloorplan" || widget.type === "log" || widget.type === "telegram" || widget.type === "script" || widget.type === "host" || widget.type === "raspberryPiStats" || widget.type === "waterMeter" || widget.type === "pdfSlideshow" || widget.type === "coco" || widget.type === "wallboxV2" || widget.type === "heatingV2" ? { minHeight: 1, heightSnap: 0.1 } : undefined);
+        }, config.grid.columns, layoutConstraintOptions(widget));
         setPreview(nextPreview);
 
         if (isLayoutMode && onDragAcrossPageEdge) {

@@ -132,3 +132,39 @@ function snapToSubColumns(value: number, subColumnWidth: number, minSteps: numbe
   const steps = Math.max(minSteps, Math.round(value / subColumnWidth));
   return steps * subColumnWidth;
 }
+
+/**
+ * Mindesthoehe und Rasterschritt fuer Ziehen und Groessenaenderung.
+ * Ohne Eintrag gilt eine ganze Rastereinheit als Minimum - eine halbe
+ * State-Kachel waere damit beim Ziehen kurzzeitig wieder voll gross.
+ */
+export function layoutConstraintOptions(
+  widget: { type: string; tileSize?: "full" | "half" }
+): { minHeight: number; heightSnap: number } | undefined {
+  if (widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink") {
+    return { minHeight: 0.5, heightSnap: 0.1 };
+  }
+  if (widget.type === "solar") {
+    return { minHeight: 2.5, heightSnap: 0.1 };
+  }
+  if (widget.type === "state" && widget.tileSize === "half") {
+    return { minHeight: 0.5, heightSnap: 0.5 };
+  }
+  if (
+    widget.type === "grafana" ||
+    widget.type === "alarmFloorplan" ||
+    widget.type === "log" ||
+    widget.type === "telegram" ||
+    widget.type === "script" ||
+    widget.type === "host" ||
+    widget.type === "raspberryPiStats" ||
+    widget.type === "waterMeter" ||
+    widget.type === "pdfSlideshow" ||
+    widget.type === "coco" ||
+    widget.type === "wallboxV2" ||
+    widget.type === "heatingV2"
+  ) {
+    return { minHeight: 1, heightSnap: 0.1 };
+  }
+  return undefined;
+}

@@ -40,7 +40,18 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const resolvedAddonValue = resolveAddonValue(config, value, addonValue, active);
   const compactTile = tileLayout.width > 0 && (tileLayout.width < 220 || tileLayout.height < 180);
   const veryCompactTile = tileLayout.width > 0 && (tileLayout.width < 170 || tileLayout.height < 140);
-  const iconSize = halfTile ? 32 : veryCompactTile ? 34 : compactTile ? 38 : 44;
+  // Die halbe Kachel skaliert mit ihrer gemessenen Hoehe statt mit festen
+  // Werten: sie faellt je nach Rasterbreite sehr unterschiedlich aus, und
+  // feste Groessen wirken mal winzig, mal ueberfuellt. 135 px ist die
+  // Bezugshoehe, bei der die Werte unten genau passen.
+  const halfScale = clampNumber((tileLayout.height || HALF_TILE_REFERENCE_HEIGHT) / HALF_TILE_REFERENCE_HEIGHT, 0.6, 1.35);
+  const halfIconSize = Math.round(clampNumber(40 * halfScale, 22, 54));
+  const halfIconBox = Math.round(clampNumber(56 * halfScale, 32, 74));
+  const halfTitleSize = Math.round(clampNumber(22 * halfScale, 13, 30));
+  const halfValueSize = Math.round(clampNumber(17 * halfScale, 11, 24));
+  const halfSoloSize = Math.round(clampNumber(24 * halfScale, 14, 32));
+  const halfTextLeft = 12 + halfIconBox + 8;
+  const iconSize = halfTile ? halfIconSize : veryCompactTile ? 34 : compactTile ? 38 : 44;
   const showStatus = interactionState === "pending" || interactionState === "error" || showConfirmedPulse;
   const iconImageUri = config.iconImage
     ? `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.iconImage)}`
@@ -118,6 +129,9 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             style={[
               styles.iconWrap,
               halfTile ? styles.iconWrapHalf : null,
+              halfTile
+                ? { width: halfIconBox, height: halfIconBox, transform: [{ translateY: -halfIconBox / 2 }] }
+                : null,
               !halfTile && compactTile ? styles.iconWrapCompact : null,
               !halfTile && veryCompactTile ? styles.iconWrapVeryCompact : null,
               iconImageCrop === "rounded" ? styles.iconWrapRounded : null,
@@ -142,12 +156,21 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             style={[
               styles.textBlock,
               halfTile ? styles.textBlockHalf : null,
+              halfTile ? { left: halfTextLeft } : null,
               !halfTile && compactTile ? styles.textBlockCompact : null,
               !halfTile && veryCompactTile ? styles.textBlockVeryCompact : null,
             ]}
           >
             {halfTile && hasTitle ? (
-              <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.titleHalf, { color: config.appearance?.textColor || palette.text }]}>
+              <Text
+                ellipsizeMode="tail"
+                numberOfLines={1}
+                style={[
+                  styles.titleHalf,
+                  { fontSize: halfTitleSize, lineHeight: Math.round(halfTitleSize * 1.18) },
+                  { color: config.appearance?.textColor || palette.text },
+                ]}
+              >
                 {config.title}
               </Text>
             ) : null}
@@ -158,6 +181,12 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
                 styles.value,
                 halfTile ? styles.valueHalf : null,
                 halfTile && !hasTitle ? styles.valueHalfSolo : null,
+                halfTile
+                  ? (() => {
+                      const size = hasTitle ? halfValueSize : halfSoloSize;
+                      return { fontSize: size, lineHeight: Math.round(size * 1.2) };
+                    })()
+                  : null,
                 {
                   color:
                     halfTile && !hasTitle
@@ -313,6 +342,12 @@ export function resolveStateNextValue(config: StateWidgetConfig, currentValue: u
   }
 
   return parseStateValue(config, config.inactiveValue ?? defaultStateValue(config, false));
+}
+
+const HALF_TILE_REFERENCE_HEIGHT = 135;
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function resolveIconName(config: StateWidgetConfig, value: unknown, assumedActive?: boolean) {
