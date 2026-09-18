@@ -3022,7 +3022,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.refreshMs || "120000"}
                   />
                 </Field>
-                <SectionTitle>Raeume</SectionTitle>
+                <Section title="Raeume">
                 <Field label="Anzahl Raeume">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6", "7", "8"]}
@@ -3165,6 +3165,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Text style={styles.mappingHint}>
                   Luftfeuchte, CO2 und VOC sind optional. Wenn alle drei leer bleiben, zeigt der Raum nur Temperatur.
                 </Text>
+                </Section>
               </>
             ) : null}
             {widget.type === "historyChart" ? (
@@ -3185,7 +3186,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.refreshMs || "120000"}
                   />
                 </Field>
-                <SectionTitle>Serien</SectionTitle>
+                <Section title="Serien">
                 <Field label="Anzahl Serien">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6", "7", "8"]}
@@ -3271,11 +3272,12 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </View>
                   );
                 })}
+                </Section>
               </>
             ) : null}
             {widget.type === "waterMeter" ? (
               <>
-                <SectionTitle>Verbindungsstatus</SectionTitle>
+                <Section title="Verbindungsstatus">
                 <Field label="Verbindungs-Datenpunkt">
                   <StateFieldInput
                     browseLabel="Objekt"
@@ -3284,7 +3286,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.connectionStateId || "mqtt.1.watermeter.connection"}
                   />
                 </Field>
-                <SectionTitle>Wasserpreise</SectionTitle>
+                </Section>
+                <Section title="Wasserpreise">
                 <View style={styles.splitRow}>
                   <Field label="Trinkwasser (€/m³)">
                     <TextInput
@@ -3310,11 +3313,12 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 <Text style={styles.mappingHint}>
                   Verbrauchskosten pro Kubikmeter. Grundpreise und fixe Gebühren sind nicht enthalten.
                 </Text>
+                </Section>
               </>
             ) : null}
             {widget.type === "pdfSlideshow" ? (
               <>
-                <SectionTitle>WebDAV-Zugang</SectionTitle>
+                <Section title="WebDAV-Zugang">
                 <Field label="WebDAV Basis-URL">
                   <TextInput
                     autoCapitalize="none"
@@ -3344,7 +3348,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.webdavPassword || ""}
                   />
                 </Field>
-                <SectionTitle>Ordner</SectionTitle>
+                </Section>
+                <Section title="Ordner">
                 <Field label="Ordnerpfad">
                   <TextInput
                     autoCapitalize="none"
@@ -3363,6 +3368,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.slideIntervalSeconds || "5"}
                   />
                 </Field>
+                </Section>
               </>
             ) : null}
             {widget.type === "coco" ? (
@@ -3670,7 +3676,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                 </CollapsibleGroup>
 
                 <CollapsibleGroup title="Schreiben + Status-Bestaetigung">
-                  <SectionTitle>Ladeautomatik</SectionTitle>
+                  <Section title="Ladeautomatik">
                   <View style={styles.splitRow}>
                     <Field label="Ladeautomatik - Write Value">
                       <StateFieldInput
@@ -3722,7 +3728,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       />
                     </Field>
                   </View>
-                  <SectionTitle>Emergency Stop (global)</SectionTitle>
+                  </Section>
+                  <Section title="Emergency Stop (global)">
                   <Field label="Emergency Stop - Datenpunkt">
                     <StateFieldInput
                       onBrowse={() => setPickerField("emergencyStopStateId")}
@@ -3734,7 +3741,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Separater globaler Not-Aus-Schalter. Dieser Datenpunkt wird nicht fuer die interne Lade-Logik verwendet.
                   </Text>
 
-                  <SectionTitle>PV</SectionTitle>
+                  </Section>
+                  <Section title="PV">
                   <View style={styles.splitRow}>
                     <Field label="PV - Write Value">
                       <StateFieldInput
@@ -3786,7 +3794,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <SectionTitle>Analoge Zeiger</SectionTitle>
+                  </Section>
+                  <Section title="Analoge Zeiger">
                   <SectionHelper>
                     Nur im Wallbox-V2-Widget. Der linke Zeiger zeigt die Ladeleistung, der rechte die
                     PV-Leistung und erscheint erst mit gesetztem Datenpunkt. Werte in Watt, Skala in kW,
@@ -3854,7 +3863,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <SectionTitle>PV (go-e priority)</SectionTitle>
+                  </Section>
+                  <Section title="PV (go-e priority)">
                   <View style={styles.splitRow}>
                     <Field label="PV (go-e priority) - Write Value">
                       <StateFieldInput
@@ -3906,7 +3916,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <SectionTitle>Netz</SectionTitle>
+                  </Section>
+                  <Section title="Netz">
                   <View style={styles.splitRow}>
                     <Field label="Netz - Write Value">
                       <StateFieldInput
@@ -3958,7 +3969,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <SectionTitle>Wallbox-Strom (manuell)</SectionTitle>
+                  </Section>
+                  <Section title="Wallbox-Strom (manuell)">
                   <View style={styles.splitRow}>
                     <Field label="Wallbox-Strom (manuell) - Write Value">
                       <StateFieldInput
@@ -3992,7 +4004,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </Field>
                   </View>
 
-                  <SectionTitle>Ampere Cards</SectionTitle>
+                  </Section>
+                  <Section title="Ampere Cards">
                   <View style={styles.splitRow}>
                     <Field label="Ampere-Cards - Write Value">
                       <StateFieldInput
@@ -4110,7 +4123,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     </View>
                   </Field>
 
-                  <SectionTitle>Phasen Cards</SectionTitle>
+                  </Section>
+                  <Section title="Phasen Cards">
                   <View style={styles.splitRow}>
                     <Field label="Phasen-Cards - Write Value">
                       <StateFieldInput
@@ -4214,6 +4228,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Fuer `control.targetSocPercent` gibt es keinen passenden Status-Spiegelwert. Dieser Datenpunkt wird
                     deshalb als write only genutzt. Optional wird der Slider-Wert zusaetzlich an `TargetSOC Auto-API` geschrieben.
                   </Text>
+                  </Section>
                 </CollapsibleGroup>
 
                 <CollapsibleGroup title="Live-Infos und Stat-Cards">
@@ -4369,7 +4384,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </Field>
 
-                <SectionTitle>Steuerung</SectionTitle>
+                <Section title="Steuerung">
                 <Field label="Mode setzen (setMode.setValue)">
                   <StateFieldInput
                     onBrowse={() => setPickerField("modeSetStateId")}
@@ -4433,7 +4448,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <SectionTitle>Live-States (optional)</SectionTitle>
+                </Section>
+                <Section title="Live-States (optional)">
                 <View style={styles.splitRow}>
                   <Field label="Aktueller Modus">
                     <StateFieldInput
@@ -4570,7 +4586,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <SectionTitle>Analoge Zeiger (unterer Rand)</SectionTitle>
+                </Section>
+                <Section title="Analoge Zeiger (unterer Rand)">
                 <SectionHelper>
                   Je Zeiger einen Datenpunkt in Watt angeben. Ohne Datenpunkt bleibt der Zeiger ausgeblendet.
                   Die Skala ist in kW, die Farbe laeuft von Gruen am Minimum bis Rot am Maximum.
@@ -4656,7 +4673,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <SectionTitle>Button-Icons (MaterialCommunityIcons)</SectionTitle>
+                </Section>
+                <Section title="Button-Icons (MaterialCommunityIcons)">
                 <View style={styles.splitRow}>
                   <Field label="Standby Icon">
                     <TextInput
@@ -4694,7 +4712,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Field>
                 </View>
 
-                <SectionTitle>Infobox-Textzeilen</SectionTitle>
+                </Section>
+                <Section title="Infobox-Textzeilen">
                 <View style={styles.splitRow}>
                   <CheckboxChoice
                     label="Programm"
@@ -4762,6 +4781,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     <Text style={styles.inlineActionLabel}>Als Default fuer alle Heating-Widgets verwenden</Text>
                   </EditorButtonPressable>
                 </Field>
+                </Section>
               </>
             ) : null}
             {widget.type === "solar" ? (
@@ -4806,7 +4826,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     ))}
                   </View>
                 </Field>
-                <SectionTitle>Key-Mapping</SectionTitle>
+                <Section title="Key-Mapping">
                 <View style={styles.splitRow}>
                   <Field label="PV aktuell">
                     <StateFieldInput
@@ -4905,7 +4925,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.keyPvTotal || ""}
                   />
                 </Field>
-                <SectionTitle>Auto / Wallbox (optional)</SectionTitle>
+                </Section>
+                <Section title="Auto / Wallbox (optional)">
                 <View style={styles.splitRow}>
                   <Field label="Wallbox Car State ID">
                     <StateFieldInput
@@ -4971,7 +4992,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.statTextScalePct || "100"}
                   />
                 </Field>
-                <SectionTitle>Klick-Aktion</SectionTitle>
+                </Section>
+                <Section title="Klick-Aktion">
                 <Field label="Aktion">
                   <ChoiceRow
                     options={["none", "dashboard", "url"]}
@@ -5017,7 +5039,8 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     />
                   </Field>
                 ) : null}
-                <SectionTitle>Stats</SectionTitle>
+                </Section>
+                <Section title="Stats">
                 <Field label="Anzahl Stat-Cards">
                   <ChoiceRow
                     options={["1", "2", "3", "4", "5", "6"]}
@@ -5053,11 +5076,12 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   Leer lassen, um den bisherigen Standardwert des Solar-Widgets zu nutzen. Wenn ein Datenpunkt gesetzt ist,
                   wird dessen aktueller Wert direkt angezeigt.
                 </Text>
+                </Section>
               </>
             ) : null}
             {widget ? (
               <>
-                <SectionTitle>Widget kopieren</SectionTitle>
+                <Section title="Widget kopieren">
                 <Field label="Auf Side-Page kopieren">
                   {copyTargetPages.length ? (
                     <View style={styles.modeRow}>
@@ -5078,6 +5102,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     Erstellt eine Kopie mit allen Widget-Einstellungen auf der gewaehlten Seite.
                   </Text>
                 </Field>
+                </Section>
               </>
             ) : null}
           </ScrollView>
@@ -5217,12 +5242,29 @@ function CollapsibleGroup({ title, children }: { title: string; children: React.
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  // Waehrend einer Suche wuerden Ueberschriften ohne Inhalt darunter stehen.
-  if (useFieldFilter()) {
-    return null;
+/**
+ * Aufklappbarer Abschnitt fuer die Bloecke, die keinen eigenen Container haben -
+ * im Heizungs-, Solar- und Kamera-Widget standen dort bis zu 136 Zeilen
+ * Formular hinter einer blossen Ueberschrift. Standardmaessig zu; waehrend
+ * einer Suche entfaellt der Kopf und die Felder filtern sich selbst.
+ */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const query = useFieldFilter();
+  const [open, setOpen] = useState(false);
+
+  if (query) {
+    return <>{children}</>;
   }
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+
+  return (
+    <View style={styles.section}>
+      <EditorButtonPressable onPress={() => setOpen((current) => !current)} style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionToggle}>{open ? "Zuklappen" : "Aufklappen"}</Text>
+      </EditorButtonPressable>
+      {open ? children : null}
+    </View>
+  );
 }
 
 function SectionHelper({ children }: { children: React.ReactNode }) {
@@ -6347,6 +6389,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
+  },
+  section: {
+    borderTopWidth: 1,
+    borderTopColor: palette.border,
+    marginTop: 6,
+    paddingTop: 6,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  sectionToggle: {
+    color: palette.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
   },
   groupHeader: {
     flexDirection: "row",
