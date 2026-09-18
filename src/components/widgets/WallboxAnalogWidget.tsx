@@ -8,6 +8,7 @@ import { palette } from "../../utils/theme";
 import { AutoFitContent } from "../AutoFitContent";
 import { PowerGauge } from "./PowerGauge";
 import { buildWidgetAssetUrl } from "../../utils/widgetAssets";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 type WallboxAnalogWidgetProps = {
   config: WallboxWidgetV2Config;
@@ -389,6 +390,11 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
   const pvGaugeMaxKw = normalizeGaugeBound(config.pvPowerGaugeMaxKw, 20);
   const pvPowerGaugeStateId = (config.pvPowerGaugeStateId || "").trim();
   const pvPowerW = pvPowerGaugeStateId ? normalizeFloat(readValue(pvPowerGaugeStateId)) : null;
+  const batterySocGaugeStateId = (config.batterySocGaugeStateId || "").trim();
+  const batterySocGaugeMin = normalizeGaugeBound(config.batterySocGaugeMinPercent, 0);
+  const batterySocGaugeMax = normalizeGaugeBound(config.batterySocGaugeMaxPercent, 100);
+  const batterySocGaugeValue = batterySocGaugeStateId ? normalizeFloat(readValue(batterySocGaugeStateId)) : null;
+  const gaugeShowLabels = config.gaugeShowLabels === true;
   const liveCharging =
     carCode === 2 ||
     (carCode === null && typeof liveAmpere === "number" && liveAmpere > 0.25) ||
@@ -1410,25 +1416,44 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
           <View style={[styles.gaugeFace, useWideLayout ? styles.gaugeFaceWide : null]}>
             <View style={styles.gaugeRow}>
               <PowerGauge
+                icon="lightning-bolt"
                 instanceId={`${config.id}-charge`}
                 label={config.chargeGaugeLabel?.trim() || "Ladeleistung"}
                 maxKw={chargeGaugeMaxKw}
                 minKw={chargeGaugeMinKw}
                 mutedTextColor={mutedTextColor}
+                showLabel={gaugeShowLabels}
                 size={useWideLayout ? 150 : 168}
                 textColor={textColor}
-                valueKw={chargingPowerW === null ? null : chargingPowerW / 1000}
+                value={chargingPowerW === null ? null : chargingPowerW / 1000}
               />
               {pvPowerGaugeStateId ? (
                 <PowerGauge
+                  icon="white-balance-sunny"
                   instanceId={`${config.id}-pv`}
                   label={config.pvPowerGaugeLabel?.trim() || "PV-Leistung"}
                   maxKw={pvGaugeMaxKw}
                   minKw={pvGaugeMinKw}
                   mutedTextColor={mutedTextColor}
+                  showLabel={gaugeShowLabels}
                   size={useWideLayout ? 150 : 168}
                   textColor={textColor}
-                  valueKw={pvPowerW === null ? null : pvPowerW / 1000}
+                  value={pvPowerW === null ? null : pvPowerW / 1000}
+                />
+              ) : null}
+              {batterySocGaugeStateId ? (
+                <PowerGauge
+                  icon={resolveBatteryGaugeIcon(batterySocGaugeValue)}
+                  instanceId={`${config.id}-battery`}
+                  label={config.batterySocGaugeLabel?.trim() || "Akku-Ladezustand"}
+                  maxKw={batterySocGaugeMax}
+                  minKw={batterySocGaugeMin}
+                  mutedTextColor={mutedTextColor}
+                  showLabel={gaugeShowLabels}
+                  size={useWideLayout ? 150 : 168}
+                  textColor={textColor}
+                  unit="%"
+                  value={batterySocGaugeValue}
                 />
               ) : null}
             </View>
@@ -1461,6 +1486,30 @@ export function WallboxAnalogWidget({ config, client, states, isActivePage = tru
 
 function normalizeGaugeBound(value: number | undefined, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** Batterie-Icon passend zum Ladezustand (0-100), analog zur Darstellung im Solar-Widget. */
+function resolveBatteryGaugeIcon(percent: number | null): keyof typeof MaterialCommunityIcons.glyphMap {
+  if (percent === null || !Number.isFinite(percent)) {
+    return "battery-unknown";
+  }
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  if (clamped >= 95) {
+    return "battery";
+  }
+  if (clamped >= 75) {
+    return "battery-80";
+  }
+  if (clamped >= 50) {
+    return "battery-50";
+  }
+  if (clamped >= 25) {
+    return "battery-30";
+  }
+  if (clamped > 0) {
+    return "battery-10";
+  }
+  return "battery-outline";
 }
 
 function resolveStateId(candidate: string | undefined, fallback: string) {

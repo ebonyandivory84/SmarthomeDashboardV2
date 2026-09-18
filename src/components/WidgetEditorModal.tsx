@@ -611,6 +611,11 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         pvPowerGaugeLabel: widget.pvPowerGaugeLabel || "",
         pvPowerGaugeMinKw: String(widget.pvPowerGaugeMinKw ?? 0),
         pvPowerGaugeMaxKw: String(widget.pvPowerGaugeMaxKw ?? 20),
+        batterySocGaugeStateId: widget.batterySocGaugeStateId || "",
+        batterySocGaugeLabel: widget.batterySocGaugeLabel || "",
+        batterySocGaugeMinPercent: String(widget.batterySocGaugeMinPercent ?? 0),
+        batterySocGaugeMaxPercent: String(widget.batterySocGaugeMaxPercent ?? 100),
+        gaugeShowLabels: widget.gaugeShowLabels === true ? "true" : "false",
         pvPriorityStateId:
           widget.pvPriorityStateId ||
           resolveMappedStateId(
@@ -1253,6 +1258,11 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         pvPowerGaugeLabel: draft.pvPowerGaugeLabel?.trim() || undefined,
         pvPowerGaugeMinKw: parseGaugeBound(draft.pvPowerGaugeMinKw, 0),
         pvPowerGaugeMaxKw: parseGaugeBound(draft.pvPowerGaugeMaxKw, 20),
+        batterySocGaugeStateId: draft.batterySocGaugeStateId?.trim() || undefined,
+        batterySocGaugeLabel: draft.batterySocGaugeLabel?.trim() || undefined,
+        batterySocGaugeMinPercent: parseGaugeBound(draft.batterySocGaugeMinPercent, 0),
+        batterySocGaugeMaxPercent: parseGaugeBound(draft.batterySocGaugeMaxPercent, 100),
+        gaugeShowLabels: draft.gaugeShowLabels === "true",
         gridWriteStateId: draft.gridWriteStateId?.trim() || undefined,
         gridStateId: draft.gridStateId?.trim() || undefined,
         manualCurrentWriteStateId: draft.manualCurrentWriteStateId?.trim() || undefined,
@@ -3877,10 +3887,21 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                   </Section>
                   <Section title="Analoge Zeiger">
                   <SectionHelper>
-                    Nur im Wallbox-V2-Widget. Der linke Zeiger zeigt die Ladeleistung, der rechte die
-                    PV-Leistung und erscheint erst mit gesetztem Datenpunkt. Werte in Watt, Skala in kW,
-                    Farbe von Gruen am Minimum bis Rot am Maximum.
+                    Nur im Wallbox-V2-Widget. Zeiger fuer Ladeleistung, PV-Leistung und Akku-Ladezustand.
+                    PV- und Akku-Zeiger erscheinen erst mit gesetztem Datenpunkt. Leistungs-Datenpunkte in
+                    Watt, Skala in kW; der Akku-Datenpunkt in Prozent. Farbe von Gruen am Minimum bis Rot
+                    am Maximum. Statt Beschriftungen zeigen die Zeiger passende Icons (Blitz, Sonne,
+                    Batterie); Beschriftungen lassen sich unten einblenden.
                   </SectionHelper>
+                  <View style={styles.splitRow}>
+                    <Field label="Zeiger: Beschriftungen anzeigen">
+                      <ChoiceRow
+                        options={["false", "true"]}
+                        value={draft.gaugeShowLabels || "false"}
+                        onSelect={(value) => setDraft((current) => ({ ...current, gaugeShowLabels: value }))}
+                      />
+                    </Field>
+                  </View>
                   <View style={styles.splitRow}>
                     <Field label="PV-Leistung Datenpunkt (W)">
                       <StateFieldInput
@@ -3939,6 +3960,46 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                         placeholderTextColor={palette.textMuted}
                         style={styles.input}
                         value={draft.chargeGaugeMaxKw || ""}
+                      />
+                    </Field>
+                  </View>
+                  <View style={styles.splitRow}>
+                    <Field label="Akku-Ladezustand Datenpunkt (%)">
+                      <StateFieldInput
+                        onBrowse={() => setPickerField("batterySocGaugeStateId")}
+                        onChangeText={(value) => setDraft((current) => ({ ...current, batterySocGaugeStateId: value }))}
+                        value={draft.batterySocGaugeStateId || ""}
+                      />
+                    </Field>
+                    <Field label="Akku-Ladezustand Beschriftung">
+                      <TextInput
+                        onChangeText={(value) => setDraft((current) => ({ ...current, batterySocGaugeLabel: value }))}
+                        placeholder="Akku-Ladezustand"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.batterySocGaugeLabel || ""}
+                      />
+                    </Field>
+                  </View>
+                  <View style={styles.splitRow}>
+                    <Field label="Akku Skala von (%)">
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, batterySocGaugeMinPercent: value }))}
+                        placeholder="0"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.batterySocGaugeMinPercent || ""}
+                      />
+                    </Field>
+                    <Field label="Akku Skala bis (%)">
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        onChangeText={(value) => setDraft((current) => ({ ...current, batterySocGaugeMaxPercent: value }))}
+                        placeholder="100"
+                        placeholderTextColor={palette.textMuted}
+                        style={styles.input}
+                        value={draft.batterySocGaugeMaxPercent || ""}
                       />
                     </Field>
                   </View>

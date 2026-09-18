@@ -945,7 +945,7 @@ export function HeatingWidgetV2({
                 minKw={normalizeGaugeBound(config.powerGaugeMinKw, 0)}
                 mutedTextColor={mutedTextColor}
                 textColor={textColor}
-                valueKw={powerGaugeKw}
+                value={powerGaugeKw}
               />
             ) : null}
             {showHeatingRodGauge ? (
@@ -956,7 +956,7 @@ export function HeatingWidgetV2({
                 minKw={normalizeGaugeBound(config.heatingRodGaugeMinKw, 0)}
                 mutedTextColor={mutedTextColor}
                 textColor={textColor}
-                valueKw={heatingRodGaugeKw}
+                value={heatingRodGaugeKw}
               />
             ) : null}
           </View>

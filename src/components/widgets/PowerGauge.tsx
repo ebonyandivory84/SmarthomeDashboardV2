@@ -1,5 +1,6 @@
 import { createElement, useMemo } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 /**
  * Leichte analoge Zeigeranzeige fuer Leistungswerte.
@@ -58,8 +59,8 @@ function arcPath(radius: number, fromDeg: number, toDeg: number) {
 }
 
 export type PowerGaugeProps = {
-  /** Messwert in kW. null zeigt eine leere Anzeige mit Nadel am Minimum. */
-  valueKw: number | null;
+  /** Messwert in der gewaehlten Einheit. null zeigt eine leere Anzeige mit Nadel am Minimum. */
+  value: number | null;
   minKw: number;
   maxKw: number;
   label: string;
@@ -68,10 +69,16 @@ export type PowerGaugeProps = {
   size?: number;
   mutedTextColor: string;
   textColor: string;
+  /** Einheit fuer Messwert-Anzeige, z.B. "kW" oder "%". */
+  unit?: string;
+  /** Icon anstelle der Textbeschriftung; die Beschriftung kann zusaetzlich per showLabel eingeblendet werden. */
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  /** Textbeschriftung unter dem Icon anzeigen. Ohne icon wird die Beschriftung immer angezeigt. */
+  showLabel?: boolean;
 };
 
 export function PowerGauge({
-  valueKw,
+  value,
   minKw,
   maxKw,
   label,
@@ -79,14 +86,18 @@ export function PowerGauge({
   size = 148,
   mutedTextColor,
   textColor,
+  unit = "kW",
+  icon,
+  showLabel = true,
 }: PowerGaugeProps) {
   const span = maxKw - minKw > 0 ? maxKw - minKw : 1;
-  const ratio = valueKw === null ? 0 : clamp((valueKw - minKw) / span, 0, 1);
+  const ratio = value === null ? 0 : clamp((value - minKw) / span, 0, 1);
   // Auf 0.5 % quantisiert: ohne das wuerde jede Nachkommastelle einer
   // Leistungsmessung das komplette SVG neu aufbauen.
   const quantizedRatio = Math.round(ratio * 200) / 200;
   const valueColor = powerGaugeColor(quantizedRatio);
-  const valueText = valueKw === null ? "--" : valueKw.toFixed(valueKw >= 10 ? 1 : 2);
+  const valueText =
+    value === null ? "--" : unit === "%" ? `${Math.round(value)}` : value.toFixed(value >= 10 ? 1 : 2);
 
   const gaugeSvg = useMemo(() => {
     if (Platform.OS !== "web") {
@@ -188,13 +199,24 @@ export function PowerGauge({
           {valueText}
         </Text>
         <Text numberOfLines={1} style={[styles.unit, { color: mutedTextColor, fontSize: unitFontSize }]}>
-          kW
+          {unit}
         </Text>
       </View>
       <View style={[styles.gaugeSlot, { height: gaugeHeight }]}>{gaugeSvg}</View>
-      <Text numberOfLines={1} style={[styles.label, { color: valueColor, fontSize: unitFontSize + 1 }]}>
-        {label}
-      </Text>
+      {icon ? (
+        <View style={styles.iconRow}>
+          <MaterialCommunityIcons color={valueColor} name={icon} size={unitFontSize + 10} />
+          {showLabel ? (
+            <Text numberOfLines={1} style={[styles.label, { color: valueColor, fontSize: unitFontSize + 1 }]}>
+              {label}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <Text numberOfLines={1} style={[styles.label, { color: valueColor, fontSize: unitFontSize + 1 }]}>
+          {label}
+        </Text>
+      )}
     </View>
   );
 }
@@ -226,5 +248,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: "700",
     letterSpacing: 0.3,
+  },
+  iconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 2,
   },
 });
