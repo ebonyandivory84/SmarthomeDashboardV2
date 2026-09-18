@@ -4,6 +4,7 @@ import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import { HistoryChartSeriesEntry, HistoryChartWidgetConfig } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
+import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { HistoryChartDetailModal } from "./HistoryChartDetailModal";
 import {
   ChartLayout,
@@ -107,7 +108,15 @@ export function HistoryChartWidget({ config, client, isActivePage = true }: Hist
 
   return (
     <View style={styles.container}>
-      <HistoryChartPanel series={series} history={history} mutedTextColor={mutedTextColor} onOpen={() => setDetailOpen(true)} />
+      <HistoryChartPanel
+        series={series}
+        history={history}
+        mutedTextColor={mutedTextColor}
+        onOpen={() => {
+          playConfiguredUiSound(config.interactionSounds?.open, "open", `${config.id}:open`);
+          setDetailOpen(true);
+        }}
+      />
       {error ? (
         <Text numberOfLines={1} style={[styles.footerText, { color: palette.danger }]}>
           {error}
@@ -119,7 +128,10 @@ export function HistoryChartWidget({ config, client, isActivePage = true }: Hist
           client={client}
           textColor={textColor}
           mutedTextColor={mutedTextColor}
-          onClose={() => setDetailOpen(false)}
+          onClose={() => {
+            playConfiguredUiSound(config.interactionSounds?.close, "close", `${config.id}:close`);
+            setDetailOpen(false);
+          }}
         />
       ) : null}
     </View>

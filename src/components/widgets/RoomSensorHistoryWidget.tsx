@@ -4,6 +4,7 @@ import { useDocumentVisibility } from "../../hooks/useDocumentVisibility";
 import { IoBrokerClient } from "../../services/iobroker";
 import { RoomSensorEntry, RoomSensorHistoryWidgetConfig } from "../../types/dashboard";
 import { palette } from "../../utils/theme";
+import { playConfiguredUiSound } from "../../utils/uiSounds";
 import { RoomSensorDetailModal } from "./RoomSensorDetailModal";
 import {
   ChartLayout,
@@ -125,7 +126,10 @@ export function RoomSensorHistoryWidget({ config, client, isActivePage = true }:
             vocColor,
             textColor,
             mutedTextColor,
-            onOpen: () => setOpenRoom(room),
+            onOpen: () => {
+              playConfiguredUiSound(config.interactionSounds?.open, "open", `${config.id}:open:${room.label}`);
+              setOpenRoom(room);
+            },
           })
         )
       )}
@@ -144,7 +148,10 @@ export function RoomSensorHistoryWidget({ config, client, isActivePage = true }:
           vocColor={vocColor}
           textColor={textColor}
           mutedTextColor={mutedTextColor}
-          onClose={() => setOpenRoom(null)}
+          onClose={() => {
+            playConfiguredUiSound(config.interactionSounds?.close, "close", `${config.id}:close`);
+            setOpenRoom(null);
+          }}
         />
       ) : null}
     </View>

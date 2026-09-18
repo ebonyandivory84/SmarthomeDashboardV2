@@ -151,6 +151,19 @@ const HTML_AUDIO_POOL_SIZE = 3;
 const htmlAudioPools = new Map<string, { cursor: number; items: HTMLAudioElement[] }>();
 let audioUnlockInstalled = false;
 let explicitSoundSequence = 0;
+// Manche Systeme (Dauerlauf-Kiosk, Audiogeraet mit Idle-Suspend) versetzen einen
+// lange ungenutzten AudioContext in den Zustand "suspended" oder haengen ihn
+// fest; alle Wiedergabefehler werden bewusst still ignoriert, damit die UI nie
+// blockiert - ohne Watchdog faellt der Ton dann irgendwann lautlos aus. Der
+// Watchdog versucht regelmaessig ein Resume, baut den Context nach mehreren
+// erfolglosen Versuchen neu auf und haelt die Audio-Pipeline mit einem
+// unhoerbaren Ton wach, damit das Betriebssystem sie nicht als inaktiv einstuft.
+const AUDIO_WATCHDOG_INTERVAL_MS = 60_000;
+const AUDIO_WATCHDOG_MAX_SUSPENDED_TICKS = 2;
+const KEEPALIVE_TONE_GAIN = 0.00001;
+const KEEPALIVE_TONE_DURATION_S = 0.02;
+let audioWatchdogInstalled = false;
+let consecutiveSuspendedTicks = 0;
 
 export function configureUiSounds(settings?: UiSoundSettings) {
   uiSoundSettings = normalizeUiSoundSettings(settings);
@@ -603,6 +616,98 @@ function installAudioUnlockHandlers() {
     { capture: true, passive: true }
   );
   audioUnlockInstalled = true;
+  installAudioWatchdog();
+}
+
+/**
+ * Erkennt einen eingeschlafenen oder haengenden AudioContext und repariert ihn,
+ * statt dass der Ton auf einem Dauerlauf-Panel irgendwann kommentarlos ausbleibt.
+ */
+function installAudioWatchdog() {
+  if (audioWatchdogInstalled || Platform.OS !== "web" || typeof window === "undefined") {
+    return;
+  }
+  audioWatchdogInstalled = true;
+
+  const tick = () => {
+    const context = audioContext;
+    if (!uiSoundSettings.enabled || !context) {
+      return;
+    }
+
+    if (context.state === "suspended") {
+      consecutiveSuspendedTicks += 1;
+      void context.resume().catch(() => undefined);
+      if (consecutiveSuspendedTicks >= AUDIO_WATCHDOG_MAX_SUSPENDED_TICKS) {
+        rebuildAudioContext();
+      }
+      return;
+    }
+
+    consecutiveSuspendedTicks = 0;
+    if (context.state === "running") {
+      playKeepAliveTone(context);
+    }
+  };
+
+  window.setInterval(tick, AUDIO_WATCHDOG_INTERVAL_MS);
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const context = audioContext;
+      if (context && context.state === "suspended") {
+        void context.resume().catch(() => undefined);
+      }
+    });
+  }
+}
+
+/**
+ * Praktisch unhoerbarer Ton, der regelmaessig durch die Audio-Pipeline laeuft,
+ * damit weder Browser noch Betriebssystem (z.B. PulseAudio-Idle-Suspend) das
+ * Ausgabegeraet fuer inaktiv halten und schlafen legen.
+ */
+function playKeepAliveTone(context: AudioContext) {
+  const masterGain = masterGainNode;
+  if (!masterGain) {
+    return;
+  }
+  try {
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    gainNode.gain.value = KEEPALIVE_TONE_GAIN;
+    oscillator.frequency.value = 1000;
+    oscillator.connect(gainNode);
+    gainNode.connect(masterGain);
+    const now = context.currentTime;
+    oscillator.start(now);
+    oscillator.stop(now + KEEPALIVE_TONE_DURATION_S);
+  } catch {
+    // Ignorieren - wird beim naechsten Watchdog-Tick erneut versucht.
+  }
+}
+
+/**
+ * Baut den AudioContext von Grund auf neu auf, wenn er mehrfach hintereinander
+ * nicht aus "suspended" aufwacht. Bereits dekodierte Audio-Puffer bleiben
+ * gueltig und muessen nicht neu geladen werden - ein AudioBuffer ist nicht an
+ * seinen urspruenglichen Context gebunden.
+ */
+function rebuildAudioContext() {
+  consecutiveSuspendedTicks = 0;
+  const stale = audioContext;
+  audioContext = null;
+  masterGainNode = null;
+  if (stale) {
+    try {
+      void stale.close().catch(() => undefined);
+    } catch {
+      // Ignorieren - der alte Context wird ohnehin nicht mehr benutzt.
+    }
+  }
 }
 
 function trimDecodedAudioCache() {
