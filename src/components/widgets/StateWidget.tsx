@@ -32,8 +32,10 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const iconColor = active
     ? config.appearance?.iconColor || palette.accent
     : config.appearance?.iconColor2 || palette.textMuted;
-  const activeBackground = config.appearance?.activeWidgetColor || "rgba(136, 142, 160, 0.96)";
-  const inactiveBackground = config.appearance?.inactiveWidgetColor || "rgba(54, 58, 74, 0.96)";
+  // Vorgabefarben, wenn die Kachel keine eigenen gesetzt hat. Das fahle Grau
+  // von frueher liess "an" nur heller wirken statt eingeschaltet.
+  const activeBackground = config.appearance?.activeWidgetColor || "rgba(86, 150, 214, 0.96)";
+  const inactiveBackground = config.appearance?.inactiveWidgetColor || "rgba(44, 48, 62, 0.96)";
   const tileBackground = active ? activeBackground : inactiveBackground;
   const resolvedAddonValue = resolveAddonValue(config, value, addonValue, active);
   const compactTile = tileLayout.width > 0 && (tileLayout.width < 220 || tileLayout.height < 180);
@@ -673,14 +675,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   titleHalf: {
-    fontSize: 14,
-    lineHeight: 17,
+    fontSize: 16,
+    lineHeight: 19,
     fontWeight: "800",
     alignSelf: "stretch",
   },
   valueHalf: {
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 14,
+    lineHeight: 17,
   },
   valueHalfSolo: {
     fontSize: 18,
