@@ -164,6 +164,7 @@ const KEEPALIVE_TONE_GAIN = 0.00001;
 const KEEPALIVE_TONE_DURATION_S = 0.02;
 let audioWatchdogInstalled = false;
 let consecutiveSuspendedTicks = 0;
+const DIAG = "[uiSounds]";
 
 export function configureUiSounds(settings?: UiSoundSettings) {
   uiSoundSettings = normalizeUiSoundSettings(settings);
@@ -280,7 +281,8 @@ function playReadyDecodedAudio(soundId: string) {
     source.connect(masterGain);
     source.start();
     return true;
-  } catch {
+  } catch (err) {
+    console.warn(`${DIAG} playReadyDecodedAudio() failed (context.state="${context.state}")`, err);
     return false;
   }
 }
@@ -314,17 +316,21 @@ function ensureHtmlAudioPool(soundId: string) {
     return null;
   }
 
-  const items = Array.from({ length: HTML_AUDIO_POOL_SIZE }, () => {
-    const audio = new Audio(uri);
-    audio.preload = "auto";
-    audio.setAttribute("playsinline", "true");
-    audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
-    audio.load();
-    return audio;
-  });
+  const items = Array.from({ length: HTML_AUDIO_POOL_SIZE }, () => createPooledAudio(soundId));
   const pool = { cursor: 0, items };
   htmlAudioPools.set(soundId, pool);
   return pool;
+}
+
+/** Legt ein frisches <audio>-Element fuer soundId an - auch zum Ersetzen eines Pool-Slots nach einem Fehler. */
+function createPooledAudio(soundId: string) {
+  const uri = resolveLcarsSoundUri(soundId);
+  const audio = new Audio(uri || undefined);
+  audio.preload = "auto";
+  audio.setAttribute("playsinline", "true");
+  audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
+  audio.load();
+  return audio;
 }
 
 function playHtmlAudio(soundId: string, fallback: UiSound) {
@@ -334,16 +340,25 @@ function playHtmlAudio(soundId: string, fallback: UiSound) {
       return false;
     }
 
-    const audio = pool.items[pool.cursor % pool.items.length];
+    const slot = pool.cursor % pool.items.length;
+    const audio = pool.items[slot];
     pool.cursor = (pool.cursor + 1) % pool.items.length;
     audio.volume = toHtmlAudioVolume(uiSoundSettings.volume);
     audio.currentTime = 0;
     const playback = audio.play();
     if (playback && typeof playback.catch === "function") {
-      void playback.catch(() => playSynthSound(fallback));
+      void playback.catch((err) => {
+        console.warn(`${DIAG} HTMLAudio.play() rejected for "${soundId}" - recreating pool slot`, err);
+        // Element durch ein frisches ersetzen: manche Browser lassen ein
+        // Audio-Element nach einem Fehler dauerhaft in einem kaputten Zustand,
+        // in dem jedes weitere play() sofort erneut ablehnt.
+        pool.items[slot] = createPooledAudio(soundId);
+        playSynthSound(fallback);
+      });
     }
     return true;
-  } catch {
+  } catch (err) {
+    console.warn(`${DIAG} playHtmlAudio() threw for "${soundId}"`, err);
     return false;
   }
 }
@@ -496,7 +511,8 @@ async function playSingleDecodedAudio(soundId: string, fallback?: UiSound) {
     source.connect(masterGain);
     source.start();
     return true;
-  } catch {
+  } catch (err) {
+    console.warn(`${DIAG} playSingleDecodedAudio("${soundId}") failed (context.state="${context.state}")`, err);
     if (fallback) {
       playSynthSound(fallback);
     }
@@ -522,6 +538,24 @@ function getAudioContext() {
     masterGainNode = audioContext.createGain();
     masterGainNode.gain.value = toMasterGain(uiSoundSettings.volume);
     masterGainNode.connect(audioContext.destination);
+    console.warn(`${DIAG} AudioContext created (state="${audioContext.state}")`);
+
+    // Reaktiv statt nur per 60s-Watchdog: sobald der Browser den Context von
+    // sich aus umschaltet (z.B. "suspended" nach Leerlauf-Erkennung oder
+    // "interrupted" auf manchen Plattformen), sofort ein Resume versuchen,
+    // statt bis zum naechsten Watchdog-Tick zu warten.
+    audioContext.addEventListener("statechange", () => {
+      const current = audioContext;
+      if (!current) {
+        return;
+      }
+      console.warn(`${DIAG} AudioContext statechange -> "${current.state}"`);
+      if (current.state === "suspended") {
+        current.resume().catch((err) => {
+          console.warn(`${DIAG} reactive resume() after statechange failed`, err);
+        });
+      }
+    });
   }
 
   return audioContext;
@@ -573,8 +607,8 @@ async function ensureAudioContextRunning(context: AudioContext) {
 
   try {
     await context.resume();
-  } catch {
-    // Keep silent if browser still blocks audio.
+  } catch (err) {
+    console.warn(`${DIAG} ensureAudioContextRunning() resume() failed (state="${context.state}")`, err);
   }
 }
 
@@ -635,10 +669,19 @@ function installAudioWatchdog() {
       return;
     }
 
+    if (context.state !== "running") {
+      console.warn(
+        `${DIAG} watchdog tick: context.state="${context.state}" (${consecutiveSuspendedTicks + 1}. Versuch)`
+      );
+    }
+
     if (context.state === "suspended") {
       consecutiveSuspendedTicks += 1;
-      void context.resume().catch(() => undefined);
+      void context.resume().catch((err) => {
+        console.warn(`${DIAG} watchdog resume() failed`, err);
+      });
       if (consecutiveSuspendedTicks >= AUDIO_WATCHDOG_MAX_SUSPENDED_TICKS) {
+        console.warn(`${DIAG} watchdog: rebuilding AudioContext after repeated "suspended"`);
         rebuildAudioContext();
       }
       return;
