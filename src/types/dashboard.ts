@@ -110,6 +110,14 @@ export type StateWidgetConfig = WidgetBase & {
    * false: sie wartet, bis ioBroker den neuen Wert zurueckgemeldet hat.
    */
   optimisticFeedback?: boolean;
+  /**
+   * Zustandstext unter/neben dem Symbol.
+   * "auto" (Vorgabe): das generische "Ein"/"Aus" entfaellt, weil die Kachelfarbe
+   * den Zustand bereits zeigt; eigene Beschriftungen, Wertzuordnungen und echte
+   * Messwerte bleiben sichtbar.
+   * "always": immer anzeigen. "never": nie anzeigen.
+   */
+  stateLabelMode?: "auto" | "always" | "never";
 };
 
 export type CameraWidgetConfig = WidgetBase & {

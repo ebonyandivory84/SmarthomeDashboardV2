@@ -83,6 +83,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         stateId: widget.stateId,
         tileSize: widget.tileSize === "half" ? "half" : "full",
         optimisticFeedback: widget.optimisticFeedback === false ? "false" : "true",
+        stateLabelMode: normalizeStateLabelMode(widget.stateLabelMode),
         iconImage: widget.iconImage || "",
         iconImageCrop: widget.iconImageCrop || "none",
         iconImageSizeMode: widget.iconImageSizeMode || "standard",
@@ -957,6 +958,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         stateId: draft.stateId || widget.stateId,
         tileSize: draft.tileSize === "half" ? "half" : "full",
         optimisticFeedback: draft.optimisticFeedback !== "false",
+        stateLabelMode: normalizeStateLabelMode(draft.stateLabelMode),
         iconImage: draft.iconImage || undefined,
         iconImageCrop: normalizeIconImageCrop(draft.iconImageCrop),
         iconImageSizeMode: normalizeIconImageSizeMode(draft.iconImageSizeMode),
@@ -1893,11 +1895,21 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     />
                   </Field>
                 </View>
+                <Field label="Zustandstext">
+                  <ChoiceRow
+                    options={["auto", "always", "never"]}
+                    value={draft.stateLabelMode || "auto"}
+                    onSelect={(value) => setDraft((current) => ({ ...current, stateLabelMode: value }))}
+                  />
+                </Field>
                 <Text style={styles.mappingHint}>
                   Kachelgroesse: "half" belegt die halbe Zeilenhoehe, zwei solche Kacheln passen
                   mit Zwischenraum auf den Platz einer vollen. Rueckmeldung: "true" schaltet die
                   Kachel sofort beim Druck um, "false" erst wenn ioBroker den neuen Wert
-                  zurueckgemeldet hat.
+                  zurueckgemeldet hat. Zustandstext: "auto" laesst das generische "Ein"/"Aus"
+                  weg, weil die Kachelfarbe den Zustand schon zeigt - eigene Beschriftungen,
+                  Wertzuordnungen und Messwerte bleiben sichtbar. "always" zeigt ihn immer,
+                  "never" nie.
                 </Text>
                 <Section title="Datenpunkt und Werte">
                 <Field label="State ID">
@@ -5376,6 +5388,10 @@ function EditorButtonPressable({
       {children}
     </Pressable>
   );
+}
+
+function normalizeStateLabelMode(value: unknown): "auto" | "always" | "never" {
+  return value === "always" || value === "never" ? value : "auto";
 }
 
 function ChoiceRow({

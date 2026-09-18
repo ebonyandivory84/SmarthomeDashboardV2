@@ -50,7 +50,21 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const halfTitleSize = Math.round(clampNumber(22 * halfScale, 13, 30));
   const halfValueSize = Math.round(clampNumber(17 * halfScale, 11, 24));
   const halfSoloSize = Math.round(clampNumber(24 * halfScale, 14, 32));
+  const halfTitleOnlySize = Math.round(clampNumber(26 * halfScale, 15, 34));
   const halfTextLeft = 12 + halfIconBox + 8;
+  const addonMetrics = resolveAddonMetrics(config, resolvedAddonValue, halfTile, halfScale);
+  // Das generische "Ein"/"Aus" sagt nichts, was die Kachelfarbe nicht schon
+  // zeigt, und kostet in der halben Kachel die Zeile, die dem Titel fehlt.
+  // Eigene Beschriftungen, Wertzuordnungen und echte Messwerte bleiben.
+  const stateLabelMode =
+    config.stateLabelMode === "always" || config.stateLabelMode === "never" ? config.stateLabelMode : "auto";
+  const showValueText =
+    !hasValue ||
+    (stateLabelMode === "always"
+      ? true
+      : stateLabelMode === "never"
+        ? false
+        : !hasTitle || !isGenericStateLabel(config, value));
   const iconSize = halfTile ? halfIconSize : veryCompactTile ? 34 : compactTile ? 38 : 44;
   const showStatus = interactionState === "pending" || interactionState === "error" || showConfirmedPulse;
   const iconImageUri = config.iconImage
@@ -118,7 +132,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
           ]}
         />
       ) : null}
-      <AddonChip config={config} half={halfTile} value={resolvedAddonValue} />
+      <AddonChip config={config} half={halfTile} metrics={addonMetrics} value={resolvedAddonValue} />
       {showStatus ? (
         <InteractionStatusRing
           radius={tileCornerRadius}
@@ -158,7 +172,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             style={[
               styles.textBlock,
               halfTile ? styles.textBlockHalf : null,
-              halfTile ? { left: halfTextLeft } : null,
+              halfTile ? { left: halfTextLeft, right: addonMetrics.reserve } : null,
               !halfTile && compactTile ? styles.textBlockCompact : null,
               !halfTile && veryCompactTile ? styles.textBlockVeryCompact : null,
             ]}
@@ -169,13 +183,17 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
                 numberOfLines={1}
                 style={[
                   styles.titleHalf,
-                  { fontSize: halfTitleSize, lineHeight: Math.round(halfTitleSize * 1.18) },
+                  (() => {
+                    const size = showValueText ? halfTitleSize : halfTitleOnlySize;
+                    return { fontSize: size, lineHeight: Math.round(size * 1.18) };
+                  })(),
                   { color: config.appearance?.textColor || palette.text },
                 ]}
               >
                 {config.title}
               </Text>
             ) : null}
+            {showValueText ? (
             <Text
               ellipsizeMode="tail"
               numberOfLines={halfTile ? 1 : 3}
@@ -199,6 +217,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             >
               {hasValue ? resolveStateLabel(config, value, active) : "Keine Daten"}
             </Text>
+            ) : null}
           </View>
         </>
       ) : null}
@@ -259,14 +278,65 @@ function InteractionStatusRing({
   );
 }
 
+/**
+ * Groessen des Addon-Elements. Titel und Wert der halben Kachel skalieren mit
+ * ihrer Hoehe, das Addon blieb dagegen auf festen 14 px stehen und wirkte
+ * daneben winzig. `reserve` haelt den Textblock genau so weit vom Rand weg,
+ * wie das Addon wirklich braucht - vorher war das eine feste Zahl, unter der
+ * ein laengeres Wort wie "Glass" mit dem Titel kollidieren konnte.
+ */
+function resolveAddonMetrics(
+  config: StateWidgetConfig,
+  value: string | null,
+  half: boolean,
+  scale: number,
+) {
+  const s = half ? clampNumber(scale, 0.6, 1.35) : 1;
+  const textSize = half ? Math.round(clampNumber(17 * s, 12, 24)) : 16;
+  const circleSize = half ? Math.round(clampNumber(30 * s, 22, 40)) : 34;
+  const circleLabelSize = half ? Math.round(clampNumber(14 * s, 11, 19)) : 14;
+  const iconSize = half ? Math.round(clampNumber(20 * s, 14, 28)) : 16;
+  const barsHeight = half ? Math.round(clampNumber(24 * s, 18, 32)) : 32;
+  const barWidth = half ? Math.round(clampNumber(5 * s, 4, 7)) : 5;
+  const edge = half ? 12 : 10;
+
+  const mode = config.addonMode;
+  let contentWidth = 0;
+  if (mode && mode !== "none" && value) {
+    if (mode === "circle") {
+      contentWidth = Math.max(circleSize, value.length * circleLabelSize * 0.62 + 14);
+    } else if (mode === "text") {
+      contentWidth = Math.min(value.length * textSize * 0.62, 140);
+    } else if (mode === "icon") {
+      contentWidth = iconSize;
+    } else {
+      contentWidth = barWidth * 4 + 9;
+    }
+  }
+
+  return {
+    textSize,
+    circleSize,
+    circleLabelSize,
+    iconSize,
+    barsHeight,
+    barWidth,
+    reserve: contentWidth > 0 ? Math.round(edge + contentWidth + 10) : edge + 4,
+  };
+}
+
+type AddonMetrics = ReturnType<typeof resolveAddonMetrics>;
+
 function AddonChip({
   config,
   value,
   half = false,
+  metrics,
 }: {
   config: StateWidgetConfig;
   value: string | null;
   half?: boolean;
+  metrics: AddonMetrics;
 }) {
   if (!config.addonMode || config.addonMode === "none" || !value) {
     return null;
@@ -276,15 +346,50 @@ function AddonChip({
 
   if (config.addonMode === "circle") {
     return (
-      <View style={[styles.addonCircle, half ? styles.addonCircleHalf : null, { backgroundColor: color }]}>
-        <Text style={[styles.addonCircleLabel, half ? styles.addonCircleLabelHalf : null]}>{value}</Text>
+      <View
+        style={[
+          styles.addonCircle,
+          half ? styles.addonCircleHalf : null,
+          half
+            ? {
+                minWidth: metrics.circleSize,
+                height: metrics.circleSize,
+                transform: [{ translateY: -metrics.circleSize / 2 }],
+              }
+            : null,
+          { backgroundColor: color },
+        ]}
+      >
+        <Text
+          style={[
+            styles.addonCircleLabel,
+            half ? styles.addonCircleLabelHalf : null,
+            { fontSize: metrics.circleLabelSize },
+          ]}
+        >
+          {value}
+        </Text>
       </View>
     );
   }
 
   if (config.addonMode === "text") {
     return (
-      <Text numberOfLines={1} style={[styles.addonText, half ? styles.addonTextHalf : null, { color }]}>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.addonText,
+          half ? styles.addonTextHalf : null,
+          half
+            ? {
+                fontSize: metrics.textSize,
+                lineHeight: Math.round(metrics.textSize * 1.2),
+                transform: [{ translateY: -Math.round(metrics.textSize * 0.6) }],
+              }
+            : null,
+          { color },
+        ]}
+      >
         {value}
       </Text>
     );
@@ -292,15 +397,28 @@ function AddonChip({
 
   if (config.addonMode === "icon") {
     return (
-      <View style={[styles.addonIconWrap, half ? styles.addonIconWrapHalf : null]}>
-        <MaterialCommunityIcons color={color} name={(config.addonIcon || "lock") as never} size={half ? 18 : 16} />
+      <View
+        style={[
+          styles.addonIconWrap,
+          half ? styles.addonIconWrapHalf : null,
+          half ? { transform: [{ translateY: -metrics.iconSize / 2 }] } : null,
+        ]}
+      >
+        <MaterialCommunityIcons color={color} name={(config.addonIcon || "lock") as never} size={metrics.iconSize} />
       </View>
     );
   }
 
   const bars = Math.max(1, Math.min(4, Number.parseInt(value, 10) || 1));
+  const barScale = metrics.barsHeight / 32;
   return (
-    <View style={[styles.addonBars, half ? styles.addonBarsHalf : null]}>
+    <View
+      style={[
+        styles.addonBars,
+        half ? styles.addonBarsHalf : null,
+        half ? { height: metrics.barsHeight, transform: [{ translateY: -metrics.barsHeight / 2 }] } : null,
+      ]}
+    >
       {Array.from({ length: 4 }).map((_, index) => (
         <View
           key={`bar-${index}`}
@@ -308,7 +426,8 @@ function AddonChip({
             styles.addonBar,
             {
               backgroundColor: index < bars ? color : "rgba(255,255,255,0.12)",
-              height: 7 + index * 3,
+              width: metrics.barWidth,
+              height: Math.round((7 + index * 3) * barScale),
             },
           ]}
         />
@@ -385,6 +504,20 @@ function resolveStateLabel(config: StateWidgetConfig, value: unknown, active: bo
   }
 
   return active ? "Ein" : "Aus";
+}
+
+/**
+ * Wahr, wenn der Zustandstext nur der Notbehelf "Ein"/"Aus" waere - also weder
+ * eine eigene Beschriftung noch eine Wertzuordnung noch ein echter Messwert.
+ */
+function isGenericStateLabel(config: StateWidgetConfig, value: unknown) {
+  if (config.format === "number" || config.format === "text") {
+    return false;
+  }
+  if (config.onLabel || config.offLabel) {
+    return false;
+  }
+  return !resolveMappedLabel(config, value);
 }
 
 function resolveMappedLabel(config: StateWidgetConfig, value: unknown) {
