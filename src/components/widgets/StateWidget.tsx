@@ -61,6 +61,8 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const iconImageBorderless = config.iconImageBorderless === true;
   const showMaximizedImage = Boolean(iconImageUri && iconImageSizeMode === "maximized");
   const iconImageResizeMode = iconImageCrop === "circle" ? "cover" : "contain";
+  // Der Statusrahmen muss die Rundung der Kachel treffen, sonst steht er ab.
+  const tileCornerRadius = showMaximizedImage && iconImageBorderless ? 0 : halfTile ? 18 : 22;
 
   useEffect(() => {
     if (assumedActive === null) {
@@ -118,9 +120,9 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
       ) : null}
       <AddonChip config={config} half={halfTile} value={resolvedAddonValue} />
       {showStatus ? (
-        <InteractionStatusChip
+        <InteractionStatusRing
+          radius={tileCornerRadius}
           state={interactionState === "confirmed" ? "confirmed" : interactionState}
-          variant={halfTile ? "bar" : "chip"}
         />
       ) : null}
       {!showMaximizedImage ? (
@@ -225,34 +227,35 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   );
 }
 
-function InteractionStatusChip({
+/**
+ * Schreibstatus als Rahmen um die ganze Kachel. Ein Chip in einer Ecke
+ * kollidierte je nach Ecke mit dem Symbol oder dem Addon-Wert, und in der
+ * halben Kachel war fuer ihn ohnehin kein Platz. Der Rahmen gehoert sichtbar
+ * zur gesamten Kachel, verdeckt nichts und ist aus der Entfernung lesbar.
+ */
+function InteractionStatusRing({
   state,
-  variant = "chip",
+  radius,
 }: {
   state: "pending" | "confirmed" | "error" | "idle";
-  variant?: "chip" | "bar";
+  radius: number;
 }) {
   if (state === "idle") {
     return null;
   }
 
-  const descriptor =
+  const borderColor =
     state === "pending"
-      ? { label: "...", backgroundColor: "rgba(247, 181, 74, 0.92)" }
+      ? "rgba(247, 181, 74, 0.95)"
       : state === "confirmed"
-        ? { label: "OK", backgroundColor: "rgba(52, 211, 153, 0.92)" }
-        : { label: "!", backgroundColor: "rgba(239, 68, 68, 0.92)" };
-
-  // In der halben Kachel ist fuer einen Chip kein Platz, ohne Symbol oder
-  // Addon-Wert zu verdecken - dort wird der Status ein Streifen am linken Rand.
-  if (variant === "bar") {
-    return <View style={[styles.statusBar, { backgroundColor: descriptor.backgroundColor }]} />;
-  }
+        ? "rgba(52, 211, 153, 0.95)"
+        : "rgba(239, 68, 68, 0.95)";
 
   return (
-    <View style={[styles.statusChip, { backgroundColor: descriptor.backgroundColor }]}>
-      <Text style={styles.statusChipLabel}>{descriptor.label}</Text>
-    </View>
+    <View
+      pointerEvents="none"
+      style={[styles.statusRing, { borderColor, borderRadius: radius, borderWidth: state === "error" ? 4 : 3 }]}
+    />
   );
 }
 
@@ -752,30 +755,8 @@ const styles = StyleSheet.create({
     height: 24,
     transform: [{ translateY: -12 }],
   },
-  statusBar: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  statusChip: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    minWidth: 34,
-    height: 34,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-  statusChipLabel: {
-    color: "#041019",
-    fontSize: 13,
-    fontWeight: "900",
+  statusRing: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3,
   },
 });
