@@ -254,6 +254,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginTop: 2,
+    marginTop: 8,
   },
 });
