@@ -65,8 +65,13 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
       : stateLabelMode === "never"
         ? false
         : !hasTitle || !isGenericStateLabel(config, value));
-  const iconSize = halfTile ? halfIconSize : veryCompactTile ? 34 : compactTile ? 38 : 44;
   const showStatus = interactionState === "pending" || interactionState === "error" || showConfirmedPulse;
+  // Ohne Zustandstext steht in der vollen Kachel nur noch das Symbol - oben
+  // links in der Ecke, mit dem ganzen Rest leer. Dann traegt es die Kachel
+  // allein und gehoert in die Mitte, in einer Groesse, die zur Kachel passt.
+  const soloBasis = Math.min(tileLayout.width || 200, tileLayout.height || 200);
+  const soloIconSize = Math.round(clampNumber(soloBasis * 0.34, 34, 78));
+  const soloIconBox = Math.round(clampNumber(soloIconSize * 1.32, 44, 104));
   const iconImageUri = config.iconImage
     ? `/smarthome-dashboard-v2/widget-assets/${encodeURIComponent(config.iconImage)}`
     : null;
@@ -74,6 +79,16 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const iconImageSizeMode = normalizeIconImageSizeMode(config.iconImageSizeMode);
   const iconImageBorderless = config.iconImageBorderless === true;
   const showMaximizedImage = Boolean(iconImageUri && iconImageSizeMode === "maximized");
+  const soloIcon = !halfTile && !showValueText && !showMaximizedImage;
+  const iconSize = halfTile
+    ? halfIconSize
+    : soloIcon
+      ? soloIconSize
+      : veryCompactTile
+        ? 34
+        : compactTile
+          ? 38
+          : 44;
   const iconImageResizeMode = iconImageCrop === "circle" ? "cover" : "contain";
   // Der Statusrahmen muss die Rundung der Kachel treffen, sonst steht er ab.
   const tileCornerRadius = showMaximizedImage && iconImageBorderless ? 0 : halfTile ? 18 : 22;
@@ -150,6 +165,15 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
                 : null,
               !halfTile && compactTile ? styles.iconWrapCompact : null,
               !halfTile && veryCompactTile ? styles.iconWrapVeryCompact : null,
+              soloIcon
+                ? {
+                    width: soloIconBox,
+                    height: soloIconBox,
+                    top: "50%",
+                    left: "50%",
+                    transform: [{ translateX: -soloIconBox / 2 }, { translateY: -soloIconBox / 2 }],
+                  }
+                : null,
               iconImageCrop === "rounded" ? styles.iconWrapRounded : null,
               iconImageCrop === "circle" ? styles.iconWrapCircle : null,
             ]}
