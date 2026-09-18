@@ -1161,10 +1161,12 @@ function WebWidgetShell({
     widget.type !== "coco" &&
     widget.type !== "heatingV2" &&
     widget.type !== "weather" &&
-    // Halbe State-Kacheln tragen ihren Titel im Inneren: die Kopfzeile wuerde
-    // ein Drittel der Hoehe belegen und die Kachel unter den abgerundeten
-    // Rand der Huelle schieben, wo sie beschnitten wird.
-    !(widget.type === "state" && widget.tileSize === "half") &&
+    // State-Kacheln tragen ihren Titel im Inneren. In der halben Kachel wuerde
+    // die Kopfzeile ein Drittel der Hoehe belegen und die Kachel unter den
+    // abgerundeten Rand der Huelle schieben; in der vollen schwebte der Titel
+    // als dunkler Chip ueber der farbigen Flaeche, waehrend die halbe ihn innen
+    // trug - zwei Bauarten fuer dieselbe Kachel.
+    widget.type !== "state" &&
     widget.showTitle !== false &&
     Boolean(widget.title.trim());
   const interaction = useRef<{

@@ -29,9 +29,11 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const active = optimistic ? assumedActive ?? actualActive : actualActive;
   const iconName = resolveIconName(config, value, active);
   const mutedTextColor = config.appearance?.mutedTextColor || palette.textMuted;
-  const iconColor = active
-    ? config.appearance?.iconColor || palette.accent
-    : config.appearance?.iconColor2 || palette.textMuted;
+  const iconColor = !hasValue
+    ? mutedTextColor
+    : active
+      ? config.appearance?.iconColor || palette.accent
+      : config.appearance?.iconColor2 || palette.textMuted;
   // Vorgabefarben, wenn die Kachel keine eigenen gesetzt hat. Das fahle Grau
   // von frueher liess "an" nur heller wirken statt eingeschaltet.
   const activeBackground = config.appearance?.activeWidgetColor || "rgba(86, 150, 214, 0.96)";
@@ -69,7 +71,12 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   // Ohne Zustandstext steht in der vollen Kachel nur noch das Symbol - oben
   // links in der Ecke, mit dem ganzen Rest leer. Dann traegt es die Kachel
   // allein und gehoert in die Mitte, in einer Groesse, die zur Kachel passt.
-  const soloBasis = Math.min(tileLayout.width || 200, tileLayout.height || 200);
+  const fullBasis = Math.min(tileLayout.width || 200, tileLayout.height || 200);
+  const fullIconSize = Math.round(clampNumber(fullBasis * 0.3, 30, 96));
+  const fullIconBox = Math.round(clampNumber(fullIconSize * 1.32, 40, 126));
+  const fullTitleSize = Math.round(clampNumber(fullBasis * 0.105, 14, 26));
+  const fullValueSize = Math.round(clampNumber(fullBasis * 0.082, 12, 20));
+  const soloBasis = fullBasis;
   const soloIconSize = Math.round(clampNumber(soloBasis * 0.34, 34, 78));
   const soloIconBox = Math.round(clampNumber(soloIconSize * 1.32, 44, 104));
   const iconImageUri = config.iconImage
@@ -79,19 +86,27 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   const iconImageSizeMode = normalizeIconImageSizeMode(config.iconImageSizeMode);
   const iconImageBorderless = config.iconImageBorderless === true;
   const showMaximizedImage = Boolean(iconImageUri && iconImageSizeMode === "maximized");
-  const soloIcon = !halfTile && !showValueText && !showMaximizedImage;
-  const iconSize = halfTile
-    ? halfIconSize
-    : soloIcon
-      ? soloIconSize
-      : veryCompactTile
-        ? 34
-        : compactTile
-          ? 38
-          : 44;
+  const soloIcon = !halfTile && !showValueText && !hasTitle && !showMaximizedImage;
+  // Nur-Anzeige-Kacheln sind keine Schalter und sehen jetzt auch nicht mehr so
+  // aus: flachere Rundung, zurueckhaltende Kante. Aus Sitzabstand unterscheidet
+  // die Form die beiden, bevor man sie vergeblich drueckt.
+  const interactive = config.writeable === true;
+  // Ohne Wert stand die Kachel bisher in der Inaktiv-Farbe da und war von
+  // "ausgeschaltet" nicht zu unterscheiden - eine falsche Aussage.
+  const missingValue = !hasValue;
+  const borderlessImage = showMaximizedImage && iconImageBorderless;
+  const iconSize = halfTile ? halfIconSize : soloIcon ? soloIconSize : fullIconSize;
   const iconImageResizeMode = iconImageCrop === "circle" ? "cover" : "contain";
   // Der Statusrahmen muss die Rundung der Kachel treffen, sonst steht er ab.
-  const tileCornerRadius = showMaximizedImage && iconImageBorderless ? 0 : halfTile ? 18 : 22;
+  const tileCornerRadius = borderlessImage
+    ? 0
+    : halfTile
+      ? interactive
+        ? 18
+        : 10
+      : interactive
+        ? 22
+        : 14;
 
   useEffect(() => {
     if (assumedActive === null) {
@@ -132,7 +147,18 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
         halfTile ? styles.tileHalf : null,
         !halfTile && compactTile ? styles.tileCompact : null,
         !halfTile && veryCompactTile ? styles.tileVeryCompact : null,
-        { backgroundColor: tileBackground },
+        { backgroundColor: tileBackground, borderRadius: tileCornerRadius },
+        borderlessImage
+          ? null
+          : {
+              borderWidth: 1,
+              borderStyle: missingValue ? "dashed" : "solid",
+              borderColor: missingValue
+                ? "rgba(255,255,255,0.28)"
+                : interactive
+                  ? "rgba(255,255,255,0.16)"
+                  : "rgba(255,255,255,0.07)",
+            },
       ]}
     >
       {showMaximizedImage && iconImageUri ? (
@@ -165,6 +191,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
                 : null,
               !halfTile && compactTile ? styles.iconWrapCompact : null,
               !halfTile && veryCompactTile ? styles.iconWrapVeryCompact : null,
+              !halfTile && !soloIcon ? { width: fullIconBox, height: fullIconBox } : null,
               soloIcon
                 ? {
                     width: soloIconBox,
@@ -201,14 +228,18 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
               !halfTile && veryCompactTile ? styles.textBlockVeryCompact : null,
             ]}
           >
-            {halfTile && hasTitle ? (
+            {hasTitle ? (
               <Text
                 ellipsizeMode="tail"
-                numberOfLines={1}
+                numberOfLines={halfTile ? 1 : 2}
                 style={[
                   styles.titleHalf,
                   (() => {
-                    const size = showValueText ? halfTitleSize : halfTitleOnlySize;
+                    const size = halfTile
+                      ? showValueText
+                        ? halfTitleSize
+                        : halfTitleOnlySize
+                      : fullTitleSize;
                     return { fontSize: size, lineHeight: Math.round(size * 1.18) };
                   })(),
                   { color: config.appearance?.textColor || palette.text },
@@ -220,17 +251,15 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
             {showValueText ? (
             <Text
               ellipsizeMode="tail"
-              numberOfLines={halfTile ? 1 : 3}
+              numberOfLines={halfTile ? 1 : 2}
               style={[
                 styles.value,
                 halfTile ? styles.valueHalf : null,
                 halfTile && !hasTitle ? styles.valueHalfSolo : null,
-                halfTile
-                  ? (() => {
-                      const size = hasTitle ? halfValueSize : halfSoloSize;
-                      return { fontSize: size, lineHeight: Math.round(size * 1.2) };
-                    })()
-                  : null,
+                (() => {
+                  const size = halfTile ? (hasTitle ? halfValueSize : halfSoloSize) : fullValueSize;
+                  return { fontSize: size, lineHeight: Math.round(size * 1.2) };
+                })(),
                 {
                   color:
                     halfTile && !hasTitle
@@ -249,7 +278,7 @@ export function StateWidget({ config, value, addonValue, onToggle, interactionSt
   );
 
   return (
-    <View style={[styles.container, hasTitle && !halfTile ? styles.containerWithTitle : null]}>
+    <View style={styles.container}>
       {config.writeable ? (
         <Pressable
           onPress={() => {
@@ -697,9 +726,6 @@ function normalizeIconImageSizeMode(value: StateWidgetConfig["iconImageSizeMode"
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  containerWithTitle: {
-    paddingTop: 24,
   },
   tapArea: {
     flex: 1,
