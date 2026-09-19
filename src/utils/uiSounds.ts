@@ -550,9 +550,9 @@ function getAudioContext() {
         return;
       }
       console.warn(`${DIAG} AudioContext statechange -> "${current.state}"`);
-      if (current.state === "suspended") {
+      if (audioContextNeedsResume(current.state)) {
         current.resume().catch((err) => {
-          console.warn(`${DIAG} reactive resume() after statechange failed`, err);
+          console.warn(`${DIAG} reactive resume() after statechange failed (state="${current.state}")`, err);
         });
       }
     });
@@ -600,8 +600,18 @@ function toHtmlAudioVolume(volume: number) {
   return Math.max(0, Math.min(100, volume)) / 100;
 }
 
+/**
+ * true fuer jeden Zustand, der ein resume() braucht: "suspended" nach Leerlauf
+ * ebenso wie Safaris eigener Zwischenzustand "interrupted" (z.B. nach einem
+ * Netzwerk-/Audiosession-Abriss) - der ist kein Standard-AudioContextState und
+ * wurde bisher von keiner der Wiederherstellungs-Stellen erkannt.
+ */
+function audioContextNeedsResume(state: AudioContextState | string) {
+  return state !== "running" && state !== "closed";
+}
+
 async function ensureAudioContextRunning(context: AudioContext) {
-  if (context.state === "running" || context.state === "closed") {
+  if (!audioContextNeedsResume(context.state)) {
     return;
   }
 
@@ -675,13 +685,13 @@ function installAudioWatchdog() {
       );
     }
 
-    if (context.state === "suspended") {
+    if (audioContextNeedsResume(context.state)) {
       consecutiveSuspendedTicks += 1;
       void context.resume().catch((err) => {
-        console.warn(`${DIAG} watchdog resume() failed`, err);
+        console.warn(`${DIAG} watchdog resume() failed (state="${context.state}")`, err);
       });
       if (consecutiveSuspendedTicks >= AUDIO_WATCHDOG_MAX_SUSPENDED_TICKS) {
-        console.warn(`${DIAG} watchdog: rebuilding AudioContext after repeated "suspended"`);
+        console.warn(`${DIAG} watchdog: rebuilding AudioContext after repeated non-running state ("${context.state}")`);
         rebuildAudioContext();
       }
       return;
@@ -701,8 +711,10 @@ function installAudioWatchdog() {
         return;
       }
       const context = audioContext;
-      if (context && context.state === "suspended") {
-        void context.resume().catch(() => undefined);
+      if (context && audioContextNeedsResume(context.state)) {
+        void context.resume().catch((err) => {
+          console.warn(`${DIAG} resume() after visibilitychange failed (state="${context.state}")`, err);
+        });
       }
     });
   }
