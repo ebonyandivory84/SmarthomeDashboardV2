@@ -2859,20 +2859,6 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
                   />
                 </Field>
-                <Field label="Kritische Stichwoerter (kommagetrennt)">
-                  <TextInput
-                    autoCapitalize="none"
-                    onChangeText={(value) => setDraft((current) => ({ ...current, criticalKeywords: value }))}
-                    placeholder="z.B. alarm, notfall, wasser"
-                    placeholderTextColor={palette.textMuted}
-                    style={styles.input}
-                    value={draft.criticalKeywords || ""}
-                  />
-                  <Text style={styles.mappingHint}>
-                    Enthaelt eine eingehende Nachricht eines dieser Woerter (Gross-/Kleinschreibung egal), spielt
-                    "Kritische Nachricht" statt "Neue Nachricht" weiter unten unter Sounds.
-                  </Text>
-                </Field>
                 </Section>
                 <Section title="Darstellung">
                 <Field label="Farbthema">
@@ -2961,6 +2947,20 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       onChange={(value) => setSoundDraft((current) => ({ ...current, notify: value }))}
                       value={soundDraft.notify}
                     />
+                  </Field>
+                  <Field label="Kritische Stichwoerter (kommagetrennt)">
+                    <TextInput
+                      autoCapitalize="none"
+                      onChangeText={(value) => setDraft((current) => ({ ...current, criticalKeywords: value }))}
+                      placeholder="z.B. alarm, notfall, wasser"
+                      placeholderTextColor={palette.textMuted}
+                      style={styles.input}
+                      value={draft.criticalKeywords || ""}
+                    />
+                    <Text style={styles.mappingHint}>
+                      Enthaelt eine eingehende Nachricht eines dieser Woerter (Gross-/Kleinschreibung egal), spielt
+                      der Sound "Kritische Nachricht" direkt darunter statt "Neue Nachricht".
+                    </Text>
                   </Field>
                   <Field label="Kritische Nachricht (Stichwort-Treffer)">
                     <SoundPickerField

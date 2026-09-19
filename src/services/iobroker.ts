@@ -43,13 +43,40 @@ const buildAuthHeader = (settings: DashboardSettings) => {
   return headers;
 };
 
+/**
+ * Macht aus einer in den Einstellungen hinterlegten Basis-URL zuverlaessig eine
+ * absolute URL. Chrome verzeiht z. B. "192.168.44.31:8111" (ohne Protokoll) und
+ * behandelt es faktisch wie einen relativen Pfad, WebKit/Safari dagegen lehnt so
+ * einen String beim Erstellen von fetch()-Requests hart ab ("The string did not
+ * match the expected pattern"). Damit das in jedem Browser gleich funktioniert,
+ * wird hier ein fehlendes Protokoll ergaenzt und das Ergebnis mit new URL()
+ * validiert; schlaegt das fehl, wird "" zurueckgegeben und der Aufrufer faellt
+ * auf window.location.origin zurueck.
+ */
+function normalizeAbsoluteBaseUrl(rawBase: string): string {
+  const trimmed = (rawBase || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed) ? trimmed : `http://${trimmed}`;
+
+  try {
+    const parsed = new URL(withScheme);
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
 export class IoBrokerClient {
   constructor(private readonly settings: DashboardSettings) {}
 
   private resolveBaseUrl() {
-    const configuredBase = this.settings.iobroker.baseUrl.trim();
-    if (configuredBase) {
-      return configuredBase.replace(/\/$/, "");
+    const configuredBase = (this.settings.iobroker.baseUrl || "").trim();
+    const normalized = normalizeAbsoluteBaseUrl(configuredBase);
+    if (normalized) {
+      return normalized;
     }
 
     if (typeof window !== "undefined" && window.location?.origin) {

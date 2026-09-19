@@ -57,7 +57,12 @@ export function SoundPickerField({ value, onChange, maxItems = 5, client }: Soun
       setCustomSounds(entries);
     } catch (error) {
       setCustomSounds([]);
-      setLoadError(error instanceof Error ? error.message : "Sounds konnten nicht geladen werden");
+      // Rohe Browser-Fehlertexte (z. B. Safaris "The string did not match the
+      // expected pattern" bei einer fehlerhaften URL) sind fuer die Nutzung
+      // nicht hilfreich - eigene Sounds sind trotzdem weiterhin ohne den Upload-
+      // Katalog nutzbar, nur der Upload-Dialog selbst ist betroffen.
+      setLoadError("Eigene Sounds konnten nicht geladen werden. Eingebaute Sounds stehen weiterhin zur Verfuegung.");
+      console.warn("[SoundPickerField] listWidgetSounds fehlgeschlagen:", error);
     } finally {
       setLoading(false);
     }
