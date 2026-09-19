@@ -1,15 +1,6 @@
-import { createElement, useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useDashboardConfig } from "../context/DashboardConfigContext";
-import { IoBrokerClient } from "../services/iobroker";
-import { WidgetSoundEntry } from "../types/dashboard";
-import {
-  getLcarsSoundOptions,
-  normalizeSoundSelection,
-  resolveLcarsSoundLabel,
-  setCustomLcarsSoundOptions,
-  toCustomLcarsSoundId,
-} from "../utils/lcarsSounds";
+import { useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { getLcarsSoundOptions, normalizeSoundSelection, resolveLcarsSoundLabel } from "../utils/lcarsSounds";
 import { playSoundPreview } from "../utils/uiSounds";
 import { palette } from "../utils/theme";
 
@@ -17,90 +8,22 @@ type SoundPickerFieldProps = {
   value?: string[];
   onChange: (value: string[]) => void;
   maxItems?: number;
-  client?: IoBrokerClient;
 };
 
-export function SoundPickerField({ value, onChange, maxItems = 5, client }: SoundPickerFieldProps) {
-  const { config } = useDashboardConfig();
-  const fallbackClient = useMemo(() => new IoBrokerClient(config), [config]);
-  const apiClient = client || fallbackClient;
-
+/**
+ * Nur die eingebauten LCARS-Sounds: es gibt keinen Server-Endpunkt, der eigene
+ * Sound-Uploads speichert oder auflistet (im Adapter-Backend nie implementiert),
+ * daher wurde der frueher hier vorhandene Upload-/Katalog-Abruf entfernt. Der
+ * Picker macht dadurch auch keinen Netzwerk-Request mehr beim Oeffnen - das
+ * entfaellt komplett auf einem langsameren Geraet wie dem RK3399 und es gibt
+ * keinen fehlschlagenden fetch() mehr, der in Safari den kryptischen Fehler
+ * "The string did not match the expected pattern" ausloeste.
+ */
+export function SoundPickerField({ value, onChange, maxItems = 5 }: SoundPickerFieldProps) {
   const [open, setOpen] = useState(false);
-  const [customSounds, setCustomSounds] = useState<WidgetSoundEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setCustomLcarsSoundOptions(customSounds);
-  }, [customSounds]);
-
-  const selected = useMemo(() => normalizeSoundSelection(value, maxItems), [maxItems, value, customSounds]);
-  const soundOptions = useMemo(() => getLcarsSoundOptions(), [customSounds]);
-  const customSoundIds = useMemo(
-    () =>
-      new Set(
-        customSounds
-          .map((entry) => toCustomLcarsSoundId(entry.name))
-          .filter((entry): entry is string => Boolean(entry))
-      ),
-    [customSounds]
-  );
-
-  const loadCustomSounds = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-
-    try {
-      const entries = await apiClient.listWidgetSounds();
-      setCustomSounds(entries);
-    } catch (error) {
-      setCustomSounds([]);
-      // Rohe Browser-Fehlertexte (z. B. Safaris "The string did not match the
-      // expected pattern" bei einer fehlerhaften URL) sind fuer die Nutzung
-      // nicht hilfreich - eigene Sounds sind trotzdem weiterhin ohne den Upload-
-      // Katalog nutzbar, nur der Upload-Dialog selbst ist betroffen.
-      setLoadError("Eigene Sounds konnten nicht geladen werden. Eingebaute Sounds stehen weiterhin zur Verfuegung.");
-      console.warn("[SoundPickerField] listWidgetSounds fehlgeschlagen:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiClient]);
-
-  const uploadFiles = useCallback(
-    async (files: FileList | File[]) => {
-      if (!files || !files.length) {
-        return;
-      }
-      setUploadBusy(true);
-      setUploadError(null);
-
-      try {
-        for (const file of Array.from(files)) {
-          if (!isLikelyAudioFile(file)) {
-            continue;
-          }
-          const dataUrl = await readFileAsDataUrl(file);
-          await apiClient.uploadWidgetSound(file.name, dataUrl);
-        }
-        await loadCustomSounds();
-      } catch (error) {
-        setUploadError(error instanceof Error ? error.message : "Sound-Upload fehlgeschlagen");
-      } finally {
-        setUploadBusy(false);
-      }
-    },
-    [apiClient, loadCustomSounds]
-  );
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setUploadError(null);
-    void loadCustomSounds();
-  }, [loadCustomSounds, open]);
+  const selected = useMemo(() => normalizeSoundSelection(value, maxItems), [maxItems, value]);
+  const soundOptions = useMemo(() => getLcarsSoundOptions(), []);
 
   const toggle = (soundId: string) => {
     const exists = selected.includes(soundId);
@@ -147,45 +70,11 @@ export function SoundPickerField({ value, onChange, maxItems = 5, client }: Soun
                 <Text style={styles.close}>Schliessen</Text>
               </Pressable>
             </View>
-            <Text style={styles.helper}>Bis zu {maxItems} Sounds auswaehlen. Eigene Sounds koennen per Drag-and-Drop hochgeladen werden.</Text>
-            {Platform.OS === "web"
-              ? createElement(
-                  "div",
-                  {
-                    style: webDropZoneStyle,
-                    onDragOver: (event: any) => event.preventDefault(),
-                    onDrop: (event: any) => {
-                      event.preventDefault();
-                      if (event.dataTransfer?.files?.length) {
-                        void uploadFiles(event.dataTransfer.files);
-                      }
-                    },
-                  },
-                  createElement("div", { style: webDropZoneTextStyle }, "Sounds hierher ziehen oder auswaehlen (.mp3/.wav/.ogg/.m4a)"),
-                  createElement("input", {
-                    type: "file",
-                    accept: ".mp3,.wav,.ogg,.m4a,audio/*",
-                    multiple: true,
-                    onChange: (event: { target: { files?: FileList | null; value: string } }) => {
-                      const files = event.target.files;
-                      if (files && files.length) {
-                        void uploadFiles(files);
-                      }
-                      event.target.value = "";
-                    },
-                    style: webFileInputStyle,
-                  })
-                )
-              : null}
-            {loading ? <ActivityIndicator color={palette.accent} size="small" /> : null}
-            {uploadBusy ? <ActivityIndicator color={palette.accent} size="small" /> : null}
-            {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
-            {uploadError ? <Text style={styles.error}>{uploadError}</Text> : null}
+            <Text style={styles.helper}>Bis zu {maxItems} Sounds auswaehlen.</Text>
             <ScrollView contentContainerStyle={styles.optionList}>
               {soundOptions.map((option) => {
                 const active = selected.includes(option.id);
                 const disabled = !active && selected.length >= maxItems;
-                const isCustom = customSoundIds.has(option.id);
 
                 return (
                   <View
@@ -199,11 +88,6 @@ export function SoundPickerField({ value, onChange, maxItems = 5, client }: Soun
                     <Pressable onPress={() => toggle(option.id)} style={styles.optionSelect}>
                       <Text style={[styles.optionLabel, active ? styles.optionLabelActive : null]}>{option.label}</Text>
                     </Pressable>
-                    {isCustom ? (
-                      <View style={[styles.customBadge, active ? styles.customBadgeActive : null]}>
-                        <Text style={[styles.customBadgeText, active ? styles.customBadgeTextActive : null]}>Upload</Text>
-                      </View>
-                    ) : null}
                     <Pressable
                       onPress={() => playSoundPreview(option.id)}
                       style={[styles.previewButton, active ? styles.previewButtonActive : null]}
@@ -219,32 +103,6 @@ export function SoundPickerField({ value, onChange, maxItems = 5, client }: Soun
       </Modal>
     </>
   );
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden"));
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-      } else {
-        reject(new Error("Datei konnte nicht gelesen werden"));
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function isLikelyAudioFile(file: File) {
-  if (!file) {
-    return false;
-  }
-  if (typeof file.type === "string" && file.type.startsWith("audio/")) {
-    return true;
-  }
-  const name = typeof file.name === "string" ? file.name : "";
-  return /\.(mp3|wav|ogg|m4a)$/i.test(name);
 }
 
 const styles = StyleSheet.create({
@@ -324,9 +182,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: 8,
   },
-  error: {
-    color: palette.danger,
-  },
   optionRow: {
     borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.04)",
@@ -355,30 +210,6 @@ const styles = StyleSheet.create({
   optionLabelActive: {
     color: "#041019",
   },
-  customBadge: {
-    alignSelf: "center",
-    marginVertical: 8,
-    marginRight: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    justifyContent: "center",
-  },
-  customBadgeActive: {
-    borderColor: "rgba(4, 16, 25, 0.28)",
-    backgroundColor: "rgba(4, 16, 25, 0.08)",
-  },
-  customBadgeText: {
-    color: palette.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  customBadgeTextActive: {
-    color: "#041019",
-  },
   previewButton: {
     width: 44,
     alignItems: "center",
@@ -400,23 +231,3 @@ const styles = StyleSheet.create({
     color: "#041019",
   },
 });
-
-const webDropZoneStyle = {
-  border: `1px dashed ${palette.border}`,
-  borderRadius: "12px",
-  padding: "12px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "8px",
-  background: "rgba(255,255,255,0.03)",
-};
-
-const webDropZoneTextStyle = {
-  color: palette.textMuted,
-  fontSize: "12px",
-  lineHeight: "18px",
-};
-
-const webFileInputStyle = {
-  color: palette.text,
-};
