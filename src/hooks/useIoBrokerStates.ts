@@ -199,6 +199,26 @@ export const pickStateIds = (widgets: ReturnType<typeof useDashboardConfig>["con
     return [...collectWidgetStateIds(widget), ...collectWidgetStateIds(mobileVariant)];
   });
 
+// config.widgets ist nur eine Kopie der Widgets der AKTIVEN Seite (siehe
+// DashboardConfigContext). Kamera-Widgets mit "seitenuebergreifend
+// maximieren" muessen aber auch dann live auf ihren Trigger-Datenpunkt
+// reagieren, wenn man sich auf einer ANDEREN Seite befindet - sonst kommt
+// der aktualisierte Wert nie an der Hintergrund-Instanz an und das
+// Maximieren funktioniert nur auf der eigenen Seite. Deshalb werden die
+// Trigger-Datenpunkte dieser Widgets ueber ALLE Seiten hinweg mit
+// abonniert (nicht die komplette Seite, um die Last gering zu halten).
+export const pickCrossPageMaximizeStateIds = (pages: DashboardSettings["pages"]) =>
+  (pages || []).flatMap((page) =>
+    page.widgets
+      .filter(
+        (widget) =>
+          (widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink") &&
+          widget.maximizeAcrossPages &&
+          widget.maximizeStateId
+      )
+      .map((widget) => (widget as { maximizeStateId?: string }).maximizeStateId || "")
+  );
+
 export const normalizeStateIds = (stateIds: string[]) =>
   Array.from(new Set(stateIds.map((entry) => entry.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "de"));
 const WS_RECONNECT_BASE_DELAY_MS = 850;
@@ -226,7 +246,10 @@ export function useIoBrokerStates() {
       config.iobroker.username,
     ]
   );
-  const watchedStateIds = useMemo(() => normalizeStateIds(pickStateIds(config.widgets)), [config.widgets]);
+  const watchedStateIds = useMemo(
+    () => normalizeStateIds([...pickStateIds(config.widgets), ...pickCrossPageMaximizeStateIds(config.pages)]),
+    [config.widgets, config.pages]
+  );
   const statePushWsUrl = useMemo(
     () => buildStatePushWebSocketUrl(config),
     [config.iobroker.adapterBasePath, config.iobroker.baseUrl]
