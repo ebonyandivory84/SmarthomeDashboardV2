@@ -219,6 +219,13 @@ export function DashboardConfigProvider({ children }: PropsWithChildren) {
 
     const hydrate = async () => {
       let remoteJson = "";
+      // Wichtig: readRemoteConfigSucceeded ist nur dann true, wenn der Server
+      // tatsaechlich geantwortet hat (auch mit einer leeren Konfiguration).
+      // Ein Netzwerk-/Ladefehler (z. B. Adapter startet gerade erst nach einem
+      // Deploy neu) darf NIEMALS dazu fuehren, dass wir die echte, gespeicherte
+      // Konfiguration mit der eingebauten Default-Konfiguration ueberschreiben -
+      // genau das ist frueher passiert und hat alle Seiten/Widgets geloescht.
+      let readRemoteConfigSucceeded = false;
 
       try {
         const dashboards = await readSavedDashboards();
@@ -231,6 +238,7 @@ export function DashboardConfigProvider({ children }: PropsWithChildren) {
 
       try {
         remoteJson = await readRemoteConfig();
+        readRemoteConfigSucceeded = true;
       } catch (error) {
         console.warn("Remote config load failed", error);
       }
@@ -246,9 +254,36 @@ export function DashboardConfigProvider({ children }: PropsWithChildren) {
           return;
         } catch (error) {
           console.warn("Remote config parse failed", error);
+          // Die gespeicherte Konfiguration ist da, laesst sich aber nicht lesen
+          // (kaputtes JSON o. ae.). Zeige lokal die Default-Konfiguration an,
+          // damit die App nicht abstuerzt - aber schreibe NICHTS auf den Server,
+          // damit die eigentlich noch vorhandenen Daten nicht verloren gehen.
+          // Ein Mensch muss das gezielt reparieren (z. B. ueber den JSON-Editor).
+          if (active) {
+            setConfig(defaultConfig);
+            setRawJson(JSON.stringify(defaultConfig, null, 2));
+          }
+          return;
         }
       }
 
+      if (!readRemoteConfigSucceeded) {
+        // Server war (noch) nicht erreichbar, z. B. direkt nach einem Deploy/
+        // Adapter-Neustart. Zeige die Default-Konfiguration nur lokal an, damit
+        // die App nutzbar bleibt, aber schreibe sie NICHT zurueck - beim naechsten
+        // erfolgreichen Laden (z. B. Seite neu laden) wird die echte Konfiguration
+        // wieder korrekt geladen, statt dauerhaft ueberschrieben zu werden.
+        if (active) {
+          setConfig(defaultConfig);
+          setRawJson(JSON.stringify(defaultConfig, null, 2));
+        }
+        return;
+      }
+
+      // Nur wenn der Server wirklich erfolgreich geantwortet UND explizit eine
+      // leere Konfiguration gemeldet hat (allererster Start des Adapters ohne
+      // je gespeicherte Konfiguration), initialisieren wir mit den Standard-
+      // Widgets und schreiben sie einmalig zurueck.
       try {
         const parsed = migrateConfig(defaultConfig);
         const nextJson = JSON.stringify(parsed, null, 2);
