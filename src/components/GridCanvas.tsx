@@ -167,7 +167,7 @@ export function GridCanvas({
   const isCompactWeb = Platform.OS === "web" && isCompactViewport;
   const isTabletLikeWeb = Platform.OS === "web" && windowWidth >= 700 && windowWidth < 1100;
   const isPhoneSingleColumn = Platform.OS === "web" && isPhoneLikeWeb && Math.min(windowWidth, windowHeight) <= 500;
-  const displayColumns = isPhoneSingleColumn ? 1 : isCompactViewport ? 3 : 9;
+  const displayColumns = isCompactViewport ? 3 : 9;
   const effectiveLayoutMode = isLayoutMode;
   const displayGap = Platform.OS === "web" && !isCompactWeb ? Math.max(config.grid.gap, 18) : config.grid.gap;
   const mainColumnExtraGap = Platform.OS === "web" && !isCompactWeb ? displayGap * 2 : 0;
@@ -370,7 +370,7 @@ function buildResponsiveAutoLayoutConfig(
     return buildDesktopAutoLayoutConfig(config, options);
   }
 
-  if (columns === 1 && options?.singleColumnSectionStack) {
+  if (columns === 3 && options?.singleColumnSectionStack) {
     return buildSingleColumnSectionStackLayoutConfig(config, options);
   }
 
@@ -426,7 +426,10 @@ function buildSingleColumnSectionStackLayoutConfig(
   config: DashboardSettings,
   options?: AutoLayoutOptions
 ): DashboardSettings {
-  const columns = 1;
+  // Handy-Raster: 3 Spalten. Normale Widgets belegen die volle Breite (w = 3),
+  // State-Kacheln je eine Spalte (drei pro Reihe wie am Desktop).
+  const columns = 3;
+  const fullWidthSpecColumns = 1;
   const sourceColumns = Math.max(1, config.grid.columns);
   const sectionCount = 3;
   const sectionSpacing = 0.8;
@@ -459,8 +462,34 @@ function buildSingleColumnSectionStackLayoutConfig(
       cursorY = ceilGridUnit(cursorY + sectionSpacing);
     }
 
+    let stateRow: Array<{ widget: WidgetConfig; h: number }> = [];
+    const flushStateRow = () => {
+      if (stateRow.length === 0) {
+        return;
+      }
+      let rowHeight = 0;
+      stateRow.forEach(({ widget, h }, index) => {
+        widgets.push({ ...widget, position: { x: index, y: cursorY, w: 1, h } });
+        rowHeight = Math.max(rowHeight, h);
+      });
+      cursorY += rowHeight;
+      stateRow = [];
+    };
+
     for (const widget of sectionWidgets) {
-      const spec = getAutoLayoutSpec(widget, columns, options);
+      if (widget.type === "state") {
+        stateRow.push({
+          widget,
+          h: stateTileHeightUnits(widget.tileSize === "half", options?.singleColumnMetrics),
+        });
+        if (stateRow.length === columns) {
+          flushStateRow();
+        }
+        continue;
+      }
+
+      flushStateRow();
+      const spec = getAutoLayoutSpec(widget, fullWidthSpecColumns, options);
       const top = cursorY;
       const bottom = spec.fineSnap ? ceilToTenth(top + spec.h) : ceilGridUnitForWidget(top + spec.h, widget.type);
       widgets.push({
@@ -468,12 +497,13 @@ function buildSingleColumnSectionStackLayoutConfig(
         position: {
           x: 0,
           y: top,
-          w: 1,
+          w: columns,
           h: spec.h,
         },
       });
       cursorY = bottom;
     }
+    flushStateRow();
   }
 
   return {
@@ -946,6 +976,15 @@ function heightUnitsForAspect(aspect: number, metrics: SingleColumnMetrics) {
 
 function ceilToTenth(value: number) {
   return Math.ceil(value * 10 - 1e-6) / 10;
+}
+
+function stateTileHeightUnits(isHalfTile: boolean, metrics?: SingleColumnMetrics) {
+  const desktopHeight = isHalfTile ? 0.5 : 1;
+  if (!metrics) {
+    return desktopHeight;
+  }
+  const tileWidth = (metrics.width - 2 * metrics.gap) / 3;
+  return heightUnitsForAspect(1 / desktopHeight, { ...metrics, width: tileWidth });
 }
 
 function mapDisplayPositionToSourceHint(
