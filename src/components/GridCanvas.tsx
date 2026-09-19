@@ -2086,9 +2086,16 @@ const webCanvasStyle: CSSProperties = {
   overflow: "visible",
 };
 
+// Die Widgets erwarten wie RN-Views einen Flex-Column-Container (flex: 1 im Wurzelelement);
+// ohne das kollabiert z. B. die State-Kachel auf dem Handy auf ihr Padding.
 const viewportWidgetHostStyle: CSSProperties = {
   width: "100%",
   height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  position: "relative",
+  minWidth: 0,
+  minHeight: 0,
 };
 
 const webVerticalLineStyle: CSSProperties = {
