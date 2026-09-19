@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { playConfiguredUiSound } from "../utils/uiSounds";
 import { palette } from "../utils/theme";
@@ -180,6 +180,8 @@ export function TopBar({
 // anderen Seite eingegangen ist, waehrend man diese Seite gerade nicht
 // ansieht. Als eigene Komponente (statt inline im .map), damit Animated.Value
 // als Hook pro Tab korrekt funktioniert.
+const BLINK_DURATION_MS = 5000;
+
 function BlinkingPageTab({
   blinking,
   style,
@@ -190,12 +192,20 @@ function BlinkingPageTab({
   children: React.ReactNode;
 }) {
   const blink = useRef(new Animated.Value(0)).current;
+  // Nach BLINK_DURATION_MS haengt die Animation ein und der Tab bleibt
+  // stattdessen dauerhaft (statisch) rot - reicht zur Aufmerksamkeit, kostet
+  // aber auf dem RK3399 keine laufende JS-getriebene Farb-Interpolation mehr,
+  // solange die Benachrichtigung ungesehen bleibt (kann ja auch stundenlang
+  // sein, z. B. ueber Nacht).
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     if (!blinking) {
+      setSettled(false);
       blink.setValue(0);
       return;
     }
+    setSettled(false);
     blink.setValue(0);
     const loop = Animated.loop(
       Animated.sequence([
@@ -204,13 +214,22 @@ function BlinkingPageTab({
       ])
     );
     loop.start();
+    const settleTimer = setTimeout(() => {
+      loop.stop();
+      setSettled(true);
+    }, BLINK_DURATION_MS);
     return () => {
       loop.stop();
+      clearTimeout(settleTimer);
     };
   }, [blink, blinking]);
 
   if (!blinking) {
     return <View style={style as never}>{children}</View>;
+  }
+
+  if (settled) {
+    return <View style={[style as never, styles.pageTabAlert, styles.pageTabAlertSettled]}>{children}</View>;
   }
 
   const animatedStyle = {
@@ -320,6 +339,10 @@ const styles = StyleSheet.create({
   },
   pageTabAlert: {
     borderWidth: 2,
+  },
+  pageTabAlertSettled: {
+    borderColor: palette.danger,
+    backgroundColor: "rgba(220, 38, 38, 0.45)",
   },
   pageMoveButton: {
     width: 20,
