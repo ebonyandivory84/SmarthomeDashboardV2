@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useEffect, useMemo, useRef } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { playConfiguredUiSound } from "../utils/uiSounds";
 import { palette } from "../utils/theme";
 
@@ -13,6 +14,9 @@ type TopBarProps = {
   onOpenSettings: () => void;
   onAddWidget: () => void;
   onSelectPage: (pageId: string) => void;
+  // Seiten-IDs, deren Tab rot blinken soll (z. B. eingehende Telegram-
+  // Benachrichtigung, waehrend eine andere Seite aktiv ist).
+  alertPageIds?: string[];
   onMovePage?: (pageId: string, direction: "left" | "right") => void;
   onRenamePage?: (pageId: string) => void;
   onDeletePage?: (pageId: string) => void;
@@ -32,6 +36,7 @@ export function TopBar({
   onOpenSettings,
   onAddWidget,
   onSelectPage,
+  alertPageIds,
   onMovePage,
   onRenamePage,
   onDeletePage,
@@ -42,13 +47,18 @@ export function TopBar({
 }: TopBarProps) {
   const { width } = useWindowDimensions();
   const isCompact = width < 700;
+  const alertPageIdSet = useMemo(() => new Set(alertPageIds || []), [alertPageIds]);
   const pageTabButtons = pageTitles.map((page, index) => {
     const activePage = page.id === activePageId;
     const canMoveLeft = index > 0;
     const canMoveRight = index < pageTitles.length - 1;
     const canDelete = pageTitles.length > 1 && Boolean(onDeletePage);
     return (
-      <View key={page.id} style={[styles.pageTab, activePage ? styles.pageTabActive : null, isLayoutMode ? styles.pageTabLayout : null]}>
+      <BlinkingPageTab
+        key={page.id}
+        blinking={alertPageIdSet.has(page.id)}
+        style={[styles.pageTab, activePage ? styles.pageTabActive : null, isLayoutMode ? styles.pageTabLayout : null]}
+      >
         {isLayoutMode ? (
           <Pressable
             disabled={!canMoveLeft || !onMovePage}
@@ -113,7 +123,7 @@ export function TopBar({
             <MaterialCommunityIcons color={canMoveRight && onMovePage ? palette.text : palette.textMuted} name="chevron-right" size={14} />
           </Pressable>
         ) : null}
-      </View>
+      </BlinkingPageTab>
     );
   });
 
@@ -162,6 +172,56 @@ export function TopBar({
       </View>
     </View>
   );
+}
+
+// Wrappt einen Seiten-Tab in ein Animated.View, das bei "blinking" Rand- und
+// Hintergrundfarbe kontinuierlich zwischen normal und rot pulsieren laesst -
+// so faellt sofort auf, wenn eine Telegram-Benachrichtigung auf einer
+// anderen Seite eingegangen ist, waehrend man diese Seite gerade nicht
+// ansieht. Als eigene Komponente (statt inline im .map), damit Animated.Value
+// als Hook pro Tab korrekt funktioniert.
+function BlinkingPageTab({
+  blinking,
+  style,
+  children,
+}: {
+  blinking: boolean;
+  style: unknown;
+  children: React.ReactNode;
+}) {
+  const blink = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!blinking) {
+      blink.setValue(0);
+      return;
+    }
+    blink.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 1, duration: 480, useNativeDriver: false }),
+        Animated.timing(blink, { toValue: 0, duration: 480, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [blink, blinking]);
+
+  if (!blinking) {
+    return <View style={style as never}>{children}</View>;
+  }
+
+  const animatedStyle = {
+    borderColor: blink.interpolate({ inputRange: [0, 1], outputRange: [palette.danger, "#fecaca"] }),
+    backgroundColor: blink.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["rgba(220, 38, 38, 0.20)", "rgba(220, 38, 38, 0.65)"],
+    }),
+  };
+
+  return <Animated.View style={[style as never, styles.pageTabAlert, animatedStyle]}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
@@ -257,6 +317,9 @@ const styles = StyleSheet.create({
   pageTabActive: {
     backgroundColor: palette.accent,
     borderColor: "rgba(77, 226, 177, 0.55)",
+  },
+  pageTabAlert: {
+    borderWidth: 2,
   },
   pageMoveButton: {
     width: 20,

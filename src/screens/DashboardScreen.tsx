@@ -1,4 +1,4 @@
-import { Suspense, createElement, lazy, startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, createElement, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ImageBackground,
   Linking,
@@ -128,6 +128,40 @@ export function DashboardScreen() {
     });
     return result;
   }, [activePageId, dashboardPages]);
+
+  // Ordnet jede Telegram-Widget-ID ihrer Seiten-ID zu, damit ein im
+  // Hintergrund abgespielter Benachrichtigungston den passenden Seiten-Tab
+  // in der Kopfzeile rot blinken lassen kann.
+  const telegramWidgetPageIds = useMemo(() => {
+    const map: Record<string, string> = {};
+    dashboardPages.forEach((page) => {
+      page.widgets.forEach((widget) => {
+        if (widget.type === "telegram") {
+          map[widget.id] = page.id;
+        }
+      });
+    });
+    return map;
+  }, [dashboardPages]);
+
+  const [alertPageIds, setAlertPageIds] = useState<string[]>([]);
+
+  const handleBackgroundTelegramAlert = useCallback(
+    (widgetId: string) => {
+      const pageId = telegramWidgetPageIds[widgetId];
+      if (!pageId) {
+        return;
+      }
+      setAlertPageIds((current) => (current.includes(pageId) ? current : [...current, pageId]));
+    },
+    [telegramWidgetPageIds]
+  );
+
+  // Sobald der Nutzer die blinkende Seite selbst ansieht, gilt die
+  // Benachrichtigung als gesehen - der Tab hoert auf zu blinken.
+  useEffect(() => {
+    setAlertPageIds((current) => (current.includes(activePageId) ? current.filter((id) => id !== activePageId) : current));
+  }, [activePageId]);
 
   const pageConfigs = useMemo(
     () =>
@@ -898,7 +932,13 @@ export function DashboardScreen() {
       {backgroundTelegramWidgets.length ? (
         <View pointerEvents="none" style={styles.backgroundListenerHost}>
           {backgroundTelegramWidgets.map((widget) => (
-            <TelegramWidget key={widget.id} client={client} config={widget} isActivePage={false} />
+            <TelegramWidget
+              key={widget.id}
+              client={client}
+              config={widget}
+              isActivePage={false}
+              onAlertPlayed={() => handleBackgroundTelegramAlert(widget.id)}
+            />
           ))}
         </View>
       ) : null}
@@ -916,6 +956,7 @@ export function DashboardScreen() {
           title: page.title,
           badgeCount: pdfSlideshowBadgeCounts[page.id],
         }))}
+        alertPageIds={alertPageIds}
         onAddWidget={() => setLibraryOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onSelectPage={(pageId) => {

@@ -16,6 +16,12 @@ type TelegramWidgetProps = {
   isActivePage?: boolean;
   onScrollModeChange?: (active: boolean) => void;
   notificationsEnabled?: boolean;
+  // Wird nur bei der unsichtbaren Hintergrund-Instanz ("Im Hintergrund
+  // lauschen") aufgerufen, und zwar genau dann, wenn tatsaechlich ein
+  // Benachrichtigungston abgespielt wird (also nach dem criticalOnly-Filter).
+  // Damit kann die uebergeordnete Seite z. B. den zugehoerigen Seiten-Tab in
+  // der Kopfzeile rot blinken lassen.
+  onAlertPlayed?: () => void;
 };
 
 const MAX_HISTORY_ENTRIES_HARD_LIMIT = 200;
@@ -44,6 +50,7 @@ export function TelegramWidget({
   isActivePage = true,
   onScrollModeChange,
   notificationsEnabled = true,
+  onAlertPlayed,
 }: TelegramWidgetProps) {
   const documentVisible = useDocumentVisibility();
   // "off" (Standard) = wie bisher nur lauschen/benachrichtigen, waehrend die
@@ -183,6 +190,10 @@ export function TelegramWidget({
       } else {
         playConfiguredUiSound(config.interactionSounds?.notify, "page", `${config.id}:incoming-telegram`);
       }
+
+      if (isBackgroundInstance) {
+        onAlertPlayed?.();
+      }
     },
     [
       config.id,
@@ -193,6 +204,7 @@ export function TelegramWidget({
       effectiveNotificationsEnabled,
       isBackgroundInstance,
       maxEntries,
+      onAlertPlayed,
     ]
   );
 
