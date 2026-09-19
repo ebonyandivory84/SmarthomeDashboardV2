@@ -236,6 +236,17 @@ export type TelegramWidgetConfig = WidgetBase & {
    * statt interactionSounds.notify abspielt.
    */
   criticalKeywords?: string[];
+  /**
+   * Steuert, ob das Widget auch dann auf neue Telegram-Nachrichten lauscht
+   * (WebSocket/Polling + Benachrichtigungston), wenn seine Seite gerade NICHT
+   * die aktiv angezeigte Dashboard-Seite ist:
+   * - "off" (Standard): wie bisher, nur auf der aktiven Seite.
+   * - "all": immer, auf jeder Seite (voller Nachrichtenabgleich im Hintergrund).
+   * - "criticalOnly": immer im Hintergrund lauschen, aber im Hintergrund nur
+   *   auf kritische Stichwort-Treffer pruefen/benachrichtigen (spart Render-
+   *   Arbeit fuer die volle Nachrichtenliste, waehrend die Seite nicht sichtbar ist).
+   */
+  backgroundListenMode?: "off" | "all" | "criticalOnly";
 };
 
 export type ScriptWidgetConfig = WidgetBase & {

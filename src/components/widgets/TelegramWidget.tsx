@@ -126,7 +126,12 @@ export function TelegramWidget({
       );
       latestSeenTimestampRef.current = nextLatestTimestamp;
 
-      const incomingMessages = incomingEntries.filter((entry) => entry.direction === "in");
+      // "out" bedeutet aus Sicht des Telegram-Bots "an den Nutzer hinausgeschickt" -
+      // das sind die Alarm-/Status-Meldungen des Smarthome-Systems, die im Widget
+      // als neue Nachricht erscheinen und benachrichtigt werden sollen. "in" waere
+      // eine echte Antwort, die ein Mensch ueber Telegram an den Bot zurueckschreibt
+      // (fuer ein Wandpanel praktisch irrelevant).
+      const incomingMessages = incomingEntries.filter((entry) => entry.direction === "out");
       if (!incomingMessages.length) {
         return;
       }
