@@ -175,12 +175,23 @@ export function GridCanvas({
     () => (isCompactViewport ? applyMobileOverridesToSettings(config) : config),
     [config, isCompactViewport]
   );
+  const canvasInset = Platform.OS === "web" ? (isPhoneSingleColumn ? 14 : 64) : 60;
+  const availableWidth = containerWidth > 0 ? containerWidth : windowWidth;
+  const canvasWidth = Math.max(320, availableWidth - canvasInset);
+  const singleColumnMetrics = useMemo<SingleColumnMetrics | undefined>(
+    () =>
+      isPhoneSingleColumn
+        ? { width: canvasWidth, rowHeight: compactRowHeightFor(canvasWidth, displayGap), gap: displayGap }
+        : undefined,
+    [isPhoneSingleColumn, canvasWidth, displayGap]
+  );
   const displayConfig = useMemo(
     () => {
       const next = buildResponsiveAutoLayoutConfig(renderConfig, displayColumns, {
         isTabletLikeWeb,
         stackPrimarySections: isCompactViewport,
         singleColumnSectionStack: isPhoneSingleColumn,
+        singleColumnMetrics,
       });
       return {
         ...next,
@@ -190,27 +201,16 @@ export function GridCanvas({
         },
       };
     },
-    [displayColumns, displayGap, isCompactViewport, isPhoneSingleColumn, isTabletLikeWeb, renderConfig]
+    [displayColumns, displayGap, isCompactViewport, isPhoneSingleColumn, isTabletLikeWeb, renderConfig, singleColumnMetrics]
   );
   const useStructuredGridSizing = true;
-  const canvasInset = Platform.OS === "web" ? (isPhoneSingleColumn ? 14 : 64) : 60;
-  const availableWidth = containerWidth > 0 ? containerWidth : windowWidth;
-  const canvasWidth = Math.max(320, availableWidth - canvasInset);
   const cellWidth = useMemo(() => {
     const totalGap = (displayConfig.grid.columns - 1) * displayConfig.grid.gap;
     const totalMainExtraGap = mainColumnExtraGap * 2;
     return (canvasWidth - totalGap - totalMainExtraGap) / displayConfig.grid.columns;
   }, [canvasWidth, displayConfig.grid.columns, displayConfig.grid.gap, mainColumnExtraGap]);
-  const compactSizingCellWidth = useMemo(() => {
-    if (!isPhoneSingleColumn) {
-      return cellWidth;
-    }
-    const sizingColumns = 3;
-    const sizingGap = (sizingColumns - 1) * displayConfig.grid.gap;
-    return (canvasWidth - sizingGap) / sizingColumns;
-  }, [canvasWidth, cellWidth, displayConfig.grid.gap, isPhoneSingleColumn]);
   const renderRowHeight = useStructuredGridSizing
-    ? (isCompactViewport ? compactSizingCellWidth * 0.72 : cellWidth)
+    ? (isCompactViewport ? compactRowHeightFor(canvasWidth, displayConfig.grid.gap) : cellWidth)
     : displayConfig.grid.rowHeight;
 
   const canvasHeight = useMemo(() => {
@@ -364,11 +364,7 @@ function clamp(value: number, min: number, max: number) {
 function buildResponsiveAutoLayoutConfig(
   config: DashboardSettings,
   columns: number,
-  options?: {
-    isTabletLikeWeb?: boolean;
-    stackPrimarySections?: boolean;
-    singleColumnSectionStack?: boolean;
-  }
+  options?: AutoLayoutOptions
 ): DashboardSettings {
   if (columns === 9) {
     return buildDesktopAutoLayoutConfig(config, options);
@@ -428,9 +424,7 @@ function buildResponsiveAutoLayoutConfig(
 
 function buildSingleColumnSectionStackLayoutConfig(
   config: DashboardSettings,
-  options?: {
-    isTabletLikeWeb?: boolean;
-  }
+  options?: AutoLayoutOptions
 ): DashboardSettings {
   const columns = 1;
   const sourceColumns = Math.max(1, config.grid.columns);
@@ -468,7 +462,7 @@ function buildSingleColumnSectionStackLayoutConfig(
     for (const widget of sectionWidgets) {
       const spec = getAutoLayoutSpec(widget, columns, options);
       const top = cursorY;
-      const bottom = ceilGridUnitForWidget(top + spec.h, widget.type);
+      const bottom = spec.fineSnap ? ceilToTenth(top + spec.h) : ceilGridUnitForWidget(top + spec.h, widget.type);
       widgets.push({
         ...widget,
         position: {
@@ -699,14 +693,24 @@ function getPreferredDesktopSection(widget: WidgetConfig, sourceColumns: number)
 function getAutoLayoutSpec(
   widget: WidgetConfig,
   columns: number,
-  options?: {
-    isTabletLikeWeb?: boolean;
-    stackPrimarySections?: boolean;
-  }
-) {
+  options?: AutoLayoutOptions
+): AutoLayoutSpec {
   const fallbackHeight = widget.position.h;
 
   if (columns === 1) {
+    const metrics = options?.singleColumnMetrics;
+    const hasManualHeight = "manualHeightOverride" in widget && Boolean(widget.manualHeightOverride);
+    if (metrics && PHONE_ASPECT_MATCH_TYPES.has(widget.type) && !hasManualHeight) {
+      const isCameraFamily =
+        widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink";
+      let aspect = normalizeAspectRatio("snapshotAspectRatio" in widget ? widget.snapshotAspectRatio : undefined);
+      if (!isCameraFamily) {
+        const desktopSpec = getAutoLayoutSpec(widget, 9);
+        aspect = desktopSpec.h > 0 ? desktopSpec.w / desktopSpec.h : 1;
+      }
+      return { w: 1, h: heightUnitsForAspect(aspect, metrics), fineSnap: true };
+    }
+
     switch (widget.type) {
       case "state":
         return { w: 1, h: widget.tileSize === "half" ? 0.5 : 1 };
@@ -905,6 +909,43 @@ function ceilGridUnitForWidget(value: number, widgetType: WidgetType) {
     return Math.ceil(value / CAMERA_GRID_SNAP) * CAMERA_GRID_SNAP;
   }
   return ceilGridUnit(value);
+}
+
+type SingleColumnMetrics = { width: number; rowHeight: number; gap: number };
+type AutoLayoutSpec = { w: number; h: number; fineSnap?: boolean };
+type AutoLayoutOptions = {
+  isTabletLikeWeb?: boolean;
+  stackPrimarySections?: boolean;
+  singleColumnSectionStack?: boolean;
+  singleColumnMetrics?: SingleColumnMetrics;
+};
+
+const COMPACT_ROW_HEIGHT_FACTOR = 0.72;
+const PHONE_ASPECT_MATCH_TYPES: ReadonlySet<WidgetType> = new Set<WidgetType>([
+  "camera",
+  "cameraTalk",
+  "cameraTalkReolink",
+  "weather",
+  "energy",
+  "numpad",
+  "heatingV2",
+  "wallboxV2",
+  "solar",
+  "historyChart",
+]);
+
+function compactRowHeightFor(canvasWidth: number, gap: number) {
+  return ((canvasWidth - 2 * gap) / 3) * COMPACT_ROW_HEIGHT_FACTOR;
+}
+
+function heightUnitsForAspect(aspect: number, metrics: SingleColumnMetrics) {
+  const pixelHeight = metrics.width / aspect;
+  const units = (pixelHeight + metrics.gap) / (metrics.rowHeight + metrics.gap);
+  return Math.max(0.5, Math.round(units * 10) / 10);
+}
+
+function ceilToTenth(value: number) {
+  return Math.ceil(value * 10 - 1e-6) / 10;
 }
 
 function mapDisplayPositionToSourceHint(
