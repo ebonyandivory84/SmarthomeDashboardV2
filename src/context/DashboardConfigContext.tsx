@@ -280,21 +280,27 @@ export function DashboardConfigProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      // Nur wenn der Server wirklich erfolgreich geantwortet UND explizit eine
-      // leere Konfiguration gemeldet hat (allererster Start des Adapters ohne
-      // je gespeicherte Konfiguration), initialisieren wir mit den Standard-
-      // Widgets und schreiben sie einmalig zurueck.
-      try {
+      // Der Server hat erfolgreich geantwortet, aber (scheinbar) keine
+      // Konfiguration geliefert. Das kann entweder ein echter Erststart des
+      // Adapters sein (nie zuvor gespeicherte Konfiguration) ODER eine
+      // voruebergehende/verfaelschte leere Antwort fuer einen Zustand, der in
+      // Wirklichkeit echte Daten enthaelt (z. B. eine Race Condition beim
+      // Lesen des States kurz nach einem Adapter-Neustart). Diese beiden
+      // Faelle lassen sich vom Frontend aus NICHT sicher unterscheiden.
+      //
+      // Deshalb schreibt das Frontend hier bewusst NICHTS mehr zurueck auf
+      // den Server - genau dieses automatische Zurueckschreiben hat wiederholt
+      // echte, gespeicherte Konfigurationen (Seiten/Widgets) geloescht, obwohl
+      // der vorherige Fix (Commit 54117a6) bereits alle offensichtlichen
+      // Fehlerfaelle abgesichert hatte. Die einmalige Erstinitialisierung des
+      // States uebernimmt stattdessen ausschliesslich das Backend
+      // (adapter.setObjectNotExistsAsync in adapter/main.js), das dafuer
+      // race-sicher ist. Hier zeigen wir die Default-Konfiguration nur lokal
+      // an, damit die App nutzbar bleibt.
+      if (active) {
         const parsed = migrateConfig(defaultConfig);
-        const nextJson = JSON.stringify(parsed, null, 2);
-        if (!active) {
-          return;
-        }
         setConfig(parsed);
-        setRawJson(nextJson);
-        await writeRemoteConfig(nextJson);
-      } catch (error) {
-        console.warn("Config load failed", error);
+        setRawJson(JSON.stringify(parsed, null, 2));
       }
     };
 
