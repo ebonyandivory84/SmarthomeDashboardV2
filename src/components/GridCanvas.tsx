@@ -428,7 +428,7 @@ function buildSingleColumnSectionStackLayoutConfig(
   options?: AutoLayoutOptions
 ): DashboardSettings {
   // Handy-Raster: 3 Spalten. Normale Widgets belegen die volle Breite (w = 3),
-  // State-Kacheln je eine Spalte (drei pro Reihe wie am Desktop).
+  // Kachel-Widgets (State, Link, Netflix) je eine Spalte (drei pro Reihe wie am Desktop).
   const columns = 3;
   const fullWidthSpecColumns = 1;
   const sourceColumns = Math.max(1, config.grid.columns);
@@ -463,33 +463,33 @@ function buildSingleColumnSectionStackLayoutConfig(
       cursorY = ceilGridUnit(cursorY + sectionSpacing);
     }
 
-    let stateRow: Array<{ widget: WidgetConfig; h: number }> = [];
-    const flushStateRow = () => {
-      if (stateRow.length === 0) {
+    let tileRow: Array<{ widget: WidgetConfig; h: number }> = [];
+    const flushTileRow = () => {
+      if (tileRow.length === 0) {
         return;
       }
       let rowHeight = 0;
-      stateRow.forEach(({ widget, h }, index) => {
+      tileRow.forEach(({ widget, h }, index) => {
         widgets.push({ ...widget, position: { x: index, y: cursorY, w: 1, h } });
         rowHeight = Math.max(rowHeight, h);
       });
       cursorY += rowHeight;
-      stateRow = [];
+      tileRow = [];
     };
 
     for (const widget of sectionWidgets) {
-      if (widget.type === "state") {
-        stateRow.push({
+      if (widget.type === "state" || widget.type === "link" || widget.type === "netflix") {
+        tileRow.push({
           widget,
-          h: stateTileHeightUnits(widget.tileSize === "half", options?.singleColumnMetrics),
+          h: tileHeightUnits(widget.type === "state" && widget.tileSize === "half", options?.singleColumnMetrics),
         });
-        if (stateRow.length === columns) {
-          flushStateRow();
+        if (tileRow.length === columns) {
+          flushTileRow();
         }
         continue;
       }
 
-      flushStateRow();
+      flushTileRow();
       const spec = getAutoLayoutSpec(widget, fullWidthSpecColumns, options);
       const top = cursorY;
       const bottom = spec.fineSnap ? ceilToTenth(top + spec.h) : ceilGridUnitForWidget(top + spec.h, widget.type);
@@ -504,7 +504,7 @@ function buildSingleColumnSectionStackLayoutConfig(
       });
       cursorY = bottom;
     }
-    flushStateRow();
+    flushTileRow();
   }
 
   return {
@@ -979,7 +979,7 @@ function ceilToTenth(value: number) {
   return Math.ceil(value * 10 - 1e-6) / 10;
 }
 
-function stateTileHeightUnits(isHalfTile: boolean, metrics?: SingleColumnMetrics) {
+function tileHeightUnits(isHalfTile: boolean, metrics?: SingleColumnMetrics) {
   const desktopHeight = isHalfTile ? 0.5 : 1;
   if (!metrics) {
     return desktopHeight;
