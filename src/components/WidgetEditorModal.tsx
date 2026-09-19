@@ -151,6 +151,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         maximizeStateId: widget.maximizeStateId || "",
         maximizeTriggerFormat: widget.maximizeTriggerFormat || "boolean",
         maximizeTriggerValue: widget.maximizeTriggerValue || "",
+        maximizeAcrossPages: widget.maximizeAcrossPages ? "true" : "false",
         talkbackWebrtcUrl: widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? widget.talkbackWebrtcUrl || "" : "",
         talkbackPushToTalk: widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? (widget.talkbackPushToTalk !== false ? "true" : "false") : "true",
         talkbackAutoEnableVideo: widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? (widget.talkbackAutoEnableVideo ? "true" : "false") : "false",
@@ -1046,6 +1047,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         maximizeStateId: draft.maximizeStateId || undefined,
         maximizeTriggerFormat: normalizeStateFormat(draft.maximizeTriggerFormat),
         maximizeTriggerValue: draft.maximizeTriggerValue || undefined,
+        maximizeAcrossPages: draft.maximizeAcrossPages === "true" ? true : undefined,
         ...(widget.type === "cameraTalk" || widget.type === "cameraTalkReolink"
           ? {
               talkbackWebrtcUrl: normalizeOptionalInput(draft.talkbackWebrtcUrl),
@@ -2302,6 +2304,20 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     style={styles.input}
                     value={draft.maximizeTriggerValue || ""}
                   />
+                </Field>
+                <Field label="Seitenuebergreifend maximieren">
+                  <CheckboxChoice
+                    label="Auch auf anderen Seiten automatisch maximieren"
+                    value={draft.maximizeAcrossPages || "false"}
+                    onChange={(value) => setDraft((current) => ({ ...current, maximizeAcrossPages: value }))}
+                  />
+                  <Text style={styles.mappingHint}>
+                    Ohne diese Option greift der Trigger nur, waehrend die Seite mit dieser Kamera aktiv angezeigt
+                    wird. Mit aktivierter Option oeffnet sich der Live-Stream maximiert, egal auf welcher Seite man
+                    sich gerade befindet (z. B. bei Personenerkennung) - dafuer laeuft im Hintergrund eine
+                    unsichtbare Instanz, die nur den Trigger-Datenpunkt beobachtet und erst bei Ausloesung den
+                    Stream laedt.
+                  </Text>
                 </Field>
                 <Field label="Sounds bei Interaktion">
                   {widget.type === "cameraTalk" || widget.type === "cameraTalkReolink" ? (

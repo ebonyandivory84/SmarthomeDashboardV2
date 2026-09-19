@@ -49,7 +49,6 @@ export function CameraTalkWidget({
 }: CameraTalkWidgetProps) {
   const documentVisible = useDocumentVisibility();
   const { activeMediaId, activateMedia, releaseMedia } = useLiveMedia();
-  const runtimeActive = isActivePage && documentVisible;
   // Reolink-Modelle (z.B. Fisheye P520) haben stark abweichende Seitenverhaeltnisse
   // gegenueber der Duo3 PoE; hier wird beim Verkleinern proportional skaliert statt gecroppt.
   const isReolink = config.type === "cameraTalkReolink";
@@ -58,6 +57,12 @@ export function CameraTalkWidget({
   const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
   const [loadingLayer, setLoadingLayer] = useState<0 | 1 | null>(null);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  // Siehe CameraWidget.tsx fuer die ausfuehrliche Erklaerung: bei
+  // maximizeAcrossPages bleibt diese Instanz auf anderen Seiten voellig
+  // inaktiv (kein Stream/Preview), bis der Trigger fullscreenOpen auf true
+  // setzt - erst dann wird sie fuer die Dauer der Vollbildanzeige "aktiv".
+  const isCrossPageMaximizeInstance = !isActivePage && Boolean(config.maximizeAcrossPages);
+  const runtimeActive = (isActivePage || (isCrossPageMaximizeInstance && fullscreenOpen)) && documentVisible;
   const [webDocumentFullscreenActive, setWebDocumentFullscreenActive] = useState(false);
   const [webFullscreenZoom, setWebFullscreenZoom] = useState(1);
   const [webFullscreenOffset, setWebFullscreenOffset] = useState({ x: 0, y: 0 });
@@ -163,7 +168,7 @@ export function CameraTalkWidget({
   const useInPlaceFullscreen = false;
   const showInPlaceFullscreen = useInPlaceFullscreen && (fullscreenOpen || webDocumentFullscreenActive);
   const showFixedFallbackFullscreen = showInPlaceFullscreen && !webDocumentFullscreenActive;
-  const showPreviewFeed = !fullscreenOpen || showInPlaceFullscreen;
+  const showPreviewFeed = !isCrossPageMaximizeInstance && (!fullscreenOpen || showInPlaceFullscreen);
   const showNativeFullscreenModal = fullscreenOpen && activeMediaId === config.id;
   const talkbackWebrtcUrl = (config.talkbackWebrtcUrl || "").trim();
   const instarTalkbackEnabled = Platform.OS === "web" && config.instarTalkbackEnabled === true;

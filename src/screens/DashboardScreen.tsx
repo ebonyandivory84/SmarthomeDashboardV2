@@ -20,8 +20,17 @@ import { TopBar } from "../components/TopBar";
 import { WidgetLibraryModal } from "../components/WidgetLibraryModal";
 import { TelegramWidget } from "../components/widgets/TelegramWidget";
 import { useDashboardConfig } from "../context/DashboardConfigContext";
-import { useIoBrokerStates } from "../hooks/useIoBrokerStates";
-import { BackgroundMode, DashboardPageMode, TelegramWidgetConfig, WidgetConfig, WidgetType } from "../types/dashboard";
+import { useIoBrokerStates, useWidgetIoBrokerStates } from "../hooks/useIoBrokerStates";
+import { IoBrokerStateStore } from "../state/IoBrokerStateStore";
+import {
+  BackgroundMode,
+  CameraTalkWidgetConfig,
+  CameraWidgetConfig,
+  DashboardPageMode,
+  TelegramWidgetConfig,
+  WidgetConfig,
+  WidgetType,
+} from "../types/dashboard";
 import { constrainToPrimarySections, normalizeWidgetLayout, resolveWidgetPosition } from "../utils/gridLayout";
 import { buildMobileOverrideFromWidget, resolveMobileWidget } from "../utils/mobileWidget";
 import { configureUiSounds, playConfiguredUiSound, primeConfiguredSounds } from "../utils/uiSounds";
@@ -35,6 +44,11 @@ const LazyWidgetEditorModal = lazy(() =>
 );
 
 const WEB_ACTIVE_PAGE_STORAGE_KEY = "smarthome-dashboard-v2.activePageId";
+
+const LazyCameraWidget = lazy(() => import("../components/widgets/CameraWidget").then((module) => ({ default: module.CameraWidget })));
+const LazyCameraTalkWidget = lazy(() =>
+  import("../components/widgets/CameraTalkWidget").then((module) => ({ default: module.CameraTalkWidget }))
+);
 
 export function DashboardScreen() {
   const { width, height } = useWindowDimensions();
@@ -123,6 +137,31 @@ export function DashboardScreen() {
           widget.backgroundListenMode !== "off"
         ) {
           result.push(widget);
+        }
+      });
+    });
+    return result;
+  }, [activePageId, dashboardPages]);
+
+  // Kamera-/CameraTalk-Widgets mit "maximizeAcrossPages": der Live-Stream
+  // soll bei Trigger (z. B. Personenerkennung) maximiert erscheinen, egal auf
+  // welcher Seite man sich gerade befindet - nicht nur, wenn die Kamera
+  // zufaellig auf der aktiven Seite liegt. Wie bei backgroundTelegramWidgets
+  // oben werden inaktive Seiten komplett unmontiert, also braucht es dafuer
+  // eine zusaetzliche unsichtbare Instanz ausserhalb des Seiten-Pagers.
+  const backgroundMaximizeCameraWidgets = useMemo(() => {
+    const result: Array<CameraWidgetConfig | CameraTalkWidgetConfig> = [];
+    dashboardPages.forEach((page) => {
+      if (page.id === activePageId) {
+        return;
+      }
+      page.widgets.forEach((widget) => {
+        if (
+          (widget.type === "camera" || widget.type === "cameraTalk" || widget.type === "cameraTalkReolink") &&
+          widget.maximizeAcrossPages &&
+          widget.maximizeStateId
+        ) {
+          result.push(widget as CameraWidgetConfig | CameraTalkWidgetConfig);
         }
       });
     });
@@ -942,6 +981,13 @@ export function DashboardScreen() {
           ))}
         </View>
       ) : null}
+      {backgroundMaximizeCameraWidgets.length ? (
+        <View pointerEvents="none" style={styles.backgroundListenerHost}>
+          {backgroundMaximizeCameraWidgets.map((widget) => (
+            <BackgroundCameraMaximizeWatcher key={widget.id} widget={widget} stateStore={stateStore} />
+          ))}
+        </View>
+      ) : null}
       <TopBar
         homeLabel={config.homeLabel || "My Home"}
         activePageId={visiblePageId}
@@ -1228,6 +1274,35 @@ export function DashboardScreen() {
         </View>
       </Modal>
     </View>
+  );
+}
+
+// Haelt fuer ein Kamera-/CameraTalk-Widget mit "maximizeAcrossPages" auf
+// einer nicht aktiven Seite dessen maximizeStateId im Auge (ueber den
+// bereits global gefuehrten ioBroker-State-Store - dafuer muss die Seite
+// nicht aktiv sein) und rendert dafuer eine unsichtbare Zweitinstanz des
+// Widgets mit isActivePage=false. Solange kein Trigger vorliegt, bleibt
+// diese Instanz komplett inaktiv (siehe isCrossPageMaximizeInstance in
+// CameraWidget.tsx/CameraTalkWidget.tsx); erst der Trigger startet den
+// Live-Stream und oeffnet das (seitenunabhaengige) Vollbild-Modal.
+function BackgroundCameraMaximizeWatcher({
+  widget,
+  stateStore,
+}: {
+  widget: CameraWidgetConfig | CameraTalkWidgetConfig;
+  stateStore: IoBrokerStateStore;
+}) {
+  const states = useWidgetIoBrokerStates(stateStore, widget);
+  const maximizeStateValue = widget.maximizeStateId ? states[widget.maximizeStateId] : undefined;
+
+  return (
+    <Suspense fallback={null}>
+      {widget.type === "camera" ? (
+        <LazyCameraWidget config={widget} isActivePage={false} maximizeStateValue={maximizeStateValue} />
+      ) : (
+        <LazyCameraTalkWidget config={widget} isActivePage={false} maximizeStateValue={maximizeStateValue} />
+      )}
+    </Suspense>
   );
 }
 

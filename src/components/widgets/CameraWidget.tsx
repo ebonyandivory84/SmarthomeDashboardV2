@@ -49,12 +49,22 @@ export function CameraWidget({
 }: CameraWidgetProps) {
   const documentVisible = useDocumentVisibility();
   const { activeMediaId, activateMedia, releaseMedia } = useLiveMedia();
-  const runtimeActive = isActivePage && documentVisible;
   const [tick, setTick] = useState(0);
   const [layerUrls, setLayerUrls] = useState<[string | null, string | null]>([null, null]);
   const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
   const [loadingLayer, setLoadingLayer] = useState<0 | 1 | null>(null);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  // "Im Hintergrund lauschen" fuers Kamera-Widget: Bei maximizeAcrossPages
+  // haelt eine unsichtbar weitergemountete Zweitinstanz (isActivePage=false)
+  // auf anderen Seiten NUR den Trigger-Zustand im Auge - sie bleibt komplett
+  // inaktiv (kein Stream/Preview-Polling), bis der Trigger tatsaechlich
+  // ausloest und fullscreenOpen auf true springt. Erst dann wird sie fuer die
+  // Dauer der Vollbildanzeige "aktiv", damit der Live-Stream geladen werden
+  // kann - sobald man schliesst, faellt sie zurueck in den reinen
+  // Lauschmodus. Auf der eigenen aktiven Seite (isActivePage=true) aendert
+  // sich am bisherigen Verhalten nichts.
+  const isCrossPageMaximizeInstance = !isActivePage && Boolean(config.maximizeAcrossPages);
+  const runtimeActive = (isActivePage || (isCrossPageMaximizeInstance && fullscreenOpen)) && documentVisible;
   const [webDocumentFullscreenActive, setWebDocumentFullscreenActive] = useState(false);
   const [webFullscreenZoom, setWebFullscreenZoom] = useState(1);
   const [webFullscreenOffset, setWebFullscreenOffset] = useState({ x: 0, y: 0 });
@@ -134,7 +144,12 @@ export function CameraWidget({
   const useInPlaceFullscreen = false;
   const showInPlaceFullscreen = useInPlaceFullscreen && (fullscreenOpen || webDocumentFullscreenActive);
   const showFixedFallbackFullscreen = showInPlaceFullscreen && !webDocumentFullscreenActive;
-  const showPreviewFeed = !fullscreenOpen || showInPlaceFullscreen;
+  // Die unsichtbare Hintergrund-Instanz (isCrossPageMaximizeInstance) zeigt
+  // nie die kleine Vorschau-Kachel - die waere ohnehin unsichtbar (0x0,
+  // geclippt), wuerde aber trotzdem MJPEG/Snapshot-Stream laden. Die grosse
+  // Vollbildansicht haengt separat an fullscreenOpen und bleibt davon
+  // unberuehrt.
+  const showPreviewFeed = !isCrossPageMaximizeInstance && (!fullscreenOpen || showInPlaceFullscreen);
   const showNativeFullscreenModal = fullscreenOpen && activeMediaId === config.id;
   const activeFeed = fullscreenOpen ? fullscreenFeed || previewFeed : previewFeed;
   const activeSnapshotBaseUrl = activeFeed?.kind === "snapshot" ? activeFeed.url : null;

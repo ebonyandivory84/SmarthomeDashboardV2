@@ -142,6 +142,15 @@ export type CameraWidgetConfig = WidgetBase & {
   maximizeStateId?: string;
   maximizeTriggerFormat?: "boolean" | "number" | "text";
   maximizeTriggerValue?: string;
+  /**
+   * Wenn true UND maximizeStateId gesetzt ist, wird dieser Trigger
+   * seitenuebergreifend ueberwacht: Ein passender Zustandswechsel oeffnet den
+   * Live-Stream maximiert, auch waehrend eine andere Seite aktiv angezeigt
+   * wird (z. B. Personenerkennung). Dafuer haelt eine unsichtbare
+   * Hintergrund-Instanz dieses Widgets nur den Trigger-Zustand im Auge -
+   * sie streamt/rendert nichts, bis der Trigger tatsaechlich ausloest.
+   */
+  maximizeAcrossPages?: boolean;
 };
 
 export type CameraTalkWidgetConfig = Omit<CameraWidgetConfig, "type"> & {
