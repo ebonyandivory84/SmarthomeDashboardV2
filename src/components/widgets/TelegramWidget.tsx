@@ -46,9 +46,26 @@ export function TelegramWidget({
   notificationsEnabled = true,
 }: TelegramWidgetProps) {
   const documentVisible = useDocumentVisibility();
-  const runtimeActive = isActivePage && documentVisible;
+  // "off" (Standard) = wie bisher nur lauschen/benachrichtigen, waehrend die
+  // Seite dieses Widgets aktiv angezeigt wird. "all"/"criticalOnly" halten
+  // WebSocket/Polling ueber Seitenwechsel hinweg am Laufen, damit z. B. eine
+  // Alarm-Seite auch benachrichtigt, waehrend man sich eine andere Seite
+  // anschaut.
+  const backgroundListenMode = config.backgroundListenMode || "off";
+  const listeningActive = isActivePage || backgroundListenMode !== "off";
+  const runtimeActive = listeningActive && documentVisible;
+  // Diese Instanz ist entweder die normale, sichtbare Widget-Instanz auf
+  // ihrer eigenen (aktiven) Seite, oder - bei "Im Hintergrund lauschen" - eine
+  // unsichtbar weitergemountete Zweitinstanz, die nur lauscht/benachrichtigt,
+  // waehrend eine andere Seite gezeigt wird. Im letzteren Fall wird die
+  // (potenziell grosse) Nachrichtenliste bewusst NICHT gerendert/aktualisiert -
+  // das spart auf dem RK3399 unnoetige Arbeit, solange man sie ohnehin nicht
+  // sieht. Sobald die Seite (wieder) aktiv wird, holt der Effekt weiter unten
+  // den zuletzt bekannten Stand sofort nach.
+  const isBackgroundInstance = !isActivePage && backgroundListenMode !== "off";
   const { dashboardPages, activePageId, setActivePage } = useDashboardConfig();
   const [entries, setEntries] = useState<TelegramWidgetHistoryEntry[]>([]);
+  const latestEntriesRef = useRef<TelegramWidgetHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [isScrollActive, setIsScrollActive] = useState(false);
@@ -101,10 +118,15 @@ export function TelegramWidget({
     [config.criticalKeywords]
   );
 
+  const effectiveNotificationsEnabled = notificationsEnabled || backgroundListenMode !== "off";
+
   const applyEntries = useCallback(
     (nextEntries: TelegramWidgetHistoryEntry[], suppressIncomingSound = false) => {
       const cappedEntries = nextEntries.slice(-maxEntries);
-      setEntries(cappedEntries);
+      latestEntriesRef.current = cappedEntries;
+      if (!isBackgroundInstance) {
+        setEntries(cappedEntries);
+      }
       setError(null);
 
       const nextLatestTimestamp = cappedEntries.reduce(
@@ -112,7 +134,7 @@ export function TelegramWidget({
         0
       );
 
-      if (suppressIncomingSound || !notificationsEnabled) {
+      if (suppressIncomingSound || !effectiveNotificationsEnabled) {
         latestSeenTimestampRef.current = Math.max(latestSeenTimestampRef.current, nextLatestTimestamp);
         return;
       }
@@ -143,6 +165,13 @@ export function TelegramWidget({
           return criticalKeywords.some((keyword) => text.includes(keyword));
         });
 
+      // Im Hintergrund mit "criticalOnly" interessieren nur kritische Treffer -
+      // eine normale Nachricht bleibt dort bewusst stumm. Bei "all" wird auch
+      // im Hintergrund ganz normal benachrichtigt.
+      if (isBackgroundInstance && backgroundListenMode === "criticalOnly" && !isCritical) {
+        return;
+      }
+
       if (isCritical) {
         playConfiguredUiSound(
           config.interactionSounds?.notifyError?.length
@@ -159,11 +188,22 @@ export function TelegramWidget({
       config.id,
       config.interactionSounds?.notify,
       config.interactionSounds?.notifyError,
+      backgroundListenMode,
       criticalKeywords,
+      effectiveNotificationsEnabled,
+      isBackgroundInstance,
       maxEntries,
-      notificationsEnabled,
     ]
   );
+
+  // Sobald die Seite dieses Widgets (wieder) aktiv wird, den zuletzt im
+  // Hintergrund empfangenen Stand sofort anzeigen, statt auf die naechste
+  // Nachricht/den naechsten Poll-Tick zu warten.
+  useEffect(() => {
+    if (isActivePage) {
+      setEntries(latestEntriesRef.current);
+    }
+  }, [isActivePage]);
 
   useEffect(() => {
     // Snapshot pushes fire on every history change, including pure edits

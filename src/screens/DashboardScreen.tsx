@@ -18,9 +18,10 @@ import { GridCanvas, prefetchLazyWidgetModules } from "../components/GridCanvas"
 import { SettingsModal } from "../components/SettingsModal";
 import { TopBar } from "../components/TopBar";
 import { WidgetLibraryModal } from "../components/WidgetLibraryModal";
+import { TelegramWidget } from "../components/widgets/TelegramWidget";
 import { useDashboardConfig } from "../context/DashboardConfigContext";
 import { useIoBrokerStates } from "../hooks/useIoBrokerStates";
-import { BackgroundMode, DashboardPageMode, WidgetConfig, WidgetType } from "../types/dashboard";
+import { BackgroundMode, DashboardPageMode, TelegramWidgetConfig, WidgetConfig, WidgetType } from "../types/dashboard";
 import { constrainToPrimarySections, normalizeWidgetLayout, resolveWidgetPosition } from "../utils/gridLayout";
 import { buildMobileOverrideFromWidget, resolveMobileWidget } from "../utils/mobileWidget";
 import { configureUiSounds, playConfiguredUiSound, primeConfiguredSounds } from "../utils/uiSounds";
@@ -102,6 +103,31 @@ export function DashboardScreen() {
   const lastContentScrollAt = useRef(0);
   const activePageIndex = Math.max(0, dashboardPages.findIndex((page) => page.id === activePageId));
   const pdfSlideshowBadgeCounts = usePdfSlideshowBadgeCounts(dashboardPages, client);
+  // Telegram-Widgets mit "Im Hintergrund lauschen" muessen weiter WebSocket/
+  // Polling am Laufen halten, auch wenn ihre eigene Seite gerade nicht aktiv
+  // ist. GridCanvas rendert aber nur die Widgets der aktiven Seite (siehe
+  // shouldRenderContent weiter unten) - alle anderen Seiten sind komplett
+  // ausgehaengt, damit sie keine Leistung kosten. Fuer genau diese
+  // Ausnahme werden solche Widgets deshalb zusaetzlich unsichtbar (0x0,
+  // clipped) weiter gerendert, unabhaengig von der aktiven Seite.
+  const backgroundTelegramWidgets = useMemo(() => {
+    const result: TelegramWidgetConfig[] = [];
+    dashboardPages.forEach((page) => {
+      if (page.id === activePageId) {
+        return;
+      }
+      page.widgets.forEach((widget) => {
+        if (
+          widget.type === "telegram" &&
+          widget.backgroundListenMode &&
+          widget.backgroundListenMode !== "off"
+        ) {
+          result.push(widget);
+        }
+      });
+    });
+    return result;
+  }, [activePageId, dashboardPages]);
 
   const pageConfigs = useMemo(
     () =>
@@ -869,6 +895,13 @@ export function DashboardScreen() {
         imageBlur={config.backgroundImageBlur}
         mode={config.backgroundMode}
       />
+      {backgroundTelegramWidgets.length ? (
+        <View pointerEvents="none" style={styles.backgroundListenerHost}>
+          {backgroundTelegramWidgets.map((widget) => (
+            <TelegramWidget key={widget.id} client={client} config={widget} isActivePage={false} />
+          ))}
+        </View>
+      ) : null}
       <TopBar
         homeLabel={config.homeLabel || "My Home"}
         activePageId={visiblePageId}
@@ -1334,6 +1367,17 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#000000",
+  },
+  // Haelt Telegram-Widgets mit "Im Hintergrund lauschen" im React-Baum
+  // gemountet (damit ihre Effekte/WebSockets weiterlaufen), ohne sie
+  // sichtbar darzustellen oder Platz einzunehmen.
+  backgroundListenerHost: {
+    height: 0,
+    width: 0,
+    overflow: "hidden",
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
   scroll: {
     flex: 1,

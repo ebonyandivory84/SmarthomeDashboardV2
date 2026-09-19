@@ -332,6 +332,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         maxEntries: String(widget.maxEntries || 200),
         composerEnabled: widget.composerEnabled === false ? "false" : "true",
         criticalKeywords: (widget.criticalKeywords || []).join(", "),
+        backgroundListenMode: widget.backgroundListenMode || "off",
         backgroundImage: widget.backgroundImage || "",
         backgroundImageBlur: String(widget.backgroundImageBlur ?? 8),
         colorTheme: widget.colorTheme === "alarm" ? "alarm" : "standard",
@@ -1152,6 +1153,10 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         maxEntries: clampIntMax(draft.maxEntries, widget.maxEntries || 200, 10, 200),
         composerEnabled: draft.composerEnabled !== "false",
         criticalKeywords: parseKeywordList(draft.criticalKeywords),
+        backgroundListenMode:
+          draft.backgroundListenMode === "all" || draft.backgroundListenMode === "criticalOnly"
+            ? draft.backgroundListenMode
+            : undefined,
         backgroundImage: draft.backgroundImage?.trim() || undefined,
         backgroundImageBlur: clampInt(draft.backgroundImageBlur, widget.backgroundImageBlur ?? 8, 0),
         colorTheme: draft.colorTheme === "alarm" ? "alarm" : "standard",
@@ -2858,6 +2863,20 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     value={draft.composerEnabled || "true"}
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
                   />
+                </Field>
+                <Field label="Im Hintergrund lauschen (auch auf anderen Seiten)">
+                  <ChoiceRow
+                    options={["Aus", "Alle Nachrichten", "Nur kritische"]}
+                    value={backgroundListenModeToLabel(draft.backgroundListenMode)}
+                    onSelect={(label) =>
+                      setDraft((current) => ({ ...current, backgroundListenMode: backgroundListenModeFromLabel(label) }))
+                    }
+                  />
+                  <Text style={styles.mappingHint}>
+                    "Aus": Sound nur, solange diese Seite aktiv ist. "Alle Nachrichten": Sound spielt seitenuebergreifend
+                    bei jeder eingehenden Nachricht. "Nur kritische": seitenuebergreifend nur bei Treffern der
+                    kritischen Stichwoerter.
+                  </Text>
                 </Field>
                 </Section>
                 <Section title="Darstellung">
@@ -5493,6 +5512,21 @@ function EditorButtonPressable({
 
 function normalizeStateLabelMode(value: unknown): "auto" | "always" | "never" {
   return value === "always" || value === "never" ? value : "auto";
+}
+
+const BACKGROUND_LISTEN_MODE_LABELS: Record<string, string> = {
+  off: "Aus",
+  all: "Alle Nachrichten",
+  criticalOnly: "Nur kritische",
+};
+
+function backgroundListenModeToLabel(value: string | undefined): string {
+  return BACKGROUND_LISTEN_MODE_LABELS[value || "off"] || BACKGROUND_LISTEN_MODE_LABELS.off;
+}
+
+function backgroundListenModeFromLabel(label: string): "off" | "all" | "criticalOnly" {
+  const entry = Object.entries(BACKGROUND_LISTEN_MODE_LABELS).find(([, value]) => value === label);
+  return (entry?.[0] as "off" | "all" | "criticalOnly") || "off";
 }
 
 function ChoiceRow({
