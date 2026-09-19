@@ -175,7 +175,8 @@ export function GridCanvas({
     () => (isCompactViewport ? applyMobileOverridesToSettings(config) : config),
     [config, isCompactViewport]
   );
-  const canvasInset = Platform.OS === "web" ? (isPhoneSingleColumn ? 14 : 64) : 60;
+  // Handy: styles.canvas.margin (20) links und rechts, sonst ragt das Raster rechts aus dem Bild.
+  const canvasInset = Platform.OS === "web" ? (isPhoneSingleColumn ? 40 : 64) : 60;
   const availableWidth = containerWidth > 0 ? containerWidth : windowWidth;
   const canvasWidth = Math.max(320, availableWidth - canvasInset);
   const singleColumnMetrics = useMemo<SingleColumnMetrics | undefined>(
