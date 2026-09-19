@@ -85,6 +85,17 @@ export function TelegramWidget({
   const nativeListRef = useRef<ScrollView | null>(null);
   const lastScrollSoundAtRef = useRef(0);
   const latestSeenTimestampRef = useRef(0);
+  // Die allererste WS-"snapshot"-Nachricht nach einem (Re-)Mount enthaelt den
+  // kompletten Verlauf - inklusive laengst gesehener/bereits benachrichtigter
+  // Eintraege. Ohne diese Sperre wuerde z. B. beim Seitenwechsel zu einer
+  // Seite, deren Telegram-Widget gerade eine kritische Meldung im
+  // Hintergrund gemeldet hat, der Alarmton erneut abgespielt, sobald die
+  // (neu gemountete) sichtbare Instanz denselben, bereits gehoerten Eintrag
+  // zum ersten Mal sieht (latestSeenTimestampRef startet bei jedem Mount bei
+  // 0). Nur die allererste Nachricht wird deshalb stumm angewendet; echte
+  // neue Nachrichten danach (auch nach einem WS-Reconnect) loesen wie gewohnt
+  // einen Ton aus.
+  const hasReceivedFirstWsSnapshotRef = useRef(false);
   const scrollModeCallbackRef = useRef(onScrollModeChange);
 
   useEffect(() => {
@@ -363,7 +374,9 @@ export function TelegramWidget({
         try {
           const payload = JSON.parse(String(event.data ?? ""));
           if (payload?.type === "snapshot" && Array.isArray(payload?.entries)) {
-            applyEntries(payload.entries as TelegramWidgetHistoryEntry[], false);
+            const suppressIncomingSound = !hasReceivedFirstWsSnapshotRef.current;
+            hasReceivedFirstWsSnapshotRef.current = true;
+            applyEntries(payload.entries as TelegramWidgetHistoryEntry[], suppressIncomingSound);
             return;
           }
           if (payload?.type === "error" && typeof payload?.message === "string") {
