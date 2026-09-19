@@ -94,6 +94,13 @@ export function TelegramWidget({
     nativeListRef.current?.scrollToEnd({ animated: false });
   }, []);
 
+  // Kleingeschrieben und ohne Leereintraege vorbereitet, damit der Abgleich pro
+  // eingehender Nachricht nur noch ein simpler Teilstring-Check ist.
+  const criticalKeywords = useMemo(
+    () => (config.criticalKeywords || []).map((keyword) => keyword.trim().toLowerCase()).filter(Boolean),
+    [config.criticalKeywords]
+  );
+
   const applyEntries = useCallback(
     (nextEntries: TelegramWidgetHistoryEntry[], suppressIncomingSound = false) => {
       const cappedEntries = nextEntries.slice(-maxEntries);
@@ -119,11 +126,38 @@ export function TelegramWidget({
       );
       latestSeenTimestampRef.current = nextLatestTimestamp;
 
-      if (incomingEntries.some((entry) => entry.direction === "in")) {
+      const incomingMessages = incomingEntries.filter((entry) => entry.direction === "in");
+      if (!incomingMessages.length) {
+        return;
+      }
+
+      const isCritical =
+        criticalKeywords.length > 0 &&
+        incomingMessages.some((entry) => {
+          const text = (entry.text || "").toLowerCase();
+          return criticalKeywords.some((keyword) => text.includes(keyword));
+        });
+
+      if (isCritical) {
+        playConfiguredUiSound(
+          config.interactionSounds?.notifyError?.length
+            ? config.interactionSounds.notifyError
+            : config.interactionSounds?.notify,
+          "page",
+          `${config.id}:incoming-telegram:critical`
+        );
+      } else {
         playConfiguredUiSound(config.interactionSounds?.notify, "page", `${config.id}:incoming-telegram`);
       }
     },
-    [config.id, config.interactionSounds?.notify, maxEntries, notificationsEnabled]
+    [
+      config.id,
+      config.interactionSounds?.notify,
+      config.interactionSounds?.notifyError,
+      criticalKeywords,
+      maxEntries,
+      notificationsEnabled,
+    ]
   );
 
   useEffect(() => {

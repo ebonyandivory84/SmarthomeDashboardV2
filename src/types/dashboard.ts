@@ -230,6 +230,12 @@ export type TelegramWidgetConfig = WidgetBase & {
   alarmPrimaryButtonTextColor?: string;
   alarmSecondaryButtonColor?: string;
   alarmSecondaryButtonTextColor?: string;
+  /**
+   * Stichwoerter (kleingeschrieben verglichen, Teilstring-Treffer), bei denen
+   * eine eingehende Nachricht als kritisch gilt und interactionSounds.notifyError
+   * statt interactionSounds.notify abspielt.
+   */
+  criticalKeywords?: string[];
 };
 
 export type ScriptWidgetConfig = WidgetBase & {

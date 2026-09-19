@@ -318,6 +318,10 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
           widget.interactionSounds?.notify,
           config.uiSounds?.widgetTypeDefaults?.telegram?.notify
         ),
+        notifyError: resolveDraftSoundValue(
+          widget.interactionSounds?.notifyError,
+          config.uiSounds?.widgetTypeDefaults?.telegram?.notifyError
+        ),
       });
       setWeatherSuggestions([]);
       setWeatherSearchBusy(false);
@@ -327,6 +331,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         refreshMs: String(widget.refreshMs || 2500),
         maxEntries: String(widget.maxEntries || 200),
         composerEnabled: widget.composerEnabled === false ? "false" : "true",
+        criticalKeywords: (widget.criticalKeywords || []).join(", "),
         backgroundImage: widget.backgroundImage || "",
         backgroundImageBlur: String(widget.backgroundImageBlur ?? 8),
         colorTheme: widget.colorTheme === "alarm" ? "alarm" : "standard",
@@ -1146,6 +1151,7 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
         refreshMs: clampInt(draft.refreshMs, widget.refreshMs || 2500, 800),
         maxEntries: clampIntMax(draft.maxEntries, widget.maxEntries || 200, 10, 200),
         composerEnabled: draft.composerEnabled !== "false",
+        criticalKeywords: parseKeywordList(draft.criticalKeywords),
         backgroundImage: draft.backgroundImage?.trim() || undefined,
         backgroundImageBlur: clampInt(draft.backgroundImageBlur, widget.backgroundImageBlur ?? 8, 0),
         colorTheme: draft.colorTheme === "alarm" ? "alarm" : "standard",
@@ -2853,6 +2859,20 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                     onChange={(value) => setDraft((current) => ({ ...current, composerEnabled: value }))}
                   />
                 </Field>
+                <Field label="Kritische Stichwoerter (kommagetrennt)">
+                  <TextInput
+                    autoCapitalize="none"
+                    onChangeText={(value) => setDraft((current) => ({ ...current, criticalKeywords: value }))}
+                    placeholder="z.B. alarm, notfall, wasser"
+                    placeholderTextColor={palette.textMuted}
+                    style={styles.input}
+                    value={draft.criticalKeywords || ""}
+                  />
+                  <Text style={styles.mappingHint}>
+                    Enthaelt eine eingehende Nachricht eines dieser Woerter (Gross-/Kleinschreibung egal), spielt
+                    "Kritische Nachricht" statt "Neue Nachricht" weiter unten unter Sounds.
+                  </Text>
+                </Field>
                 </Section>
                 <Section title="Darstellung">
                 <Field label="Farbthema">
@@ -2941,6 +2961,13 @@ export function WidgetEditorModal({ client, widget, visible, onClose, onSave }: 
                       onChange={(value) => setSoundDraft((current) => ({ ...current, notify: value }))}
                       value={soundDraft.notify}
                     />
+                  </Field>
+                  <Field label="Kritische Nachricht (Stichwort-Treffer)">
+                    <SoundPickerField
+                      onChange={(value) => setSoundDraft((current) => ({ ...current, notifyError: value }))}
+                      value={soundDraft.notifyError}
+                    />
+                    <Text style={styles.mappingHint}>Ohne eigene Auswahl wird "Neue Nachricht" verwendet.</Text>
                   </Field>
                   <EditorButtonPressable onPress={saveSoundsAsTypeDefault} style={styles.inlineActionButton}>
                     <Text style={styles.inlineActionLabel}>Als Default fuer alle Telegram-Widgets verwenden</Text>
@@ -6125,6 +6152,16 @@ function getWidgetAppearanceDefaults(
     cardColor: theme.solar.nodeCardBackground,
     statColor: theme.solar.statCardBackground,
   };
+}
+
+/** Kommagetrennte Stichwoerter aus dem Editor-Entwurf lesen: getrimmt, Leereintraege raus, Duplikate raus. */
+function parseKeywordList(raw: string | undefined): string[] | undefined {
+  const items = String(raw || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const unique = Array.from(new Set(items));
+  return unique.length ? unique : undefined;
 }
 
 /** Skalengrenze aus dem Editor-Entwurf lesen; leere oder unsinnige Eingaben fallen auf die Vorgabe zurueck. */
